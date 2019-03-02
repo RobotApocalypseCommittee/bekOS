@@ -131,6 +131,10 @@ void kernel_main(uint32_t r0, uint32_t r1, uint32_t atags)
     uart_init();
     uart_puts("Hello, kernel World!\r\n");
 
+    unsigned int x = 33304872;
+    x = x / 876444;
+    uart_putc(x);
+
     unsigned char input;
     while (true) {
         input = uart_getc();
