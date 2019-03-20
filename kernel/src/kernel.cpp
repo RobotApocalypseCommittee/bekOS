@@ -121,10 +121,9 @@ void uart_puts(const char* str)
 }
 
 extern "C" /* Use C linkage for kernel_main. */
-void kernel_main(uint32_t r0, uint32_t r1, uint32_t atags)
+void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
 {
     // Declare as unused
-    (void) r0;
     (void) r1;
     (void) atags;
 
@@ -134,6 +133,10 @@ void kernel_main(uint32_t r0, uint32_t r1, uint32_t atags)
     unsigned int x = 33304872;
     x = x / 876444;
     uart_putc(x);
+    uart_putc('\n');
+    uart_puts("Exception level: ");
+    uart_putc(el + 48);
+    uart_putc('\n');
 
     unsigned char input;
     while (true) {

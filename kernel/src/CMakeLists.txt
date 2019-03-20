@@ -1,7 +1,7 @@
 
 
-add_executable(kernel boot.S kernel.cpp)
-target_include_directories(kernel PRIVATE ${freestanding_include_directories})
+add_executable(kernel boot.S mm.S kernel.cpp)
+target_include_directories(kernel PRIVATE ${freestanding_include_directories} ${CMAKE_CURRENT_SOURCE_DIR}/../include)
 target_compile_options(kernel PRIVATE -ffreestanding -nostdinc -nostdlib -nostartfiles)
 set_target_properties(kernel PROPERTIES
         LINK_FLAGS "-nostdlib -nostartfiles -T ${CMAKE_SOURCE_DIR}/kernel-link.ld"

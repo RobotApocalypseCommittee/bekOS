@@ -40,6 +40,6 @@ set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 
 
-add_subdirectory(src/kernel)
+add_subdirectory(kernel/src)
 
 
