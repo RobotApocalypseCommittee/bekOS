@@ -46,4 +46,15 @@
 #define SPSR_EL1h           (5 << 0)
 #define SPSR_VALUE          (SPSR_MASK_ALL | SPSR_EL1h)
 
+// TCR register controls the mapping tables
+// Value of 16 -> Max mapping
+#define TCR_T0SZ			(64 - 48)
+// Ditto, shifted for register location in TCR
+#define TCR_T1SZ			((64 - 48) << 16)
+// Set the granule sizes to 4KB
+#define TCR_TG0_4K			(0 << 14)
+#define TCR_TG1_4K			(2 << 30)
+
+#define TCR_VALUE			(TCR_T0SZ | TCR_T1SZ | TCR_TG0_4K | TCR_TG1_4K)
+
 #endif //BEKOS_SYSTEM_REGISTERS_H
