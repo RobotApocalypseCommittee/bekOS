@@ -66,6 +66,7 @@
 
 void memzero(unsigned long src, unsigned long n);
 
+
 #endif
 
 #endif //BEKOS_MM_H

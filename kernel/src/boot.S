@@ -2,7 +2,6 @@
 #include "system_registers.h"
 #include "mm.h"
 #include "memory_locations.h"
-#include "peripherals/peripherals.h"
 
 // To ensure it's at the start
 .section ".text.boot"
@@ -23,6 +22,14 @@ _start:
     // Disable MMU, and set system control
     ldr	x0, =SCTLR_VALUE_MMU_DISABLED
 	msr	sctlr_el1, x0
+
+	// Disable trapping of accessing in EL3 and EL2.
+    MSR CPTR_EL3, XZR
+    MSR CPTR_EL3, XZR
+    // Disable access trapping in EL1 and EL0.
+    MOV X1, #(0x3 << 20) // FPEN disables trapping to EL1.
+    MSR CPACR_EL1, X1
+    ISB
 
     // Hypervisor(EL2) state
 	ldr	x0, =HCR_VALUE
@@ -73,7 +80,7 @@ master:
 	mov	x0, #SCTLR_MMU_ENABLED
 	msr	sctlr_el1, x0
 
-	br x2
+	blr x2
     // stop this core
     b 1b
 
