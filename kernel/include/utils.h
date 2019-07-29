@@ -17,9 +17,12 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-.globl memzero
-memzero:
-    str xzr, [x0], #8
-    subs x1, x1, #8
-    b.gt memzero
-    ret
+#ifndef BEKOS_UTILS_H
+#define BEKOS_UTILS_H
+
+#include <stddef.h>
+#include <stdint.h>
+
+void memcpy(void * src, void* dest, size_t length);
+
+#endif //BEKOS_UTILS_H

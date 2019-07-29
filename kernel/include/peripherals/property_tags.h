@@ -17,9 +17,41 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-.globl memzero
-memzero:
-    str xzr, [x0], #8
-    subs x1, x1, #8
-    b.gt memzero
-    ret
+#ifndef BEKOS_PROPERTY_TAGS_H
+#define BEKOS_PROPERTY_TAGS_H
+
+
+#include <stdint.h>
+#include "mailbox.h"
+
+struct PropertyTagHeader {
+    uint32_t tag_id;
+    uint32_t val_buffer_size;
+    uint32_t code;
+    // Here goes data + padding
+} __attribute__ ((packed));
+
+
+struct PropertyTagClockRate {
+    PropertyTagHeader header;
+    uint32_t clock_id;
+    // Response V
+    uint32_t rate;
+} __attribute__ ((packed));
+
+class property_tags {
+public:
+    property_tags();
+
+    bool request_tag(uint32_t tag_id, void* tag, int tag_length);
+
+
+private:
+    // TODO: THis is static, and too short for some properties - work something out
+    alignas(16) uint32_t buffer_storage[256];
+    MailboxChannel m_mailbox;
+
+};
+
+
+#endif //BEKOS_PROPERTY_TAGS_H

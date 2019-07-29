@@ -17,9 +17,12 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-.globl memzero
-memzero:
-    str xzr, [x0], #8
-    subs x1, x1, #8
-    b.gt memzero
-    ret
+#include "utils.h"
+
+void memcpy(void* src, void* dest, size_t length) {
+    uint8_t* bsrc = (uint8_t*) src;
+    uint8_t* bdest = (uint8_t*) dest;
+    for (size_t i = 0; i < length; i++) {
+        bdest[i] = bsrc[i];
+    }
+}

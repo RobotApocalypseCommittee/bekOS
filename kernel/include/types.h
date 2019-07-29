@@ -17,9 +17,17 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-.globl memzero
-memzero:
-    str xzr, [x0], #8
-    subs x1, x1, #8
-    b.gt memzero
-    ret
+#ifndef BEKOS_TYPES_H
+#define BEKOS_TYPES_H
+
+typedef unsigned char u8;
+typedef unsigned short u16;
+typedef unsigned int u32;
+typedef unsigned long u64;
+
+typedef signed char u8;
+typedef signed short u16;
+typedef signed int u32;
+typedef signed long u64
+
+#endif //BEKOS_TYPES_H

@@ -17,9 +17,20 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-.globl memzero
-memzero:
-    str xzr, [x0], #8
-    subs x1, x1, #8
-    b.gt memzero
-    ret
+#ifndef BEKOS_MAILBOX_H
+#define BEKOS_MAILBOX_H
+
+#include <stdint.h>
+
+class MailboxChannel {
+public:
+    explicit MailboxChannel(const uint32_t &channel);
+    uint32_t read();
+    void write(uint32_t data);
+    void flush();
+
+private:
+    uint32_t channel;
+};
+
+#endif //BEKOS_MAILBOX_H
