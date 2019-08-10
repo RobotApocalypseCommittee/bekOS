@@ -39,6 +39,17 @@ struct PropertyTagClockRate {
     uint32_t rate;
 } __attribute__ ((packed));
 
+struct PropertyTagPowerState {
+    PropertyTagHeader header;
+    uint32_t device_id;
+    // Get = response, Set = parameter + response
+    uint32_t state;
+#define POWER_STATE_ON 0x1
+#define POWER_STATE_OFF 0x0
+#define POWER_STATE_WAIT 0x2
+#define POWER_STATE_NODEVICE 0x2
+} __attribute__ ((packed));
+
 class property_tags {
 public:
     property_tags();

@@ -57,6 +57,16 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
         printf("H264 Clock Rate: %u\n", clockTag.rate);
     }
 
+    uint32_t cap0 = mmio_read(PERIPHERAL_BASE + 0x300000 + 0x40);
+    bool supports_sdma = ((cap0>>22) & 1);
+    if (supports_sdma) {
+        printf("Supports SDMA\n");
+    } else {
+        printf("No SDMA\n");
+    }
+    printf("CAP0: %u\n", cap0);
+    printf("Reported clock: %u\n", ((cap0 >> 8) & 0xff) * 1000000);
+
     unsigned char c;
 
     while(true) {
