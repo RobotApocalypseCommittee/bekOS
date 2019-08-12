@@ -21,6 +21,7 @@
 #include <stdint.h>
 #include <peripherals/gentimer.h>
 #include <peripherals/property_tags.h>
+#include <peripherals/emmc.h>
 #include "peripherals/uart.h"
 #include "printf.h"
 
@@ -66,6 +67,25 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
     }
     printf("CAP0: %u\n", cap0);
     printf("Reported clock: %u\n", ((cap0 >> 8) & 0xff) * 1000000);
+
+    printf("Here goes...\n");
+
+    SDCard my_sd;
+    if (my_sd.init()) {
+        printf("Init success\n");
+        // Declare a buffer array
+        uint32_t my_array[128];
+        printf("my_array size: %u\n", sizeof(my_array));
+        my_sd.read(0, my_array, 512);
+        printf("Did a read...\n");
+        printf("Last 4 bytes: %u\n", my_array[127]);
+        printf("Doing write\n");
+        my_array[100] = 0x12345678;
+        my_sd.write(0, my_array, 512);
+        printf("Done\n");
+    } else {
+        printf("Init not success\n");
+    }
 
     unsigned char c;
 

@@ -26,3 +26,10 @@ void memcpy(void* src, void* dest, size_t length) {
         bdest[i] = bsrc[i];
     }
 }
+
+uint32_t byte_swap32(uint32_t swapee) {
+    return ((swapee & 0xFF000000) >> 24) |
+            ((swapee & 0x00FF0000) >> 8) |
+            ((swapee & 0x0000FF00) << 8) |
+            ((swapee & 0x000000FF) << 24);
+}

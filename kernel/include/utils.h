@@ -25,4 +25,6 @@
 
 void memcpy(void * src, void* dest, size_t length);
 
+uint32_t byte_swap32(uint32_t swapee);
+
 #endif //BEKOS_UTILS_H

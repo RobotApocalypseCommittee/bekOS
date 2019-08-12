@@ -1,6 +1,6 @@
 
 
-add_executable(kernel boot.S mm.S kernel.cpp peripherals/peripherals.cpp peripherals/gentimer.cpp printf.c peripherals/uart.cpp peripherals/mailbox.cpp peripherals/property_tags.cpp utils.cpp)
+add_executable(kernel boot.S mm.S kernel.cpp peripherals/peripherals.cpp peripherals/gentimer.cpp printf.c peripherals/uart.cpp peripherals/mailbox.cpp peripherals/property_tags.cpp utils.cpp peripherals/emmc.cpp)
 target_include_directories(kernel PRIVATE ${freestanding_include_directories} ${CMAKE_CURRENT_SOURCE_DIR}/../include)
 target_compile_options(kernel PRIVATE -ffreestanding -nostdinc -nostdlib -nostartfiles -Wall -Wextra -fno-exceptions -fno-rtti)
 set_target_properties(kernel PROPERTIES
