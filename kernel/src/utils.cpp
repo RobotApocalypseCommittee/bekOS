@@ -17,6 +17,7 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <memory_locations.h>
 #include "utils.h"
 
 void memcpy(void* src, void* dest, size_t length) {
@@ -32,4 +33,19 @@ uint32_t byte_swap32(uint32_t swapee) {
             ((swapee & 0x00FF0000) >> 8) |
             ((swapee & 0x0000FF00) << 8) |
             ((swapee & 0x000000FF) << 24);
+}
+
+unsigned long phys_to_virt(unsigned long physical_address) {
+    return physical_address + VA_START;
+}
+
+unsigned long virt_to_phys(unsigned long virtual_address) {
+    return virtual_address - VA_START;
+}
+
+void* memset(void* ptr, int value, size_t num) {
+    uint8_t* bptr = (uint8_t*) ptr;
+    for (size_t i = 0; i < num; i++) {
+        bptr[i] = value;
+    }
 }

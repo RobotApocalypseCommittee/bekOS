@@ -27,8 +27,8 @@
 #define BOOT_PTABLES_SIZE 2 * PAGE_TABLES_SIZE
 
 #define PAGE_ENTRY_COUNT 512
-
-#define PAGE_SIZE 1 << 12
+#define PAGE_SHIFT 12
+#define PAGE_SIZE 1 << PAGE_SHIFT
 
 // ARM MMU FLAGS AND STUFF
 
@@ -47,6 +47,7 @@
 // VA [29:21]
 #define LEVEL_2_SHIFT 21
 #define LEVEL_2_SIZE 1 << LEVEL_2_SHIFT
+#define LEVEL_3_SHIFT 12
 
 // IMPORTANT things
 #define MM_ACCESS			(0x1 << 10)
@@ -78,7 +79,7 @@
 
 
 #ifndef __ASSEMBLER__
-
+extern "C"
 void memzero(unsigned long src, unsigned long n);
 
 
