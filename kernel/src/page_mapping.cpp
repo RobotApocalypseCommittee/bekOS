@@ -1,0 +1,71 @@
+//
+// Created by Joseph on 08/09/2019.
+//
+
+#include <mm.h>
+#include <utils.h>
+#include "page_mapping.h"
+
+bool translation_table::map(uintptr_t vaddr, uintptr_t raddr) {
+    // Map lvl3
+    ARMv8MMU_L2_Entry_Table* lvl1table = map_table(table0, LEVEL_0_SHIFT, vaddr);
+
+    ARMv8MMU_L2_Entry_Table* lvl2table = map_table(reinterpret_cast<ARMv8MMU_L2_Entry_Table*>(lvl1table), LEVEL_1_SHIFT, vaddr);
+
+    auto* lvl3table = reinterpret_cast<ARMv8MMU_L3_Entry_4K*>(map_table(
+            reinterpret_cast<ARMv8MMU_L2_Entry_Table*>(lvl2table), LEVEL_2_SHIFT, vaddr));
+
+    // Mapping the page entry
+
+    unsigned long lvl3index = (vaddr >> LEVEL_3_SHIFT) & (PAGE_ENTRY_COUNT - 1);
+    // TODO: Headerise and make sense
+    ARMv8MMU_L3_Entry_4K entry4K;
+    entry4K.upper_attrs = 0;
+    entry4K.lower_attrs = 0b0100000001;
+    entry4K.res0 = 0;
+    entry4K.descriptor_code = 0b01;
+    entry4K.address = raddr>>PAGE_SHIFT;
+    lvl3table[lvl3index] = entry4K;
+    return true;
+}
+
+ARMv8MMU_L2_Entry_Table* translation_table::map_table(ARMv8MMU_L2_Entry_Table* table, unsigned long shift, uintptr_t va) {
+    // The index of the table we are checking
+    unsigned long table_index = (va >> shift) & (PAGE_ENTRY_COUNT - 1);
+    // Check whether this table is already mapped(to another table)
+    if (table[table_index].descriptor_code == 0b11) {
+        return reinterpret_cast<ARMv8MMU_L2_Entry_Table*>(table[table_index].table_page * PAGE_SIZE);
+    } else if (table[table_index].descriptor_code == 0b00) {
+        // Is invalid(not existing yet)
+        uintptr_t new_page = manager->reserve_region(1, PAGE_KERNEL);
+        memzero(phys_to_virt(new_page), PAGE_SIZE);
+        pages[page_no++] = new_page;
+        ARMv8MMU_L2_Entry_Table entry;
+        entry.descriptor_code = 0b11;
+        entry.table_page = new_page/4096;
+        entry.attrs = 0;
+        entry.ignored_0 = 0;
+        entry.ignored = 0;
+        entry.res0 = 0;
+        table[table_index] = entry;
+        return reinterpret_cast<ARMv8MMU_L2_Entry_Table*>(phys_to_virt(new_page));
+    } else {
+        // ??
+        return nullptr;
+    }
+}
+
+translation_table::~translation_table() {
+    for (size_t i = 0; i < page_no; i++) {
+        manager->free_region(pages[i], 1);
+    }
+
+}
+
+translation_table::translation_table(memory_manager* manager) : manager(manager), page_no(0) {
+    // Is invalid(not existing yet)
+    uintptr_t new_page = manager->reserve_region(1, PAGE_KERNEL);
+    memzero(phys_to_virt(new_page), PAGE_SIZE);
+    pages[page_no++] = new_page;
+    table0 = reinterpret_cast<ARMv8MMU_L2_Entry_Table*>(phys_to_virt(new_page));
+}
