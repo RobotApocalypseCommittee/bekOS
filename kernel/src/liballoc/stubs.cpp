@@ -17,28 +17,27 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_MEMORY_MANAGER_H
-#define BEKOS_MEMORY_MANAGER_H
+#include <stddef.h>
+#include <memory_manager.h>
+#include <utils.h>
 
-#include <stdint.h>
-#include "memory_locations.h"
+extern memory_manager memoryManager;
 
-#define PAGE_NO (ADDRESSABLE_MEMORY/(4*1024))
+extern "C" {
 
-enum page_states {
-    PAGE_FREE = 0,
-    PAGE_KERNEL = 1
-};
+int liballoc_lock() {
+    return 0;
+}
 
-class memory_manager {
-public:
-    uintptr_t reserve_region(int size, int reserver);
-    bool free_region(uintptr_t location, int size);
+int liballoc_unlock() {
+    return 0;
+}
 
-    bool reserve_pages(uintptr_t location, int size, int reserver);
+void* liballoc_alloc(size_t pages) {
+    return reinterpret_cast<void*>(phys_to_virt(memoryManager.reserve_region(pages, PAGE_KERNEL)));
+}
 
-private:
-    uint8_t page_list[PAGE_NO];
-};
-
-#endif //BEKOS_MEMORY_MANAGER_H
+int liballoc_free(void* ptr, size_t pages) {
+    return !memoryManager.free_region(virt_to_phys(reinterpret_cast<unsigned long>(ptr)), pages);
+}
+}

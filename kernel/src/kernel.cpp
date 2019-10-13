@@ -23,6 +23,7 @@
 #include <peripherals/property_tags.h>
 #include <peripherals/emmc.h>
 #include <memory_manager.h>
+#include <filesystem/mbr.h>
 #include "peripherals/uart.h"
 #include "page_mapping.h"
 #include "printf.h"
@@ -44,15 +45,15 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
 
     uart_init();
     uart_puts("Hello, kernel World!\r\n");
-    printf("Kernel start is %X,%X\n", (unsigned long)KERNEL_START >> 32, (unsigned long)KERNEL_START);
-    printf("Kernel size is %X,%X\n", (unsigned long)KERNEL_SIZE >> 32, (unsigned long)KERNEL_SIZE);
-    printf("Kernel end is %X,%X\n", (unsigned long)KERNEL_END >> 32, (unsigned long)KERNEL_END);
+    printf("Test: %X or %lX", PERIPHERAL_BASE, PERIPHERAL_BASE);
+    printf("Kernel start is %lX\n", (unsigned long)KERNEL_START);
+    printf("Kernel size is %lX\n", (unsigned long)KERNEL_SIZE);
+    printf("Kernel end is %lX\n", (unsigned long)KERNEL_END);
 
     memoryManager = memory_manager();
     memoryManager.reserve_pages(KERNEL_START, KERNEL_SIZE/4096, PAGE_KERNEL);
-
-    translation_table table(&memoryManager);
-    table.map(0, 0x1024);
+    translation_table* table = new translation_table(&memoryManager);
+    table->map(0, 0x1024);
 
     printf("The current exception level is %u\n", el);
     printf("General Timer Frequency: %u\n", getClockFrequency());
@@ -82,7 +83,6 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
     printf("Reported clock: %u\n", ((cap0 >> 8) & 0xff) * 1000000);
 
     printf("Here goes...\n");
-/*
     SDCard my_sd;
     if (my_sd.init()) {
         printf("Init success\n");
@@ -92,13 +92,17 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
         my_sd.read(0, my_array, 512);
         printf("Did a read...\n");
         printf("Last 4 bytes: %u\n", my_array[127]);
+        printf("Partitions:\n");
+        master_boot_record masterBootRecord(my_array);
+        /*
         printf("Doing write\n");
         my_array[100] = 0x12345678;
         my_sd.write(0, my_array, 512);
+         */
         printf("Done\n");
     } else {
         printf("Init not success\n");
-    }*/
+    }
 
     unsigned char c;
 

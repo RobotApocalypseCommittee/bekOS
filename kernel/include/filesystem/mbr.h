@@ -17,28 +17,26 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_MEMORY_MANAGER_H
-#define BEKOS_MEMORY_MANAGER_H
+#ifndef BEKOS_MBR_H
+#define BEKOS_MBR_H
 
-#include <stdint.h>
-#include "memory_locations.h"
+#include <stddef.h>
 
-#define PAGE_NO (ADDRESSABLE_MEMORY/(4*1024))
-
-enum page_states {
-    PAGE_FREE = 0,
-    PAGE_KERNEL = 1
+struct partition {
+    char name[20];
+    size_t start;
+    size_t size;
+    int type_code;
 };
 
-class memory_manager {
+class master_boot_record {
 public:
-    uintptr_t reserve_region(int size, int reserver);
-    bool free_region(uintptr_t location, int size);
+    explicit master_boot_record(void* buf);
 
-    bool reserve_pages(uintptr_t location, int size, int reserver);
 
 private:
-    uint8_t page_list[PAGE_NO];
+partition partitions[4];
+
 };
 
-#endif //BEKOS_MEMORY_MANAGER_H
+#endif //BEKOS_MBR_H
