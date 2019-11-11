@@ -18,15 +18,11 @@
  */
 
 #include <memory_locations.h>
+#include <kstring.h>
+
+
 #include "utils.h"
 
-void memcpy(void* src, void* dest, size_t length) {
-    uint8_t* bsrc = (uint8_t*) src;
-    uint8_t* bdest = (uint8_t*) dest;
-    for (size_t i = 0; i < length; i++) {
-        bdest[i] = bsrc[i];
-    }
-}
 
 uint32_t byte_swap32(uint32_t swapee) {
     return ((swapee & 0xFF000000) >> 24) |
@@ -43,9 +39,20 @@ unsigned long virt_to_phys(unsigned long virtual_address) {
     return virtual_address - VA_START;
 }
 
-void* memset(void* ptr, int value, size_t num) {
-    uint8_t* bptr = (uint8_t*) ptr;
-    for (size_t i = 0; i < num; i++) {
-        bptr[i] = value;
-    }
+
+
+unsigned int read_u32_LE(void* data, unsigned int offset) {
+    uint8_t* dat = reinterpret_cast<uint8_t*>(data);
+    return dat[offset] | dat[offset+1] << 8 | dat[offset+2] << 16 | dat[offset+3] << 24;
+}
+
+unsigned short read_u16_LE(void* data, unsigned int offset) {
+    uint8_t* dat = reinterpret_cast<uint8_t*>(data);
+    return dat[offset] | dat[offset+1] << 8;
+
+}
+
+extern "C" void __cxa_pure_virtual()
+{
+    // Do nothing or print an error message.
 }

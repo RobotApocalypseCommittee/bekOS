@@ -1748,7 +1748,7 @@ int SDCard::do_data_command(int is_write, void* l_buffer, size_t buf_size, uint3
     return 0;
 }
 
-int SDCard::read(unsigned long start, void* l_buffer, unsigned int len) {
+int SDCard::read(unsigned long start, void* l_buffer, unsigned long len) {
 
     // Check start is the start of a block
     if (start % 512 != 0) {
@@ -1776,7 +1776,7 @@ int SDCard::read(unsigned long start, void* l_buffer, unsigned int len) {
     return len;
 }
 
-int SDCard::write(unsigned long start, void* l_buffer, unsigned int len) {
+int SDCard::write(unsigned long start, void* l_buffer, unsigned long len) {
     // Check start is the start of a block
     if (start % 512 != 0) {
 #ifdef EMMC_DEBUG
@@ -1811,6 +1811,13 @@ bool SDCard::init() {
     return true;
 }
 
+unsigned int SDCard::get_sector_size() {
+    return block_size;
+}
+
+bool SDCard::supports_writes() {
+    return true;
+}
 
 
 #pragma clang diagnostic pop

@@ -22,6 +22,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include "filesystem/hdevice.h"
 
 
 struct SDSCR {
@@ -29,11 +30,16 @@ struct SDSCR {
     uint32_t sd_bus_widths;
     int sd_version;
 };
-class SDCard {
+class SDCard: public hdevice {
 public:
     bool init();
-    int read(unsigned long start, void* l_buffer, unsigned int len);
-    int write(unsigned long start, void* l_buffer, unsigned int len);
+    int read(unsigned long start, void* l_buffer, unsigned long len) override;
+    int write(unsigned long start, void* l_buffer, unsigned long len) override;
+
+    unsigned int get_sector_size() override;
+
+    bool supports_writes() override;
+
 private:
     bool mbox_power_on();
     bool mbox_power_off();

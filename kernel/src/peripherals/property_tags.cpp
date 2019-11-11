@@ -19,6 +19,7 @@
 
 #include <utils.h>
 #include <peripherals/peripherals.h>
+#include <kstring.h>
 #include "peripherals/property_tags.h"
 
 struct PropertyTagsBuffer {
@@ -49,7 +50,7 @@ bool property_tags::request_tag(uint32_t tag_id, void* tag, int tag_length) {
     buffer->buffer_code = BUFFER_CODE_REQUEST;
     // Buffer header, single tag, and end code 0x0
     buffer->buffer_size = (sizeof(PropertyTagsBuffer) + tag_length + sizeof(uint32_t));
-    memcpy(tag, buffer->Tags, tag_length);
+    memcpy(buffer->Tags, tag, tag_length);
     // end byte
     buffer->Tags[tag_length] = 0;
     uint32_t bus_addr = (uint32_t)bus_address((uintptr_t)buffer_storage);
@@ -62,7 +63,7 @@ bool property_tags::request_tag(uint32_t tag_id, void* tag, int tag_length) {
         if (buffer->buffer_code != BUFFER_CODE_RESPONSE_SUCCESS) {
             return false;
         } else {
-            memcpy(buffer->Tags, tag, tag_length);
+            memcpy(tag, buffer->Tags, tag_length);
             return true;
         }
     }

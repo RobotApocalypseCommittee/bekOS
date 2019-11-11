@@ -17,27 +17,31 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <stddef.h>
-#include <memory_manager.h>
-#include <utils.h>
+#ifndef BEKOS_PARTITION_H
+#define BEKOS_PARTITION_H
 
-extern memory_manager memoryManager;
 
-extern "C" {
+#include "hdevice.h"
 
-int liballoc_lock() { // TODO
-    return 0;
-}
+class partition: public hdevice {
+public:
+    partition(hdevice* source, unsigned long startSector, unsigned long sectorSize, unsigned long partitionSize);
 
-int liballoc_unlock() { // TODO
-    return 0;
-}
+    unsigned int get_sector_size() override;
 
-void* liballoc_alloc(size_t pages) {
-    return reinterpret_cast<void*>(phys_to_virt(memoryManager.reserve_region(pages, PAGE_KERNEL)));
-}
+    bool supports_writes() override;
 
-int liballoc_free(void* ptr, size_t pages) {
-    return !memoryManager.free_region(virt_to_phys(reinterpret_cast<unsigned long>(ptr)), pages);
-}
-}
+    int read(unsigned long start, void* buffer, unsigned long length) override;
+
+    int write(unsigned long start, void* buffer, unsigned long length) override;
+
+private:
+    hdevice* source;
+    unsigned long start_sector;
+    unsigned long sector_size;
+    unsigned long partition_size;
+
+};
+
+
+#endif //BEKOS_PARTITION_H

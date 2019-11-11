@@ -28,6 +28,8 @@ if(LINUX)
     # Includes the compiler-provided headers
     list(APPEND freestanding_include_directories
             ${toolchain_location}/lib/gcc/aarch64-elf/8.2.1/include)
+    list(APPEND freestanding_include_directories
+            ${toolchain_location}/lib/gcc/aarch64-elf/8.2.1/include-fixed)
 
     #set(CMAKE_CXX_LINK_EXECUTABLE "${toolchain_location}/bin/aarch64-elf-ld -nostdlib -nostartfiles ")
 endif()

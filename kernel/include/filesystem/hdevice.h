@@ -17,27 +17,20 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <stddef.h>
-#include <memory_manager.h>
-#include <utils.h>
+#ifndef BEKOS_HDEVICE_H
+#define BEKOS_HDEVICE_H
 
-extern memory_manager memoryManager;
 
-extern "C" {
+class hdevice {
+public:
+    virtual unsigned int get_sector_size() = 0;
 
-int liballoc_lock() { // TODO
-    return 0;
-}
+    virtual bool supports_writes() = 0;
 
-int liballoc_unlock() { // TODO
-    return 0;
-}
+    virtual int read(unsigned long start, void* buffer, unsigned long length) = 0;
 
-void* liballoc_alloc(size_t pages) {
-    return reinterpret_cast<void*>(phys_to_virt(memoryManager.reserve_region(pages, PAGE_KERNEL)));
-}
+    virtual int write(unsigned long start, void* buffer, unsigned long length) = 0;
+};
 
-int liballoc_free(void* ptr, size_t pages) {
-    return !memoryManager.free_region(virt_to_phys(reinterpret_cast<unsigned long>(ptr)), pages);
-}
-}
+
+#endif //BEKOS_HDEVICE_H

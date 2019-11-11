@@ -24,14 +24,14 @@
 #include <stdint.h>
 #include "page_mapping.h"
 
-void memcpy(void * src, void* dest, size_t length);
-extern "C"
-void * memset ( void * ptr, int value, size_t num );
-
 uint32_t byte_swap32(uint32_t swapee);
 
 unsigned long phys_to_virt(unsigned long physical_address);
 
 unsigned long virt_to_phys(unsigned long virtual_address);
+
+unsigned int read_u32_LE(void* data, unsigned int offset);
+
+unsigned short read_u16_LE(void* data, unsigned int offset);
 
 #endif //BEKOS_UTILS_H
