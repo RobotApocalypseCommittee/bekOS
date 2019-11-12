@@ -74,8 +74,8 @@ int memcmp(const void* s1, const void* s2, size_t n) {
 }
 
 int strcmp(const char* s1, const char* s2) {
-    const unsigned char* q1 = s1;
-    const unsigned char* q2 = s2;
+    const unsigned char* q1 = (const unsigned char*) s1;
+    const unsigned char* q2 = (const unsigned char*) s2;
     int d = 0;
     unsigned char ch;
     while (1) {
@@ -94,8 +94,8 @@ int strcmp(const char* s1, const char* s2) {
 }
 
 int strncmp(const char* s1, const char* s2, size_t n) {
-    const unsigned char* q1 = s1;
-    const unsigned char* q2 = s2;
+    const unsigned char* q1 = (const unsigned char*) s1;
+    const unsigned char* q2 = (const unsigned char*) s2;
     int d = 0;
     unsigned char ch;
     while (n--) {

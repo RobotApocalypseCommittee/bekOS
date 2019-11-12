@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
 
 project(Bekos ASM C CXX)
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 11)
 
 # Cross compiler things
 set(CMAKE_SYSTEM_NAME Generic)

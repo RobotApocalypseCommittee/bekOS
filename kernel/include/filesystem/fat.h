@@ -16,43 +16,40 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
-#ifndef BEKOS_MBR_H
-#define BEKOS_MBR_H
+#ifndef BEKOS_FAT_H
+#define BEKOS_FAT_H
 
 #include <stddef.h>
+#include "hdevice.h"
 #include "partition.h"
 
+class FAT_Entry {
+    char name[8];
+    char ext[3];
+    uint8_t attrib;
+    unsigned int size;
+    unsigned int start_cluster;
 
-enum PartitionType: int {
-    PART_FREE = 0x0,
-    PART_FAT32 = 0x1,
 };
 
-struct MBR_partition {
-    char name[20];
-    size_t start;
-    size_t size;
-    PartitionType type;
-};
-
-class master_boot_record {
+class file_allocation_table {
 public:
-    explicit master_boot_record(void* buf, hdevice* device);
-    // No copying is allowed
-    master_boot_record(const master_boot_record&) = delete;
-    void operator=(const master_boot_record&) = delete;
+    file_allocation_table(partition* mPartition);
 
-    MBR_partition* get_partition_info(int id);
-    partition* get_partition(int id);
-
-    virtual ~master_boot_record();
+    void init();
 
 private:
-    hdevice* m_device;
-    MBR_partition partitions[4];
-    partition* d_partitions[4];
+    unsigned int get_next_cluster(unsigned int current_cluster);
+    void* fetch_sector(unsigned int cluster, unsigned int sector);
 
+
+    void init_from_bpb(void* buf, size_t size);
+    unsigned long fat_begin_lba;
+    unsigned long cluster_begin_lba;
+    unsigned long sectors_per_cluster;
+    unsigned long root_dir_first_cluster;
+    uint8_t m_buffer[512];
+    hdevice* m_partition;
 };
 
-#endif //BEKOS_MBR_H
+#endif //BEKOS_FAT_H

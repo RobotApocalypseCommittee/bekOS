@@ -24,6 +24,7 @@
 #include <peripherals/emmc.h>
 #include <memory_manager.h>
 #include <filesystem/mbr.h>
+#include <filesystem/fat.h>
 #include "peripherals/uart.h"
 #include "page_mapping.h"
 #include "printf.h"
@@ -93,7 +94,14 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
         printf("Did a read...\n");
         printf("Last 4 bytes: %u\n", my_array[127]);
         printf("Partitions:\n");
-        master_boot_record masterBootRecord(my_array);
+        master_boot_record masterBootRecord(my_array, &my_sd);
+        if (masterBootRecord.get_partition_info(0)->type == PART_FAT32) {
+            printf("Partition %s\n", masterBootRecord.get_partition_info(0)->name);
+            partition* noot = masterBootRecord.get_partition(0);
+            file_allocation_table fat(noot);
+            fat.init();
+        }
+
         /*
         printf("Doing write\n");
         my_array[100] = 0x12345678;
