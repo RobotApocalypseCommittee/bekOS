@@ -44,7 +44,7 @@
 #include "printf.h"
 #include "peripherals/gentimer.h"
 
-#define DEBUG2
+//#define DEBUG2
 
 #ifdef DEBUG2
 #define EMMC_DEBUG

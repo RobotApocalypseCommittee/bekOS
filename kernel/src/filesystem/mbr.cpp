@@ -48,7 +48,7 @@ master_boot_record::master_boot_record(void* buf, hdevice* device): m_device(dev
                 partitions[i].type = PART_FREE;
                 break;
         }
-        printf("Partition at %lX, is %lX sectors long, and is type %X", partitions[i].start, parts->sector_count, parts->type_code);
+        printf("Partition at %lX, is %lX sectors long, and is type %X\n", partitions[i].start, parts->sector_count, parts->type_code);
         parts += 1;
     }
 }
@@ -72,7 +72,7 @@ master_boot_record::~master_boot_record() {
 
 partition* master_boot_record::get_partition(int id) {
     auto p = get_partition_info(id);
-    if (p->type != PART_FREE) {
+    if (p->type != PART_FREE && d_partitions[id] != nullptr) {
         d_partitions[id] = new partition(m_device, p->start, 512, p->size);
         return d_partitions[id];
     } else {

@@ -127,13 +127,10 @@ void* memchr(const void* s, int c, size_t n) {
 }
 
 char* strchr(const char* s, int c) {
-    while (*s) {
-        if (*s == (char) c) {
-            return (char*)s;
-        }
-        s++;
-    }
-    return NULL;
+    while (*s != (char)c)
+        if (!*s++)
+            return 0;
+    return (char *)s;
 }
 
 char* strrchr(const char* s, int c) {

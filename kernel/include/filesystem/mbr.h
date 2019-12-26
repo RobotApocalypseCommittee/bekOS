@@ -30,7 +30,6 @@ enum PartitionType: int {
 };
 
 struct MBR_partition {
-    char name[20];
     size_t start;
     size_t size;
     PartitionType type;

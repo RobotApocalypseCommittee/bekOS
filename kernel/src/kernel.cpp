@@ -96,10 +96,15 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
         printf("Partitions:\n");
         master_boot_record masterBootRecord(my_array, &my_sd);
         if (masterBootRecord.get_partition_info(0)->type == PART_FAT32) {
-            printf("Partition %s\n", masterBootRecord.get_partition_info(0)->name);
             partition* noot = masterBootRecord.get_partition(0);
             file_allocation_table fat(noot);
             fat.init();
+            auto root = fat.getRootDirectory();
+            root.seekBeginning();
+            FAT_Entry file_entry;
+            while (root.getNextEntry(&file_entry)) {
+                printf("File '%s', directory: %b, readonly: %b, hidden: %b\n", file_entry.name, file_entry.is_directory(), file_entry.is_read_only(), file_entry.is_hidden());
+            }
         }
 
         /*

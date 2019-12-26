@@ -23,13 +23,34 @@
 #include "hdevice.h"
 #include "partition.h"
 
+#define FAT_ENTRIES_PER_SECTOR 16
 class FAT_Entry {
-    char name[8];
-    char ext[3];
+public:
+    char name[13];
     uint8_t attrib;
     unsigned int size;
     unsigned int start_cluster;
+    bool is_hidden();
+    bool is_read_only();
+    bool is_directory();
 
+};
+
+class file_allocation_table;
+
+class FATDirectory {
+public:
+    FATDirectory(unsigned int rootCluster, file_allocation_table* table);
+
+    void seekBeginning();
+    bool getNextEntry(FAT_Entry* nextEntry);
+
+private:
+    unsigned currentEntry;
+    unsigned currentCluster;
+
+    unsigned rootCluster;
+    file_allocation_table* table;
 };
 
 class file_allocation_table {
@@ -38,10 +59,11 @@ public:
 
     void init();
 
-private:
     unsigned int get_next_cluster(unsigned int current_cluster);
     void* fetch_sector(unsigned int cluster, unsigned int sector);
-
+    unsigned int get_cluster_sectors();
+    FATDirectory getRootDirectory();
+private:
 
     void init_from_bpb(void* buf, size_t size);
     unsigned long fat_begin_lba;
@@ -51,5 +73,4 @@ private:
     uint8_t m_buffer[512];
     hdevice* m_partition;
 };
-
 #endif //BEKOS_FAT_H
