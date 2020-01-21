@@ -1,7 +1,7 @@
 /*
  *   bekOS is a basic OS for the Raspberry Pi
  *
- *   Copyright (C) 2019  Bekos Inc Ltd
+ *   Copyright (C) 2020  Bekos Inc Ltd
  *
  *   This program is free software: you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
