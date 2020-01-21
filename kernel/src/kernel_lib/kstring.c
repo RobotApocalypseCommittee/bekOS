@@ -53,10 +53,10 @@ char* strncat(char* s1, const char* s2, size_t n) {
     char* dest = strchr(s1, '\0');
     const char* src = s2;
     char ch;
-    while (n--) {
+    while (n-- && *src != '\0') {
         *dest++ = ch = *src++;
-        if (!ch) return s1;
     }
+    *dest = '\0';
     return s1;
 }
 

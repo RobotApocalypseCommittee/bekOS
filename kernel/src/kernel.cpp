@@ -25,11 +25,12 @@
 #include <memory_manager.h>
 #include <filesystem/mbr.h>
 #include <filesystem/fat.h>
+#include <filesystem/entrycache.h>
 #include "peripherals/uart.h"
 #include "page_mapping.h"
 #include "printf.h"
 #include "utils.h"
-
+#include "filesystem/fatfs.h"
 memory_manager memoryManager;
 
 // Needed for printf
@@ -95,18 +96,32 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
         printf("Last 4 bytes: %u\n", my_array[127]);
         printf("Partitions:\n");
         master_boot_record masterBootRecord(my_array, &my_sd);
+        EntryHashtable hashtable;
         if (masterBootRecord.get_partition_info(0)->type == PART_FAT32) {
             partition* noot = masterBootRecord.get_partition(0);
-            file_allocation_table fat(noot);
-            fat.init();
-            auto root = fat.getRootDirectory();
-            root.seekBeginning();
-            FAT_Entry file_entry;
-            while (root.getNextEntry(&file_entry)) {
-                printf("File '%s', directory: %b, readonly: %b, hidden: %b\n", file_entry.name, file_entry.is_directory(), file_entry.is_read_only(), file_entry.is_hidden());
-            }
-        }
 
+
+            FATFilesystem filesystem(noot, &hashtable);
+            auto root = filesystem.getRootInfo();
+            printf("About to lookup file\n");
+            {
+                auto file = root->lookup("HELLO.TXT");
+                hashtable.insert(file);
+                printf("Found file: %s\n", file->m_name);
+            }
+            printf("Lost ref to file\n");
+            {
+                printf("Looking up file\n");
+                auto file = hashtable.search(root, "HELLO.TXT");
+                printf("Found\n");
+            }
+            printf("Cleaning\n");
+            hashtable.clean();
+            printf("Cleaning twice\n");
+            hashtable.clean();
+
+
+        }
         /*
         printf("Doing write\n");
         my_array[100] = 0x12345678;

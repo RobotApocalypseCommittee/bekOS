@@ -21,24 +21,34 @@
 #include <kstring.h>
 #include "filesystem/fat.h"
 
+
 bool is_valid_fat_char(char c) {
     return ('A' <= c && c <= 'Z') || ('0' <= c && c <= '9') ||
-    (strchr(" !#$%&'()-@^_`{}~", c) != nullptr) || (128 <= c && c <= 228) ||
-    (230 <= c && c <= 255);
-}
-bool fname_to_fat(char* fname, char* fatname) {
-
+           (strchr(" !#$%&'()-@^_`{}~", c) != nullptr) || (128 <= c && c <= 228) ||
+           (230 <= c && c <= 255);
 }
 
-struct Hard_FAT_Entry {
-    char fatname[11];
-    uint8_t attrib;
-    uint64_t pad1;
-    uint16_t cluster_high;
-    uint32_t pad2;
-    uint16_t cluster_low;
-    uint32_t size;
-} __attribute__((__packed__));
+bool fname_to_fat(const char* fname, char* fatname) {
+    memset(fatname, ' ', 11);
+    const char* fnamePos = fname;
+    char* fatnamePos = fatname;
+    unsigned curr_len = 8;
+    while (curr_len > 0) {
+        if (is_valid_fat_char(*fnamePos)) {
+            *fatnamePos++ = *fnamePos++;
+            curr_len--;
+        } else if (*fnamePos == '.') {
+            fatnamePos = &fatname[8];
+            fnamePos++;
+            curr_len = 3;
+        } else if (*fnamePos == '\0') {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    return true;
+}
 
 
 bool fatname_to_fname(char* fatname, char* fname) {
@@ -51,28 +61,27 @@ bool fatname_to_fname(char* fatname, char* fname) {
             end_pos = i;
             break;
         } else if (fatname[i] != ' ') {
-            end_pos = i+1;
+            end_pos = i + 1;
         }
     }
     strncpy(fname, fatname, 8);
     fname[end_pos] = '\0';
     if (has_extension && fatname[8] != '\0' && fatname[8] != ' ') {
         strcat(fname, ".");
+        int extension_length = 0;
         for (int i = 8; i < 11; i++) {
             if (fatname[i] == '\0') {
-                end_pos = i;
                 break;
             } else if (fatname[i] != ' ') {
-                end_pos = i+1;
+                extension_length = i + 1 - 8;
             }
         }
-        fatname[end_pos] = '\0';
-        strncat(fname, &fatname[8], 3);
+        strncat(fname, &fatname[8], extension_length);
     }
     return true;
 }
 
-void file_allocation_table::init_from_bpb(void* buf, size_t size) {
+void FileAllocationTable::init_from_bpb(void* buf, size_t size) {
     uint8_t* b_arr = reinterpret_cast<uint8_t*>(buf);
     unsigned short bytes_per_sector = read_u16_LE(buf, 0x0B);
     unsigned char sec_per_clus = b_arr[0xD];
@@ -81,17 +90,17 @@ void file_allocation_table::init_from_bpb(void* buf, size_t size) {
     unsigned int sectors_per_fat = read_u32_LE(buf, 0x24);
     unsigned int root_first_cluster = read_u32_LE(buf, 0x2C);
     fat_begin_lba = reserved_sector_count;
-    cluster_begin_lba = reserved_sector_count + (num_fats*sectors_per_fat);
+    cluster_begin_lba = reserved_sector_count + (num_fats * sectors_per_fat);
     sectors_per_cluster = sec_per_clus;
     root_dir_first_cluster = root_first_cluster;
 }
 
-void file_allocation_table::init() {
+void FileAllocationTable::init() {
     m_partition->read(0, m_buffer, 512);
     init_from_bpb(m_buffer, 512);
 }
 
-unsigned int file_allocation_table::get_next_cluster(unsigned int current_cluster) {
+unsigned int FileAllocationTable::getNextCluster(unsigned int current_cluster) {
     // Four bytes for each entry
     unsigned int entries_per_sector = m_partition->get_sector_size() / 4;
     unsigned int nFATSector = current_cluster / entries_per_sector;
@@ -102,76 +111,32 @@ unsigned int file_allocation_table::get_next_cluster(unsigned int current_cluste
     return read_u32_LE(m_buffer, sector_offset * 4);
 }
 
-void* file_allocation_table::fetch_sector(unsigned int cluster, unsigned int sector) {
+void* FileAllocationTable::fetchSector(unsigned int cluster, unsigned int sector) {
     unsigned int nSector = sector + (cluster - 2) * sectors_per_cluster + cluster_begin_lba;
     m_partition->read(nSector * m_partition->get_sector_size(), m_buffer, m_partition->get_sector_size());
     return m_buffer;
 }
 
-file_allocation_table::file_allocation_table(partition* mPartition) : m_partition(mPartition) {}
+FileAllocationTable::FileAllocationTable(partition* mPartition) : m_partition(mPartition) {}
 
-unsigned int file_allocation_table::get_cluster_sectors() {
+unsigned int FileAllocationTable::getClusterSectors() {
     return sectors_per_cluster;
 }
 
-FATDirectory file_allocation_table::getRootDirectory() {
-    return {static_cast<unsigned int>(root_dir_first_cluster), this};
+u32 FileAllocationTable::getRootCluster() {
+    return root_dir_first_cluster;
 }
 
-void FATDirectory::seekBeginning() {
-    currentCluster = rootCluster;
-    currentEntry = 0;
-}
 
-bool FATDirectory::getNextEntry(FAT_Entry* nextEntry) {
-    if (currentCluster >= 0xFFFFFFF8) {
-        return false;
-    }
-    bool validEntryFound = false;
-    while (!validEntryFound) {
-        unsigned nSector = (currentEntry % table->get_cluster_sectors()) / FAT_ENTRIES_PER_SECTOR;
-        auto* listing_sector = reinterpret_cast<Hard_FAT_Entry*>(table->fetch_sector(currentCluster, nSector));
-        unsigned nOffset = currentEntry % FAT_ENTRIES_PER_SECTOR;
-        auto entry = listing_sector[nOffset];
-        if (entry.fatname[0] == '\0') {
-            // End of directory
-            return false;
-        } else if ((entry.attrib & 0b1111) == 0b1111) {
-            // Long file name -> ignore (for now)
-            // TODO: Implement
-        } else if (entry.fatname[0] == 0xE5) {
-            // Unused -> skip to next
-        } else {
-            // Is valid file
-            fatname_to_fname(entry.fatname, nextEntry->name);
-            nextEntry->attrib = entry.attrib;
-            nextEntry->size = entry.size;
-            nextEntry->start_cluster = (entry.cluster_high << 16) | entry.cluster_low;
-            validEntryFound = true;
-        }
-        // Increment for next
-        currentEntry++;
-        if (currentEntry % (table->get_cluster_sectors() * FAT_ENTRIES_PER_SECTOR) == 0) {
-            currentCluster = table->get_next_cluster(currentCluster);
-        }
-    }
-    return true;
-}
-
-FATDirectory::FATDirectory(unsigned int rootCluster, file_allocation_table* table) : rootCluster(rootCluster),
-                                                                                     table(table),
-                                                                                     currentCluster(rootCluster),
-                                                                                     currentEntry(0) {}
-
-bool FAT_Entry::is_hidden() {
+bool FATEntry::is_hidden() {
     return attrib & (1 << 1);
 }
 
-bool FAT_Entry::is_read_only() {
+bool FATEntry::is_read_only() {
     return attrib & (1 << 0);
 }
 
-bool FAT_Entry::is_directory() {
+bool FATEntry::is_directory() {
     return attrib & (1 << 4);
 }
 

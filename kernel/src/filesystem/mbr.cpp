@@ -72,8 +72,10 @@ master_boot_record::~master_boot_record() {
 
 partition* master_boot_record::get_partition(int id) {
     auto p = get_partition_info(id);
-    if (p->type != PART_FREE && d_partitions[id] != nullptr) {
-        d_partitions[id] = new partition(m_device, p->start, 512, p->size);
+    if (p->type != PART_FREE) {
+        if (d_partitions[id] == nullptr) {
+            d_partitions[id] = new partition(m_device, p->start, 512, p->size);
+        }
         return d_partitions[id];
     } else {
         printf("Cannot get non existent partition.");
