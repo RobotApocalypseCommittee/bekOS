@@ -38,7 +38,7 @@ protected:
     unsigned m_source_cluster = 0;
     unsigned m_source_index = 0;
 
-
+friend class FATFile;
 };
 
 class FATFilesystemDirectory: public FATFilesystemEntry {
@@ -59,13 +59,27 @@ public:
 
 };
 
+class FATFile: public File {
+public:
+    explicit FATFile(AcquirableRef<FATFilesystemFile> fileEntry);
+
+    bool read(void* buf, size_t length, size_t offset) override;
+
+    bool write(void* buf, size_t length, size_t offset) override;
+
+    bool close() override;
+
+private:
+    AcquirableRef<FATFilesystemFile> fileEntry;
+};
+
 class FATFilesystem: public Filesystem {
 public:
     FilesystemEntryRef getInfo(char* path) override;
 
     FilesystemEntryRef getRootInfo() override;
 
-    File* open(FilesystemEntry* entry) override;
+    File* open(FilesystemEntryRef entry) override;
 
     explicit FATFilesystem(partition* partition, EntryHashtable* entryCache);
 

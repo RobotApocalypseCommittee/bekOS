@@ -20,6 +20,8 @@
 
 #include "filesystem/fatfs.h"
 #include <library/assert.h>
+
+#include <utility>
 #include "filesystem/entrycache.h"
 
 
@@ -167,11 +169,31 @@ FilesystemEntryRef FATFilesystem::getRootInfo() {
     return root_directory;
 }
 
-File* FATFilesystem::open(FilesystemEntry* entry) {
-    // TDOD: DO
-    return nullptr;
-}
-
 FATFilesystem::FATFilesystem(partition* partition, EntryHashtable* entryCache): Filesystem(entryCache), fat(partition) {
     fat.init();
 }
+
+File* FATFilesystem::open(FilesystemEntryRef entry) {
+    auto x = new FATFile(entry);
+    return x;
+}
+
+bool FATFile::read(void* buf, size_t length, size_t offset) {
+    if (offset + length > fileEntry->size) {
+        return false;
+    }
+    return fileEntry->table->readData(buf, fileEntry->m_root_cluster, offset, length);
+}
+
+bool FATFile::write(void* buf, size_t length, size_t offset) {
+    if (offset + length > fileEntry->size) {
+        return false;
+    }
+    return fileEntry->table->writeData(buf, fileEntry->m_root_cluster, offset, length);
+}
+
+bool FATFile::close() {
+    return false;
+}
+
+FATFile::FATFile(AcquirableRef<FATFilesystemFile> fileEntry) : fileEntry(std::move(fileEntry)) {}

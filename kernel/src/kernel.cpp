@@ -100,28 +100,30 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
         if (masterBootRecord.get_partition_info(0)->type == PART_FAT32) {
             partition* noot = masterBootRecord.get_partition(0);
 
-
             FATFilesystem filesystem(noot, &hashtable);
             auto root = filesystem.getRootInfo();
-            printf("About to lookup file\n");
-            {
-                auto file = root->lookup("HELLO.TXT");
-                hashtable.insert(file);
-                printf("Found file: %s\n", file->m_name);
-            }
-            printf("Lost ref to file\n");
-            {
-                printf("Looking up file\n");
-                auto file = hashtable.search(root, "HELLO.TXT");
-                printf("Found\n");
-            }
-            printf("Cleaning\n");
-            hashtable.clean();
-            printf("Cleaning twice\n");
-            hashtable.clean();
+            auto folder1 = root->lookup("FOLDER1");
+            auto goodbyefile = folder1->lookup("GOODBYE.TXT");
+            auto fp = filesystem.open(goodbyefile);
 
+            char fstring[100];
+            memset(fstring, 0, sizeof(fstring));
 
+            fp->read(fstring, goodbyefile->size, 0);
+            printf("File Contents: %s\n", fstring);
+
+            // Write
+            char source[4] = {'N', 'O', 'O', 'T'};
+            fp->write(source, 4, 0);
+
+            fp->read(fstring, goodbyefile->size, 0);
+            printf("File Contents: %s\n", fstring);
+            delete fp;
         }
+        printf("Cleaning\n");
+        hashtable.clean();
+        printf("Cleaning twice\n");
+        hashtable.clean();
         /*
         printf("Doing write\n");
         my_array[100] = 0x12345678;

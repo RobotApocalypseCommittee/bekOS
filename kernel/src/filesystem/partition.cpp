@@ -48,6 +48,6 @@ int partition::write(unsigned long start, void* buffer, unsigned long length) {
     }
     // Lets go
     unsigned long actual_start = start + (start_sector*sector_size);
-    source->read(actual_start, buffer, length);
+    source->write(actual_start, buffer, length);
     return 0;
 }

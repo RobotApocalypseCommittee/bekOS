@@ -72,8 +72,13 @@ u64 entry_hash(u64 previous, const char* name);
 
 // An open file
 struct File {
-    FilesystemEntry* filesystemEntry;
+public:
+    virtual bool read(void* buf, size_t length, size_t offset) = 0;
+    virtual bool write(void* buf, size_t length, size_t offset) = 0;
 
+    virtual bool close() = 0;
+
+    virtual ~File() = default;
 };
 
 class EntryHashtable;
@@ -85,7 +90,7 @@ public:
     virtual FilesystemEntryRef getInfo(char* path) = 0;
     virtual FilesystemEntryRef getRootInfo() = 0;
 
-    virtual File* open(FilesystemEntry* entry) = 0;
+    virtual File* open(FilesystemEntryRef entry) = 0;
 
 
     EntryHashtable* entryCache;

@@ -19,8 +19,12 @@
 #include <stdint.h>
 #include <utils.h>
 #include <kstring.h>
+#include <library/assert.h>
 #include "filesystem/fat.h"
 
+bool is_valid_cluster(unsigned int cluster_n) {
+    return !(cluster_n >= 0xFFFFFFF8 || cluster_n == 1 || cluster_n == 0);
+}
 
 bool is_valid_fat_char(char c) {
     return ('A' <= c && c <= 'Z') || ('0' <= c && c <= '9') ||
@@ -125,6 +129,79 @@ unsigned int FileAllocationTable::getClusterSectors() {
 
 u32 FileAllocationTable::getRootCluster() {
     return root_dir_first_cluster;
+}
+
+bool FileAllocationTable::readData(void* buf, unsigned int start_cluster, size_t offset, size_t size) {
+    return doDataInterchange(buf, start_cluster, offset, size, false);
+}
+
+bool FileAllocationTable::writeData(void* buf, unsigned int start_cluster, size_t offset, size_t size) {
+    return doDataInterchange(buf, start_cluster, offset, size, true);
+}
+
+bool
+FileAllocationTable::doDataInterchange(void* buf, unsigned int start_cluster, size_t offset, size_t size, bool write) {
+    // Find start cluster
+    unsigned int sectorSize = m_partition->get_sector_size();
+
+    unsigned int cluster_offset = offset / (sectors_per_cluster * sectorSize);
+    unsigned int sector_offset = (offset / sectorSize) % sectors_per_cluster;
+    unsigned int byte_offset = offset % sectorSize;
+    unsigned int current_cluster = start_cluster;
+
+    for (int c = 0; c < cluster_offset; c++) {
+        current_cluster = getNextCluster(current_cluster);
+        if (!is_valid_cluster(current_cluster)) {
+            return false;
+        }
+    }
+
+    size_t completed_size = 0;
+    while (completed_size < size) {
+        // Read to end of sector
+        unsigned int len_to_copy = size - completed_size > sectorSize - byte_offset ? sectorSize - byte_offset: size - completed_size;
+        if (write) {
+            // Buffer -> sector
+            // First check whether full or partial sector
+            if (len_to_copy == sectorSize) {
+                // Full sector - dont worry about other data
+                if (!writeSector(current_cluster, sector_offset, static_cast<char*>(buf) + completed_size)) {
+                    return false;
+                }
+            } else {
+                // Have to read, copy, and write
+                char* sector = static_cast<char*>(fetchSector(current_cluster, sector_offset));
+                memcpy(sector + byte_offset, static_cast<char*>(buf) + completed_size, len_to_copy);
+                if (!writeSector(current_cluster, sector_offset, sector)) {
+                    return false;
+                }
+            }
+        } else {
+            // sector -> buffer
+            char* sector = static_cast<char*>(fetchSector(current_cluster, sector_offset));
+            memcpy(static_cast<char*>(buf) + completed_size, sector + byte_offset, len_to_copy);
+        }
+        completed_size += len_to_copy;
+        // All subsequent reads
+        byte_offset = 0;
+
+        sector_offset++;
+        if (sector_offset % sectors_per_cluster == 0) {
+            current_cluster = getNextCluster(current_cluster);
+            if (!is_valid_cluster(current_cluster)) {
+                // TODO: Extend files when writing beyond end.
+                return false;
+            }
+            sector_offset = 0;
+        }
+    }
+    return true;
+}
+
+bool FileAllocationTable::writeSector(unsigned int cluster, unsigned int sector, void* buf) {
+    unsigned int nSector = sector + (cluster - 2) * sectors_per_cluster + cluster_begin_lba;
+    m_partition->write(nSector * m_partition->get_sector_size(), buf, m_partition->get_sector_size());
+    return true;
 }
 
 

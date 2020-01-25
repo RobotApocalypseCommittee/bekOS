@@ -20,6 +20,7 @@
 #ifndef BEKOS_ACQUIRABLE_REF_H
 #define BEKOS_ACQUIRABLE_REF_H
 
+#include <printf.h>
 #include "library/assert.h"
 
 template <class T>
@@ -29,9 +30,8 @@ public:
     AcquirableRef();
 
     template <class U>
-    AcquirableRef(const AcquirableRef<U>& other) noexcept {
-        m_ref = static_cast<T*>(other.m_ref);
-    }
+    AcquirableRef(const AcquirableRef<U>& other) noexcept;
+
     AcquirableRef(AcquirableRef&& other) noexcept;
     AcquirableRef(const AcquirableRef& other);
     AcquirableRef& operator=(AcquirableRef other) noexcept;
@@ -79,6 +79,10 @@ AcquirableRef<T>::AcquirableRef(const AcquirableRef &other): m_ref(other.m_ref) 
         m_ref->acquire();
     }
 }
+
+template <class T>
+template <class U>
+AcquirableRef<T>::AcquirableRef(const AcquirableRef<U>& other): AcquirableRef(static_cast<T*>(other.m_ref)) {}
 
 template<class T>
 AcquirableRef<T>& AcquirableRef<T>::operator=(AcquirableRef other) noexcept {

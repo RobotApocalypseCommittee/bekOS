@@ -75,16 +75,20 @@ public:
     unsigned int getNextCluster(unsigned int current_cluster);
 
     void* fetchSector(unsigned int cluster, unsigned int sector);
+    bool writeSector(unsigned int cluster, unsigned int sector, void* buf);
 
     unsigned int getClusterSectors();
 
+    bool readData(void* buf, unsigned int start_cluster, size_t offset, size_t size);
+
+    bool writeData(void* buf, unsigned int start_cluster, size_t offset, size_t size);
+
     u32 getRootCluster();
-
-
-
 private:
 
     void init_from_bpb(void* buf, size_t size);
+
+    bool doDataInterchange(void* buf, unsigned int start_cluster, size_t offset, size_t size, bool write);
 
     unsigned long fat_begin_lba;
     unsigned long cluster_begin_lba;

@@ -68,3 +68,4 @@ u64 entry_hash(u64 previous, const char* name) {
 }
 
 Filesystem::Filesystem(EntryHashtable* entryCache) : entryCache(entryCache) {}
+
