@@ -19,6 +19,13 @@ SECTIONS
     }
     . = ALIGN(4096); /* Aligns to page size */
     __text_end = .;
+    __vector_table_start = .;
+    .text.vec :
+    {
+        *(.text.vec)
+    }
+    . = ALIGN(4096);
+    __vector_table_end = .;
 
     __rodata_start = .;
     .rodata :

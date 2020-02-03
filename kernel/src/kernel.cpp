@@ -31,6 +31,7 @@
 #include "printf.h"
 #include "utils.h"
 #include "filesystem/fatfs.h"
+#include "interrupts/int_ctrl.h"
 memory_manager memoryManager;
 
 // Needed for printf
@@ -51,6 +52,15 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
     printf("Kernel start is %lX\n", (unsigned long)KERNEL_START);
     printf("Kernel size is %lX\n", (unsigned long)KERNEL_SIZE);
     printf("Kernel end is %lX\n", (unsigned long)KERNEL_END);
+
+    printf("Beginning Err Test\n");
+    set_vector_table();
+    enable_interrupts();
+
+    // Trigger an error
+    int* bad_ptr = reinterpret_cast<int*>(ADDRESSABLE_MEMORY + 5);
+    int not_valid_number = *bad_ptr;
+
 
     memoryManager = memory_manager();
     memoryManager.reserve_pages(KERNEL_START, KERNEL_SIZE/4096, PAGE_KERNEL);
