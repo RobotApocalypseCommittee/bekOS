@@ -10,6 +10,16 @@
     b 1b
 .endm
 
+.macro handle_basic_interrupt
+    store_regs
+    // Arguments
+    mrs	x0, esr_el1
+    mrs	x1, elr_el1
+    bl handle_interrupt
+    restore_regs
+    eret
+.endm
+
 
 .macro store_regs
     sub	sp, sp, #160
@@ -35,8 +45,8 @@
 .macro restore_regs
     // Restore exception regs
     LDP x0, x1, [sp, #16 * 9]
-    MSR x0, SPSR_EL1
-    MSR x1, ELR_EL1
+    MSR SPSR_EL1, x0
+    MSR ELR_EL1, x1
     // Restore general regs
     LDP x0, x1, [sp, #16 * 0]
     LDP x2, x3, [sp, #16 * 1]
@@ -46,8 +56,8 @@
     LDP x10, x11, [sp, #16 * 5]
     LDP x12, x13, [sp, #16 * 6]
     LDP x14, x15, [sp, #16 * 7]
-    LDP x29, x30  [sp, #16 * 8]
-    add sp, sp, #INT_STACK_SIZE
+    LDP x29, x30, [sp, #16 * 8]
+    add sp, sp, #160
 .endm
 
 .macro vector_entry branchlabel
@@ -90,7 +100,7 @@ el1_s0_err:
 el1_s1_sync:
     complain_unknown_interrupt
 el1_s1_irq:
-    complain_unknown_interrupt
+    handle_basic_interrupt
 el1_s1_fiq:
     complain_unknown_interrupt
 el1_s1_err:

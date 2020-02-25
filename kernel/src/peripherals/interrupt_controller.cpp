@@ -2,6 +2,8 @@
 // Created by Joseph on 24/02/2020.
 //
 
+#include <printf.h>
+#include <library/assert.h>
 #include "peripherals/interrupt_controller.h"
 #include "peripherals/peripherals.h"
 
@@ -40,4 +42,63 @@ void interrupt_controller::disable(interrupt_controller::interrupt_type t) {
     } else {
         mmio_write(INTCTL_DISIRQ_2, 1u << (x-32));
     }
+}
+
+bool interrupt_controller::handle() {
+    interrupt_type int_type = interrupt_type::NONE;
+    unsigned int basic_ints = mmio_read(INTCTL_BASIC_PENDING);
+    int basic_bit_set = -1;
+    for (int i = 0; i < 32; i++) {
+        if (basic_ints & (1u << i)) {
+            basic_bit_set = i;
+            break;
+        }
+    }
+    if (basic_bit_set == -1) { return false; }
+    if (basic_bit_set == 8) {
+        unsigned int ints1 = mmio_read(INTCTL_PENDING_1);
+        for (unsigned int i = 0; i < 32; i++) {
+            if (ints1 & (1u << i)) {
+                // This interrupt
+                int_type = static_cast<interrupt_type>(i);
+                break;
+            }
+        }
+    } else if (basic_bit_set == 9) {
+        // Pending Register 2
+        unsigned int ints2 = mmio_read(INTCTL_PENDING_2);
+        for (unsigned int i = 0; i < 32; i++) {
+            if (ints2 & (1u << i)) {
+                // This interrupt
+                int_type = static_cast<interrupt_type>(i + 32);
+                break;
+            }
+        }
+    } else if (basic_bit_set <= 7) {
+        // Maps directly to basic interrupts
+        int_type = static_cast<interrupt_type>(basic_bit_set + 64);
+    } else {
+        // GPU interrupts; dont know yet
+        return false;
+    }
+    // Dispatch
+    if (int_type < 96) {
+        // Within range...
+        if (handlers[int_type] != nullptr) {
+            return handlers[int_type]->trigger();
+        } else {
+            // No registered handler
+            return false;
+        }
+    } else {
+        printf("AAAAA");
+        return false;
+    }
+}
+
+void interrupt_controller::register_handler(interrupt_controller::interrupt_type interruptType,
+                                            bcm_interrupt_handler* handler) {
+    assert(interruptType < 96);
+    assert(handlers[interruptType] == nullptr);
+    handlers[interruptType] = handler;
 }
