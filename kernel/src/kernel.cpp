@@ -26,6 +26,9 @@
 #include <filesystem/mbr.h>
 #include <filesystem/fat.h>
 #include <filesystem/entrycache.h>
+#include <peripherals/interrupt_controller.h>
+#include <peripherals/system_timer.h>
+#include <process/process.h>
 #include "peripherals/uart.h"
 #include "page_mapping.h"
 #include "printf.h"
@@ -33,10 +36,34 @@
 #include "filesystem/fatfs.h"
 #include "interrupts/int_ctrl.h"
 memory_manager memoryManager;
+interrupt_controller interruptController;
+ProcessManager processManager;
 
 // Needed for printf
 void _putchar(char character) {
     uart_putc(character);
+}
+
+void onTick() {
+    processManager.getCurrentProcess()->processorTimeCounter--;
+    if (processManager.getCurrentProcess()->processorTimeCounter > 0) {
+        return;
+    }
+    processManager.schedule();
+}
+
+void nootProcess() {
+    while(1) {
+        bad_udelay(500000);
+        printf("Noot\n");
+    }
+}
+
+void zootProcess() {
+    while(1) {
+        bad_udelay(500000);
+        printf("Zoot\n");
+    }
 }
 
 extern "C" /* Use C linkage for kernel_main. */
@@ -48,18 +75,29 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
 
     uart_init();
     uart_puts("Hello, kernel World!\r\n");
-    printf("Test: %X or %lX", PERIPHERAL_BASE, PERIPHERAL_BASE);
-    printf("Kernel start is %lX\n", (unsigned long)KERNEL_START);
-    printf("Kernel size is %lX\n", (unsigned long)KERNEL_SIZE);
-    printf("Kernel end is %lX\n", (unsigned long)KERNEL_END);
+    memoryManager = memory_manager();
+    interruptController = interrupt_controller();
+    processManager = ProcessManager();
+    processManager.fork(zootProcess);
+    processManager.fork(nootProcess);
 
-    printf("Beginning Err Test\n");
+    system_timer<1> timer1;
+    timer1.setTickHandler(onTick);
+    interruptController.register_handler(interrupt_controller::SYSTEM_TIMER_1, timer1.getHandler());
+    printf("Beginning Process Test\n");
     set_vector_table();
     enable_interrupts();
-
-    // Trigger an error
-    int* bad_ptr = reinterpret_cast<int*>(ADDRESSABLE_MEMORY + 5);
-    int not_valid_number = *bad_ptr;
+    interruptController.enable(interrupt_controller::SYSTEM_TIMER_1);
+    timer1.set_interval(1000);
+    printf("Prepare for switches\n");
+    unsigned long rval;
+    while (true) {
+        /*
+        bad_udelay(1000000);
+        asm volatile ("mrs %0, CNTP_CTL_EL0": "=r" (rval));
+        printf("rval %d, otherval %d\n", rval, mmio_read(PERIPHERAL_BASE + 0xB200));
+         */
+    }
 
 
     memoryManager = memory_manager();
