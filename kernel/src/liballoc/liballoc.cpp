@@ -860,6 +860,9 @@ void operator delete[](void* ptr)
     PREFIX(free)(ptr);
 }
 
+void* operator new( size_t count, void* ptr) {
+    return ptr;
+}
 
 
 

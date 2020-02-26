@@ -17,6 +17,7 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <library/assert.h>
 #include "memory_manager.h"
 
 uintptr_t memory_manager::reserve_region(int size, int reserver) {
@@ -39,6 +40,7 @@ uintptr_t memory_manager::reserve_region(int size, int reserver) {
     }
     if (i == PAGE_NO) {
         // TODO: Disaster - error run out(store pages in swap?)
+        assert(0);
     }
     for (i = block_start; i < (block_start + size); i++) {
         page_list[i] = reserver;

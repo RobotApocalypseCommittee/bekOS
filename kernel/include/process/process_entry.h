@@ -17,33 +17,16 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <memory_locations.h>
-#include <peripherals/gpio.h>
-#include <peripherals/interrupt_controller.h>
-#include "printf.h"
+#ifndef BEKOS_PROCESS_ENTRY_H
+#define BEKOS_PROCESS_ENTRY_H
 
-extern interrupt_controller interruptController;
+#ifndef __ASSEMBLER__
+extern "C"
+void process_begin();
 
 extern "C"
-void show_unknown_int_complaint(unsigned long esr, unsigned long elr) {
-    printf("Unknown Interrupt: ESR = %X, ELR = %X\n", esr, elr);
-}
+void do_context_switch(SavedRegs* previous, SavedRegs* next);
 
-extern "C"
-void handle_interrupt(unsigned long esr, unsigned long elr) {
-    //printf("Interrupt: ESR = %X, ELR = %X\n", esr, elr);
-    if (esr == 0) {
-        // Try BCM
-        if (interruptController.handle()) {
-            // Success
-            return;
-        } else {
-            // TODO: Disaster
-            printf("Disaster");
-            return;
-        }
-    } else {
-        // Other interrupt
-        return;
-    }
-}
+#endif
+
+#endif //BEKOS_PROCESS_ENTRY_H

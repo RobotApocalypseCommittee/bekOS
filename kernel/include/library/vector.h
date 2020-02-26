@@ -39,14 +39,14 @@ public:
 
     void reserve(size_t n) {
         while (m_capacity < n) {
-            m_capacity <<= 2;
+            m_capacity <<= 2u;
         }
         reallocate();
     }
 
     void push_back(const T &item) {
         if (m_capacity == m_size) {
-            m_capacity <<= 2;
+            m_capacity <<= 2u;
             reallocate();
         }
         array[m_size] = item;
@@ -55,7 +55,7 @@ public:
 
     void push_back(T &&item) {
         if (m_capacity == m_size) {
-            m_capacity <<= 2;
+            m_capacity <<= 2u;
             reallocate();
         }
         array[m_size] = std::move(item);
