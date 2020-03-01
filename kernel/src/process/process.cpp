@@ -30,7 +30,7 @@ Process* ProcessManager::getCurrentProcess() {
     return m_current;
 }
 
-void ProcessManager::fork(ProcessManager::process_fn fn) {
+void ProcessManager::fork(ProcessFn fn, u64 argument) {
     // Don't schedule while adding a process
     disablePreempt();
     // In pages
@@ -54,8 +54,9 @@ void ProcessManager::fork(ProcessManager::process_fn fn) {
     }
     // The code which will run the function fn
     p->savedRegs.pc = reinterpret_cast<u64>(process_begin);
-    // An argument
+    // The function, and its argument
     p->savedRegs.x19 = reinterpret_cast<u64>(fn);
+    p->savedRegs.x20 = argument;
     // Stack moves downwards
     p->savedRegs.sp = reinterpret_cast<u64>(p) + KERNEL_STACK_SIZE;
     // Done

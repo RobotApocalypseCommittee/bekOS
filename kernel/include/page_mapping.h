@@ -57,6 +57,8 @@ class translation_table {
 public:
     translation_table(memory_manager* manager);
 
+    translation_table();
+
     ~translation_table();
 
     bool map(uintptr_t vaddr, uintptr_t raddr);

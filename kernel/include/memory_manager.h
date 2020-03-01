@@ -41,4 +41,6 @@ private:
     uint8_t page_list[PAGE_NO];
 };
 
+extern memory_manager memoryManager;
+
 #endif //BEKOS_MEMORY_MANAGER_H

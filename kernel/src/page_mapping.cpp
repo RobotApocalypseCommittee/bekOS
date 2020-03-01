@@ -84,3 +84,5 @@ translation_table::translation_table(memory_manager* manager) : manager(manager)
     pages[page_no++] = new_page;
     table0 = reinterpret_cast<ARMv8MMU_L2_Entry_Table*>(phys_to_virt(new_page));
 }
+
+translation_table::translation_table(): translation_table(&memoryManager){}

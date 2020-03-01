@@ -20,6 +20,8 @@
 #ifndef BEKOS_HARDTYPES_H
 #define BEKOS_HARDTYPES_H
 
+#define PAGE_SIZE 4096u
+
 typedef unsigned long u64;
 typedef unsigned int u32;
 typedef unsigned short u16;

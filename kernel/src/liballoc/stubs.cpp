@@ -21,8 +21,6 @@
 #include <memory_manager.h>
 #include <utils.h>
 
-extern memory_manager memoryManager;
-
 extern "C" {
 
 int liballoc_lock() { // TODO

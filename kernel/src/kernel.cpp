@@ -29,6 +29,7 @@
 #include <peripherals/interrupt_controller.h>
 #include <peripherals/system_timer.h>
 #include <process/process.h>
+#include <process/elf.h>
 #include "peripherals/uart.h"
 #include "page_mapping.h"
 #include "printf.h"
@@ -52,17 +53,17 @@ void onTick() {
     processManager.schedule();
 }
 
-void nootProcess() {
+void nootProcess(u64 x) {
     while(1) {
         bad_udelay(500000);
-        printf("Noot\n");
+        printf("Noot %d\n", x);
     }
 }
 
-void zootProcess() {
+void zootProcess(u64 x) {
     while(1) {
         bad_udelay(500000);
-        printf("Zoot\n");
+        printf("Zoot %d\n", x);
     }
 }
 
@@ -78,8 +79,9 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
     memoryManager = memory_manager();
     interruptController = interrupt_controller();
     processManager = ProcessManager();
-    processManager.fork(zootProcess);
-    processManager.fork(nootProcess);
+    processManager.fork(zootProcess, 10);
+    processManager.fork(nootProcess, 11);
+
 
     system_timer<1> timer1;
     timer1.setTickHandler(onTick);
@@ -92,18 +94,18 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
     printf("Prepare for switches\n");
     unsigned long rval;
     while (true) {
-        /*
+
         bad_udelay(1000000);
         asm volatile ("mrs %0, CNTP_CTL_EL0": "=r" (rval));
         printf("rval %d, otherval %d\n", rval, mmio_read(PERIPHERAL_BASE + 0xB200));
-         */
     }
-
-
-    memoryManager = memory_manager();
+    set_vector_table();
+    enable_interrupts();
     memoryManager.reserve_pages(KERNEL_START, KERNEL_SIZE/4096, PAGE_KERNEL);
     translation_table* table = new translation_table(&memoryManager);
     table->map(0, 0x1024);
+
+
 
     printf("The current exception level is %u\n", el);
     printf("General Timer Frequency: %u\n", getClockFrequency());
@@ -150,22 +152,14 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
 
             FATFilesystem filesystem(noot, &hashtable);
             auto root = filesystem.getRootInfo();
-            auto folder1 = root->lookup("FOLDER1");
-            auto goodbyefile = folder1->lookup("GOODBYE.TXT");
-            auto fp = filesystem.open(goodbyefile);
+            auto execFile = root->lookup("MEXEC");
+            auto fp = filesystem.open(execFile);
+            Process p;
+            auto elf = elf_file(fp);
+            printf("Parse Result: %d", elf.parse());
+            elf.load(&p);
 
-            char fstring[100];
-            memset(fstring, 0, sizeof(fstring));
-
-            fp->read(fstring, goodbyefile->size, 0);
-            printf("File Contents: %s\n", fstring);
-
-            // Write
-            char source[4] = {'N', 'O', 'O', 'T'};
-            fp->write(source, 4, 0);
-
-            fp->read(fstring, goodbyefile->size, 0);
-            printf("File Contents: %s\n", fstring);
+            fp->close();
             delete fp;
         }
         printf("Cleaning\n");

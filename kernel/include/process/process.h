@@ -21,8 +21,9 @@
 #define BEKOS_PROCESS_H
 
 #include <hardtypes.h>
-#include <stdint-gcc.h>
+#include <stdint.h>
 #include <library/vector.h>
+#include "page_mapping.h"
 
 #define KERNEL_STACK_SIZE 4096
 
@@ -41,6 +42,7 @@ struct SavedRegs {
     u64 fp;
     u64 sp;
     u64 pc;
+    u64 el0_sp;
     // TODO: SIMD / Floating Point
 };
 
@@ -62,15 +64,20 @@ struct Process {
     int processID;
 
     ProcessState state;
+
+    translation_table translationTable;
+    vector<uintptr_t> userPages;
+
+    uintptr_t user_stack_top;
 };
 
 class ProcessManager {
 public:
-    typedef void (*process_fn)();
+    using ProcessFn = void (*)(u64);
 
     ProcessManager();
 
-    void fork(process_fn fn);
+    void fork(ProcessFn fn, u64 argument = 0);
 
     void disablePreempt();
     void enablePreempt();
@@ -81,8 +88,11 @@ public:
 
     Process* getCurrentProcess();
 private:
+
     vector<Process*> m_processes;
     Process* m_current;
 };
+
+extern ProcessManager processManager;
 
 #endif //BEKOS_PROCESS_H
