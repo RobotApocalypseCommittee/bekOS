@@ -29,7 +29,7 @@ bool is_valid_cluster(unsigned int cluster_n) {
 bool is_valid_fat_char(char c) {
     return ('A' <= c && c <= 'Z') || ('0' <= c && c <= '9') ||
            (strchr(" !#$%&'()-@^_`{}~", c) != nullptr) || (128 <= c && c <= 228) ||
-           (230 <= c && c <= 255);
+           (230 <= c);
 }
 
 bool fname_to_fat(const char* fname, char* fatname) {
@@ -86,6 +86,7 @@ bool fatname_to_fname(char* fatname, char* fname) {
 }
 
 void FileAllocationTable::init_from_bpb(void* buf, size_t size) {
+    (void) size;
     uint8_t* b_arr = reinterpret_cast<uint8_t*>(buf);
     unsigned short bytes_per_sector = read_u16_LE(buf, 0x0B);
     unsigned char sec_per_clus = b_arr[0xD];
@@ -149,7 +150,7 @@ FileAllocationTable::doDataInterchange(void* buf, unsigned int start_cluster, si
     unsigned int byte_offset = offset % sectorSize;
     unsigned int current_cluster = start_cluster;
 
-    for (int c = 0; c < cluster_offset; c++) {
+    for (unsigned int c = 0; c < cluster_offset; c++) {
         current_cluster = getNextCluster(current_cluster);
         if (!is_valid_cluster(current_cluster)) {
             return false;

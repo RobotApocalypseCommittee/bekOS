@@ -3,6 +3,15 @@ process_begin:
     mov x0, x20
     blr x19
 
+.globl become_userspace
+become_userspace:
+    bl disable_interrupts
+    mov x2, #0
+    msr SP_EL0, x1
+    msr SPSR_EL1, x2
+    msr ELR_EL1, x0
+    eret
+
 .globl do_context_switch
 // Called _by_ function we wish to return to, in kernel
 // (x30 is populated, and we can change temporary registers)

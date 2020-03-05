@@ -22,6 +22,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include "hardtypes.h"
 #include "memory_manager.h"
 
 // Granule size 4KB
@@ -62,6 +63,8 @@ public:
     ~translation_table();
 
     bool map(uintptr_t vaddr, uintptr_t raddr);
+
+    u64 get_table_address();
 
 private:
     memory_manager* manager;

@@ -23,12 +23,13 @@
 // MEMORY AMOUNTS
 
 // 3 * (512 entries of 8 bytes = 4kB)
+
 #define PAGE_TABLES_SIZE 3 * (1 << 12)
 #define BOOT_PTABLES_SIZE 2 * PAGE_TABLES_SIZE
 
 #define PAGE_ENTRY_COUNT 512
-#define PAGE_SHIFT 12
-#define PAGE_SIZE 1 << PAGE_SHIFT
+#define PAGE_SHIFT 12U
+#define PAGE_SIZE (1U << PAGE_SHIFT)
 
 // ARM MMU FLAGS AND STUFF
 
@@ -79,8 +80,13 @@
 
 
 #ifndef __ASSEMBLER__
+#include "hardtypes.h"
+
 extern "C"
 void memzero(unsigned long src, unsigned long n);
+
+extern "C"
+void set_usertable(u64 usertable);
 
 
 #endif

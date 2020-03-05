@@ -36,9 +36,9 @@ bool translation_table::map(uintptr_t vaddr, uintptr_t raddr) {
     // TODO: Headerise and make sense
     ARMv8MMU_L3_Entry_4K entry4K;
     entry4K.upper_attrs = 0;
-    entry4K.lower_attrs = 0b0100000001;
+    entry4K.lower_attrs = 0b0100010001;
     entry4K.res0 = 0;
-    entry4K.descriptor_code = 0b01;
+    entry4K.descriptor_code = 0b11;
     entry4K.address = raddr>>PAGE_SHIFT;
     lvl3table[lvl3index] = entry4K;
     return true;
@@ -49,7 +49,7 @@ ARMv8MMU_L2_Entry_Table* translation_table::map_table(ARMv8MMU_L2_Entry_Table* t
     unsigned long table_index = (va >> shift) & (PAGE_ENTRY_COUNT - 1);
     // Check whether this table is already mapped(to another table)
     if (table[table_index].descriptor_code == 0b11) {
-        return reinterpret_cast<ARMv8MMU_L2_Entry_Table*>(table[table_index].table_page * PAGE_SIZE);
+        return reinterpret_cast<ARMv8MMU_L2_Entry_Table*>(phys_to_virt(table[table_index].table_page * PAGE_SIZE));
     } else if (table[table_index].descriptor_code == 0b00) {
         // Is invalid(not existing yet)
         uintptr_t new_page = manager->reserve_region(1, PAGE_KERNEL);
@@ -86,3 +86,7 @@ translation_table::translation_table(memory_manager* manager) : manager(manager)
 }
 
 translation_table::translation_table(): translation_table(&memoryManager){}
+
+u64 translation_table::get_table_address() {
+    return virt_to_phys(reinterpret_cast<unsigned long>(table0));
+}

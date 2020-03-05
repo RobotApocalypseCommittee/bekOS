@@ -34,4 +34,6 @@ unsigned int read_u32_LE(void* data, unsigned int offset);
 
 unsigned short read_u16_LE(void* data, unsigned int offset);
 
+long round_up(long n, long multiple);
+
 #endif //BEKOS_UTILS_H

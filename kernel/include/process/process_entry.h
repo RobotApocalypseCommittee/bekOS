@@ -21,11 +21,16 @@
 #define BEKOS_PROCESS_ENTRY_H
 
 #ifndef __ASSEMBLER__
+#include "process.h"
+
 extern "C"
 void process_begin();
 
 extern "C"
 void do_context_switch(SavedRegs* previous, SavedRegs* next);
+
+extern "C"
+void become_userspace(u64 start_fn, u64 start_sp);
 
 #endif
 

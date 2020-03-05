@@ -18,6 +18,8 @@
  */
 
 #include <utils.h>
+#include <process/process_entry.h>
+#include <mm.h>
 #include "process/elf.h"
 
 extern memory_manager memoryManager;
@@ -57,17 +59,17 @@ bool elf_file::parse() {
 
 bool elf_file::load(Process* process) {
     // Loop through and correctly allocate
-    for (int i = 0; i < m_important_headers.size(); i++) {
+    for (size_t i = 0; i < m_important_headers.size(); i++) {
         u64 memorySize = m_important_headers[i].memory_size;
         u64 fileSize = m_important_headers[i].file_size;
 
         // The section may start after the start of a page
-        u64 virtual_page_start = m_important_headers[i].virtual_address & (-PAGE_SIZE);
+        u64 virtual_page_start = (m_important_headers[i].virtual_address / PAGE_SIZE) * PAGE_SIZE;
         u64 virtual_offset = m_important_headers[i].virtual_address - virtual_page_start;
-        u64 page_no = ((memorySize + virtual_offset + (PAGE_SIZE - 1)) & (-PAGE_SIZE)) / PAGE_SIZE;
+        u64 page_no = ((memorySize + virtual_offset) + PAGE_SIZE - 1) / 4096;
 
         uintptr_t region_phys = memoryManager.reserve_region(page_no, PAGE_KERNEL);
-        for (int pn = 0; pn < page_no; pn++) {
+        for (size_t pn = 0; pn < page_no; pn++) {
             process->userPages.push_back(region_phys + pn*PAGE_SIZE);
             process->translationTable.map(virtual_page_start + pn * PAGE_SIZE, region_phys + pn * PAGE_SIZE);
         }
@@ -100,5 +102,7 @@ void elf_loader_fn(u64 elf_object) {
     p->userPages.push_back(stackpage);
     p->translationTable.map(elf->decideStackAddress() - PAGE_SIZE, stackpage);
     p->user_stack_top = elf->decideStackAddress();
+    set_usertable(p->translationTable.get_table_address());
     processManager.enablePreempt();
+    become_userspace(elf->getEntryPoint(), elf->decideStackAddress());
 }

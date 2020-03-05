@@ -69,6 +69,7 @@ struct Process {
     vector<uintptr_t> userPages;
 
     uintptr_t user_stack_top;
+    uintptr_t kernel_stack_top;
 };
 
 class ProcessManager {

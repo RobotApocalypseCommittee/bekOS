@@ -23,3 +23,11 @@ memzero:
     subs x1, x1, #8
     b.gt memzero
     ret
+
+.globl set_usertable
+set_usertable:
+    msr	ttbr0_el1, x0
+    tlbi vmalle1is // clear caches
+    DSB ISH // wait for data to be done
+    isb // wait for instruction to be done
+    ret

@@ -146,11 +146,13 @@ vector<FilesystemEntryRef> FATFilesystemFile::enumerate() {
 }
 
 FilesystemEntryRef FATFilesystemFile::lookup(const char* name) {
+    (void) name;
     assert(0);
     return FilesystemEntryRef();
 }
 
 FilesystemEntryRef FATFilesystem::getInfo(char* path) {
+    (void) path;
     // TODO: DO
     return FilesystemEntryRef();
 }

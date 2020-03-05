@@ -52,6 +52,14 @@ unsigned short read_u16_LE(void* data, unsigned int offset) {
 
 }
 
+long round_up(long n, long multiple) {
+    int remainder = n % multiple;
+    if (remainder == 0)
+        return n;
+
+    return n + multiple - remainder;
+}
+
 extern "C" void __cxa_pure_virtual()
 {
     // Do nothing or print an error message.

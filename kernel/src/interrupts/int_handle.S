@@ -129,7 +129,7 @@ el1_s1_err:
 el0_64_sync:
     complain_unknown_interrupt
 el0_64_irq:
-    complain_unknown_interrupt
+    handle_basic_interrupt
 el0_64_fiq:
     complain_unknown_interrupt
 el0_64_err:
