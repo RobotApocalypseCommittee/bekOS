@@ -17,29 +17,24 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <memory_locations.h>
-#include <peripherals/gpio.h>
-#include <peripherals/interrupt_controller.h>
-#include <interrupts/int_ctrl.h>
-#include "printf.h"
-
-extern interrupt_controller interruptController;
+#include <printf.h>
+#include <peripherals/gentimer.h>
+#include <process/process.h>
 
 extern "C"
-void show_unknown_int_complaint(unsigned long esr, unsigned long elr) {
-    printf("Unknown Interrupt: ESR = %X, ELR = %X\n", esr, elr);
+void syscall_uart_write(char* str) {
+    printf(str);
 }
 
 extern "C"
-void handle_interrupt(unsigned long esr, unsigned long elr) {
-    //printf("Interrupt: ESR = %X, ELR = %X\n", esr, elr);
-    // Try BCM
-    if (interruptController.handle()) {
-        // Success
-        return;
-    } else {
-        // TODO: Disaster
-        printf("Disaster");
-        return;
-    }
+void syscall_delay_us(unsigned long us) {
+    bad_udelay(us);
 }
+
+extern "C"
+int syscall_get_pid() {
+    return processManager.getCurrentProcess()->processID;
+}
+
+extern "C"
+void * const syscall_table[] = {reinterpret_cast<void*>(syscall_uart_write), reinterpret_cast<void*>(syscall_delay_us), reinterpret_cast<void*>(syscall_get_pid)};

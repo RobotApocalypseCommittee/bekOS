@@ -17,29 +17,9 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <memory_locations.h>
-#include <peripherals/gpio.h>
-#include <peripherals/interrupt_controller.h>
-#include <interrupts/int_ctrl.h>
-#include "printf.h"
+#ifndef BEKOS_SYSCALL_HANDLING_H
+#define BEKOS_SYSCALL_HANDLING_H
 
-extern interrupt_controller interruptController;
+#define SYSCALL_COUNT 3
 
-extern "C"
-void show_unknown_int_complaint(unsigned long esr, unsigned long elr) {
-    printf("Unknown Interrupt: ESR = %X, ELR = %X\n", esr, elr);
-}
-
-extern "C"
-void handle_interrupt(unsigned long esr, unsigned long elr) {
-    //printf("Interrupt: ESR = %X, ELR = %X\n", esr, elr);
-    // Try BCM
-    if (interruptController.handle()) {
-        // Success
-        return;
-    } else {
-        // TODO: Disaster
-        printf("Disaster");
-        return;
-    }
-}
+#endif //BEKOS_SYSCALL_HANDLING_H

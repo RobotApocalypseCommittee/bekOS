@@ -77,20 +77,12 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
     uart_init();
     uart_puts("Hello, kernel World!\r\n");
     memoryManager = memory_manager();
+    memoryManager.reserve_pages(KERNEL_START, KERNEL_SIZE/4096, PAGE_KERNEL);
     interruptController = interrupt_controller();
     processManager = ProcessManager();
-    processManager.fork(zootProcess, 10);
-    processManager.fork(nootProcess, 11);
-
-
+    elf_file* elfFile;
     system_timer<1> timer1;
-    timer1.setTickHandler(onTick);
-    interruptController.register_handler(interrupt_controller::SYSTEM_TIMER_1, timer1.getHandler());
-    printf("Beginning Process Test\n");
-    set_vector_table();
-    enable_interrupts();
-    interruptController.enable(interrupt_controller::SYSTEM_TIMER_1);
-    timer1.set_interval(1000);
+    /*
     printf("Prepare for switches\n");
     unsigned long rval;
     while (true) {
@@ -98,15 +90,7 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
         bad_udelay(1000000);
         asm volatile ("mrs %0, CNTP_CTL_EL0": "=r" (rval));
         printf("rval %d, otherval %d\n", rval, mmio_read(PERIPHERAL_BASE + 0xB200));
-    }
-    set_vector_table();
-    enable_interrupts();
-    memoryManager.reserve_pages(KERNEL_START, KERNEL_SIZE/4096, PAGE_KERNEL);
-    translation_table* table = new translation_table(&memoryManager);
-    table->map(0, 0x1024);
-
-
-
+    }*/
     printf("The current exception level is %u\n", el);
     printf("General Timer Frequency: %u\n", getClockFrequency());
 
@@ -152,15 +136,31 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
 
             FATFilesystem filesystem(noot, &hashtable);
             auto root = filesystem.getRootInfo();
-            auto execFile = root->lookup("MEXEC");
+            auto execFile = root->lookup("MYEXEC");
             auto fp = filesystem.open(execFile);
-            Process p;
-            auto elf = elf_file(fp);
-            printf("Parse Result: %d", elf.parse());
-            elf.load(&p);
+
+            elfFile = new elf_file(fp);
+            printf("Parse Result: %d", elfFile->parse());
+            processManager.fork(elf_loader_fn, reinterpret_cast<u64>(elfFile));
+            processManager.fork(elf_loader_fn, reinterpret_cast<u64>(elfFile));
+            timer1.setTickHandler(onTick);
+            interruptController.register_handler(interrupt_controller::SYSTEM_TIMER_1, timer1.getHandler());
+            printf("Beginning Process Test\n");
+            set_vector_table();
+            enable_interrupts();
+            interruptController.enable(interrupt_controller::SYSTEM_TIMER_1);
+            timer1.set_interval(1000);
+
+            while(true) {
+                bad_udelay(10000000);
+                printf("Kernel Noot\n");
+            }
 
             fp->close();
             delete fp;
+
+            printf("Starting processes");
+
         }
         printf("Cleaning\n");
         hashtable.clean();

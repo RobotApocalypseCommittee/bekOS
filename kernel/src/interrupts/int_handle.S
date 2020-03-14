@@ -17,6 +17,8 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "process/syscall_handling.h"
+
 .section ".text.vec"
 
 .macro complain_unknown_interrupt
@@ -39,6 +41,37 @@
     eret
 .endm
 
+.macro handle_syscall
+    store_regs
+    // Store syndrome register
+    mrs x24, ESR_EL1
+    // Extract interrupt type
+    lsr w25, w24, #26
+    // Check it is syscall
+    cmp w25, #21
+    b.ne 2f
+    adr x27, syscall_table
+    // Syscall no
+    and x24, x24, #65535
+    cmp x24, #SYSCALL_COUNT
+    // Fail if too big
+    b.hs 2f
+    // Load function pointer
+    ldr	x16, [x27, x24, lsl #3]
+    bl enable_interrupts
+    blr x16
+    str x0, [sp, #0]
+    bl disable_interrupts
+    // Override x0 - return value - before restoring
+    restore_regs
+    eret
+2:  mrs	x0, esr_el1
+    mrs	x1, elr_el1
+    bl show_unknown_int_complaint
+3:  wfe
+    b 3b
+.endm
+
 
 .macro store_regs
     sub	sp, sp, #176
@@ -56,17 +89,17 @@
 
 	// Store the return registers - for nested interrupts
 	// Read SPSR_EL1 and ELR_EL1 into GP registers
-    mrs x0, SPSR_EL1
-    mrs x1, ELR_EL1
+    mrs x24, SPSR_EL1
+    mrs x25, ELR_EL1
     // Stack SPSR_EL1 and ELR_EL1
-    stp x0, x1, [sp, #16 * 10]
+    stp x24, x25, [sp, #16 * 10]
 .endm
 
 .macro restore_regs
     // Restore exception regs
-    LDP x0, x1, [sp, #16 * 10]
-    MSR SPSR_EL1, x0
-    MSR ELR_EL1, x1
+    LDP x24, x25, [sp, #16 * 10]
+    MSR SPSR_EL1, x24
+    MSR ELR_EL1, x25
     // Restore general regs
     ldp x0, x1, [sp, #16 * 0]
     ldp x2, x3, [sp, #16 * 1]
@@ -127,7 +160,7 @@ el1_s1_fiq:
 el1_s1_err:
     complain_unknown_interrupt
 el0_64_sync:
-    complain_unknown_interrupt
+    handle_syscall
 el0_64_irq:
     handle_basic_interrupt
 el0_64_fiq:
