@@ -136,7 +136,7 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
 
             FATFilesystem filesystem(noot, &hashtable);
             auto root = filesystem.getRootInfo();
-            auto execFile = root->lookup("MYEXEC");
+            auto execFile = root->lookup("EXEC1");
             auto fp = filesystem.open(execFile);
 
             elfFile = new elf_file(fp);
