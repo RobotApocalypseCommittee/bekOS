@@ -74,6 +74,8 @@ public:
 
     unsigned int getNextCluster(unsigned int current_cluster);
 
+    unsigned int allocateNextCluster(unsigned int current_cluster);
+
     void* fetchSector(unsigned int cluster, unsigned int sector);
     bool writeSector(unsigned int cluster, unsigned int sector, void* buf);
 
@@ -94,6 +96,8 @@ private:
     unsigned long cluster_begin_lba;
     unsigned long sectors_per_cluster;
     unsigned long root_dir_first_cluster;
+    unsigned int sectors_per_fat;
+    unsigned int num_fats;
     uint8_t m_buffer[512];
     hdevice* m_partition;
 };

@@ -60,6 +60,14 @@ long round_up(long n, long multiple) {
     return n + multiple - remainder;
 }
 
+void write_u32_LE(void* data, unsigned int offset, unsigned int value) {
+    uint8_t* dat = reinterpret_cast<uint8_t*>(data);
+    dat[offset] = value;
+    dat[offset + 1] = value >> 8u;
+    dat[offset + 2] = value >> 16u;
+    dat[offset + 3] = value >> 24u;
+}
+
 extern "C" void __cxa_pure_virtual()
 {
     // Do nothing or print an error message.
