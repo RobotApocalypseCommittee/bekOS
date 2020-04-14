@@ -179,6 +179,7 @@ void* FileAllocationTable::fetchSector(unsigned int cluster, unsigned int sector
     return m_buffer;
 }
 
+// TODO: Investigate pre-fetching cluster chains for files...
 FileAllocationTable::FileAllocationTable(partition* mPartition) : m_partition(mPartition) {}
 
 unsigned int FileAllocationTable::getClusterSectors() {
@@ -261,6 +262,23 @@ FileAllocationTable::doDataInterchange(void* buf, unsigned int start_cluster, si
 bool FileAllocationTable::writeSector(unsigned int cluster, unsigned int sector, void* buf) {
     unsigned int nSector = sector + (cluster - 2) * sectors_per_cluster + cluster_begin_lba;
     m_partition->write(nSector * m_partition->get_sector_size(), buf, m_partition->get_sector_size());
+    return true;
+}
+
+bool FileAllocationTable::extendFile(unsigned int start_cluster, size_t size) {
+    size_t bytes_per_cluster = sectors_per_cluster * m_partition->get_sector_size();
+    size_t current_size = bytes_per_cluster;
+    unsigned int current_cluster = start_cluster;
+    unsigned int last_cluster;
+    while (current_size < size) {
+        last_cluster = current_cluster;
+        current_cluster = getNextCluster(current_cluster);
+        if (get_cluster_type(current_cluster) != ClusterType::NextPointer) {
+            current_cluster = allocateNextCluster(last_cluster);
+            if (current_cluster == 0) return false;
+        }
+        current_size += bytes_per_cluster;
+    }
     return true;
 }
 

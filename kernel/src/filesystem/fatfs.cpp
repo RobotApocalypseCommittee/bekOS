@@ -199,3 +199,15 @@ bool FATFile::close() {
 }
 
 FATFile::FATFile(AcquirableRef<FATFilesystemFile> fileEntry) : fileEntry(std::move(fileEntry)) {}
+
+bool FATFile::resize(size_t new_length) {
+    if (new_length > fileEntry->size) {
+        // Do nothing unless extending
+        if (!fileEntry->table->extendFile(fileEntry->m_root_cluster, new_length)){
+            return false;
+        }
+    }
+    fileEntry->size = new_length;
+    fileEntry->mark_dirty();
+    return true;
+}

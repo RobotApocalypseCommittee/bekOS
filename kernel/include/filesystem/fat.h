@@ -85,6 +85,8 @@ public:
 
     bool writeData(void* buf, unsigned int start_cluster, size_t offset, size_t size);
 
+    bool extendFile(unsigned int start_cluster, size_t size);
+
     u32 getRootCluster();
 private:
 

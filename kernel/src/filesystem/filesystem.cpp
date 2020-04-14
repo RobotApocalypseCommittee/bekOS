@@ -52,6 +52,10 @@ FilesystemEntry::~FilesystemEntry() {
     delete []m_name;
 }
 
+void FilesystemEntry::mark_dirty() {
+    _dirty = true;
+}
+
 
 u64 entry_hash(u64 previous, const char* name) {
     u64 hash;

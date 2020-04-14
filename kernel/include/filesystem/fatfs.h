@@ -69,6 +69,8 @@ public:
 
     bool close() override;
 
+    bool resize(size_t new_length) override;
+
 private:
     AcquirableRef<FATFilesystemFile> fileEntry;
 };

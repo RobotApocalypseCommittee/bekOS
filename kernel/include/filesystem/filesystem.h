@@ -57,6 +57,8 @@ public:
     void release();
     unsigned get_ref_count();
 
+    void mark_dirty();
+
     virtual vector<FilesystemEntryRef> enumerate() = 0;
     virtual FilesystemEntryRef lookup(const char* name) = 0;
 
@@ -75,6 +77,7 @@ struct File {
 public:
     virtual bool read(void* buf, size_t length, size_t offset) = 0;
     virtual bool write(void* buf, size_t length, size_t offset) = 0;
+    virtual bool resize(size_t new_length) = 0;
 
     virtual bool close() = 0;
 
