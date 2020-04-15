@@ -30,6 +30,10 @@ void FilesystemEntry::release() {
     // TODO: Safety
     ref_count--;
     printf("Released: %s, %d\n", m_name, ref_count);
+    if (_dirty && ref_count == 0) {
+        printf("Committing changes to %s\n", m_name);
+        commit_changes();
+    }
 }
 
 void FilesystemEntry::setParent(FilesystemEntryRef newParent) {

@@ -64,6 +64,9 @@ public:
 
     u64 get_hash();
 
+protected:
+    virtual void commit_changes() = 0;
+
 private:
     bool _dirty{false};
     unsigned ref_count{0};

@@ -22,6 +22,8 @@
 #include <library/assert.h>
 
 #include <utility>
+#include <utils.h>
+
 #include "filesystem/entrycache.h"
 
 
@@ -149,6 +151,20 @@ FilesystemEntryRef FATFilesystemFile::lookup(const char* name) {
     (void) name;
     assert(0);
     return FilesystemEntryRef();
+}
+
+void FATFilesystemEntry::commit_changes() {
+    unsigned nSector = m_source_index / FAT_DIR_ENTRIES_IN_SECTOR;
+    auto* listing_sector = reinterpret_cast<HardFATEntry*>(table->fetchSector(m_source_cluster, nSector));
+    unsigned nOffset = m_source_index % FAT_DIR_ENTRIES_IN_SECTOR;
+    auto* entry = &listing_sector[nOffset];
+    write_u32_LE(&entry->size, 0, size);
+    // Give up on LE
+    entry->cluster_high = m_root_cluster >> 16u;
+    entry->cluster_low = static_cast<unsigned short>(m_root_cluster);
+    fname_to_fat(m_name, entry->fatname);
+    // Now commit to disk
+    table->writeSector(m_source_cluster, nSector, listing_sector);
 }
 
 FilesystemEntryRef FATFilesystem::getInfo(char* path) {

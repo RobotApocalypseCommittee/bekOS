@@ -136,34 +136,52 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
 
             FATFilesystem filesystem(noot, &hashtable);
             auto root = filesystem.getRootInfo();
-            auto execFile = root->lookup("EXEC1");
-            auto fp = filesystem.open(execFile);
+            {
+                auto execFile = root->lookup("HELLO.TXT");
+                auto fp = filesystem.open(execFile);
+                /*
+                elfFile = new elf_file(fp);
+                printf("Parse Result: %d", elfFile->parse());
+                processManager.fork(elf_loader_fn, reinterpret_cast<u64>(elfFile));
+                processManager.fork(elf_loader_fn, reinterpret_cast<u64>(elfFile));
+                timer1.setTickHandler(onTick);
+                interruptController.register_handler(interrupt_controller::SYSTEM_TIMER_1, timer1.getHandler());
+                printf("Beginning Process Test\n");
+                set_vector_table();
+                enable_interrupts();
+                interruptController.enable(interrupt_controller::SYSTEM_TIMER_1);
+                timer1.set_interval(1000);
 
-            elfFile = new elf_file(fp);
-            printf("Parse Result: %d", elfFile->parse());
-            processManager.fork(elf_loader_fn, reinterpret_cast<u64>(elfFile));
-            processManager.fork(elf_loader_fn, reinterpret_cast<u64>(elfFile));
-            timer1.setTickHandler(onTick);
-            interruptController.register_handler(interrupt_controller::SYSTEM_TIMER_1, timer1.getHandler());
-            printf("Beginning Process Test\n");
-            set_vector_table();
-            enable_interrupts();
-            interruptController.enable(interrupt_controller::SYSTEM_TIMER_1);
-            timer1.set_interval(1000);
+                while(true) {
+                    bad_udelay(10000000);
+                    printf("Kernel Noot\n");
+                }
+                 */
 
-            while(true) {
-                bad_udelay(10000000);
-                printf("Kernel Noot\n");
+                char text[100] = {0,};
+                fp->read(text, execFile->size, 0);
+                printf("File Contents: %s\n", text);
+                strcat(text, "And goodbye.");
+                // Not including null terminator
+                auto x = strlen(text);
+                fp->resize(x);
+                fp->write(text, x, 0);
+                fp->close();
+                delete fp;
+            }
+            printf("Cleaning\n");
+            hashtable.clean();
+            {
+                auto fentry = root->lookup("HELLO.TXT");
+                auto fp = filesystem.open(fentry);
+                char text[100] = {0,};
+                fp->read(text, fentry->size, 0);
+                printf("File Contents: %s\n", text);
+                fp->close();
+                delete fp;
             }
 
-            fp->close();
-            delete fp;
-
-            printf("Starting processes");
-
         }
-        printf("Cleaning\n");
-        hashtable.clean();
         printf("Cleaning twice\n");
         hashtable.clean();
         /*

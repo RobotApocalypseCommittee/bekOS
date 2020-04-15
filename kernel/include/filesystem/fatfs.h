@@ -29,9 +29,11 @@ class FATFilesystemEntry: public FilesystemEntry {
 public:
     explicit FATFilesystemEntry(const FATEntry&);
 
-    void setFATValues(u32 root_cluster, u32 source_cluster, u32 source_index);
     void setFilesystem(FATFilesystem* pFilesystem, FileAllocationTable* pTable);
+
 protected:
+    void commit_changes() override;
+
     FATFilesystem* filesystem = nullptr;
     FileAllocationTable* table = nullptr;
     unsigned m_root_cluster = 0;
@@ -56,7 +58,6 @@ public:
     vector<FilesystemEntryRef> enumerate() override;
 
     FilesystemEntryRef lookup(const char* name) override;
-
 };
 
 class FATFile: public File {
