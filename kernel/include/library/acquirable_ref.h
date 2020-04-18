@@ -20,7 +20,6 @@
 #ifndef BEKOS_ACQUIRABLE_REF_H
 #define BEKOS_ACQUIRABLE_REF_H
 
-#include <printf.h>
 #include "library/assert.h"
 
 template <class T>

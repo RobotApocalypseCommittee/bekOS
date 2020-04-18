@@ -75,127 +75,89 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
     (void) atags;
 
     uart_init();
+    // Test uart
     uart_puts("Hello, kernel World!\r\n");
+
+    // Enable page mapping and malloc
     memoryManager = memory_manager();
     memoryManager.reserve_pages(KERNEL_START, KERNEL_SIZE/4096, PAGE_KERNEL);
+
+    // Allow 'error handling'
     interruptController = interrupt_controller();
-    processManager = ProcessManager();
-    elf_file* elfFile;
-    system_timer<1> timer1;
-    /*
-    printf("Prepare for switches\n");
-    unsigned long rval;
-    while (true) {
+    set_vector_table();
+    enable_interrupts();
 
-        bad_udelay(1000000);
-        asm volatile ("mrs %0, CNTP_CTL_EL0": "=r" (rval));
-        printf("rval %d, otherval %d\n", rval, mmio_read(PERIPHERAL_BASE + 0xB200));
-    }*/
-    printf("The current exception level is %u\n", el);
-    printf("General Timer Frequency: %u\n", getClockFrequency());
-
-    PropertyTagClockRate clockTag;
-    clockTag.clock_id = 0x000000001;
-    property_tags tags;
-    bool x = tags.request_tag(0x00030002, &clockTag, sizeof(PropertyTagClockRate));
-    if (x) {
-        printf("EMMC Clock Rate: %u\n", clockTag.rate);
-    }
-
-    clockTag.clock_id = 0x000000006;
-    x = tags.request_tag(0x00030002, &clockTag, sizeof(PropertyTagClockRate));
-    if (x) {
-        printf("H264 Clock Rate: %u\n", clockTag.rate);
-    }
-
-    uint32_t cap0 = mmio_read(PERIPHERAL_BASE + 0x300000 + 0x40);
-    bool supports_sdma = ((cap0>>22) & 1);
-    if (supports_sdma) {
-        printf("Supports SDMA\n");
-    } else {
-        printf("No SDMA\n");
-    }
-    printf("CAP0: %u\n", cap0);
-    printf("Reported clock: %u\n", ((cap0 >> 8) & 0xff) * 1000000);
-
-    printf("Here goes...\n");
+    // Perform SD Card excitements
     SDCard my_sd;
-    if (my_sd.init()) {
-        printf("Init success\n");
-        // Declare a buffer array
-        uint32_t my_array[128];
-        printf("my_array size: %u\n", sizeof(my_array));
-        my_sd.read(0, my_array, 512);
-        printf("Did a read...\n");
-        printf("Last 4 bytes: %u\n", my_array[127]);
-        printf("Partitions:\n");
-        master_boot_record masterBootRecord(my_array, &my_sd);
-        EntryHashtable hashtable;
-        if (masterBootRecord.get_partition_info(0)->type == PART_FAT32) {
-            partition* noot = masterBootRecord.get_partition(0);
 
-            FATFilesystem filesystem(noot, &hashtable);
-            auto root = filesystem.getRootInfo();
-            {
-                auto execFile = root->lookup("HELLO.TXT");
-                auto fp = filesystem.open(execFile);
-                /*
-                elfFile = new elf_file(fp);
-                printf("Parse Result: %d", elfFile->parse());
-                processManager.fork(elf_loader_fn, reinterpret_cast<u64>(elfFile));
-                processManager.fork(elf_loader_fn, reinterpret_cast<u64>(elfFile));
-                timer1.setTickHandler(onTick);
-                interruptController.register_handler(interrupt_controller::SYSTEM_TIMER_1, timer1.getHandler());
-                printf("Beginning Process Test\n");
-                set_vector_table();
-                enable_interrupts();
-                interruptController.enable(interrupt_controller::SYSTEM_TIMER_1);
-                timer1.set_interval(1000);
-
-                while(true) {
-                    bad_udelay(10000000);
-                    printf("Kernel Noot\n");
-                }
-                 */
-
-                char text[100] = {0,};
-                fp->read(text, execFile->size, 0);
-                printf("File Contents: %s\n", text);
-                strcat(text, "And goodbye.");
-                // Not including null terminator
-                auto x = strlen(text);
-                fp->resize(x);
-                fp->write(text, x, 0);
-                fp->close();
-                delete fp;
-            }
-            printf("Cleaning\n");
-            hashtable.clean();
-            {
-                auto fentry = root->lookup("HELLO.TXT");
-                auto fp = filesystem.open(fentry);
-                char text[100] = {0,};
-                fp->read(text, fentry->size, 0);
-                printf("File Contents: %s\n", text);
-                fp->close();
-                delete fp;
-            }
-
-        }
-        printf("Cleaning twice\n");
-        hashtable.clean();
-        /*
-        printf("Doing write\n");
-        my_array[100] = 0x12345678;
-        my_sd.write(0, my_array, 512);
-         */
-        printf("Done\n");
-    } else {
-        printf("Init not success\n");
+    if (!my_sd.init()) {
+        printf("SD Init Failure\n");
+        return;
     }
+    printf("SD Init Success\n");
+
+    // Read first sector
+    uint32_t first_sector[128];
+    printf("first_sector size: %u\n", sizeof(first_sector));
+
+    my_sd.read(0, first_sector, 512);
+    printf("Did a read...\n");
+    printf("Last 4 bytes: %u\n", first_sector[127]);
+    printf("Partitions:\n");
+    master_boot_record masterBootRecord(first_sector, &my_sd);
+    EntryHashtable hashtable;
+    if (!masterBootRecord.get_partition_info(0)->type == PART_FAT32) {
+        printf("Mysterious Partition Found...\n");
+        return;
+    }
+
+    partition* part = masterBootRecord.get_partition(0);
+
+    // Initialise FAT
+    FATFilesystem filesystem(part, &hashtable);
+    auto root = filesystem.getRootInfo();
+    {
+        auto file = root->lookup("HELLO.TXT");
+        if (file.empty()) {
+            printf("HELLO.TXT not found\n");
+            return;
+        }
+        // Open file
+        auto fp = filesystem.open(file);
+
+        char text[100] = {0,};
+        fp->read(text, file->size, 0);
+        printf("File Contents: %s\n", text);
+        strcat(text, "And goodbye.");
+        // Not including null terminator
+        auto x = strlen(text);
+        fp->resize(x);
+        fp->write(text, x, 0);
+        fp->close();
+
+        // TODO: Work on this
+        delete fp;
+    }
+    printf("Cleaning\n");
+    hashtable.clean();
+    // Test reading again
+    {
+        auto fentry = root->lookup("HELLO.TXT");
+        auto fp = filesystem.open(fentry);
+        char text[100] = {0,};
+        fp->read(text, fentry->size, 0);
+        printf("File Contents: %s\n", text);
+        fp->close();
+        delete fp;
+    }
+
+    printf("Cleaning twice\n");
+    hashtable.clean();
+    printf("Done\n");
 
     unsigned char c;
 
+    // Infini-loop
     while(true) {
         c = uart_getc();
         bad_udelay(2*1000*1000); // Delay 2 seconds

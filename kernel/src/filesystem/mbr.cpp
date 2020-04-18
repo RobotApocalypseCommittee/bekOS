@@ -78,7 +78,6 @@ partition* master_boot_record::get_partition(int id) {
         }
         return d_partitions[id];
     } else {
-        printf("Cannot get non existent partition.");
         return nullptr;
     }
 }

@@ -101,6 +101,7 @@ master:
 
 	blr x2
     // stop this core
+1:  wfe
     b 1b
 
     .macro	create_0_and_1_entry, tbl, virt, tmp1, tmp2
