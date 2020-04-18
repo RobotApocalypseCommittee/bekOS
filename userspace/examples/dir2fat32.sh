@@ -201,3 +201,4 @@ insertpart
 echo "===> Removing partition image file"
 rm -f "$PARTITION"
 echo "===> DONE"
+
