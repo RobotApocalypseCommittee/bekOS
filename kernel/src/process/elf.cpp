@@ -20,6 +20,7 @@
 #include <utils.h>
 #include <process/process_entry.h>
 #include <mm.h>
+#include <printf.h>
 #include "process/elf.h"
 
 extern memory_manager memoryManager;
