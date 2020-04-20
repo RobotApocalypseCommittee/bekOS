@@ -39,6 +39,10 @@
 memory_manager memoryManager;
 interrupt_controller interruptController;
 ProcessManager processManager;
+EntryHashtable entryHashtable;
+Filesystem* filesystem;
+
+
 
 // Needed for printf
 void _putchar(char character) {
@@ -150,7 +154,7 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
     printf("Last 4 bytes: %u\n", first_sector[127]);
     printf("Partitions:\n");
     master_boot_record masterBootRecord(first_sector, &my_sd);
-    EntryHashtable hashtable;
+    entryHashtable = EntryHashtable();
     if (!masterBootRecord.get_partition_info(0)->type == PART_FAT32) {
         printf("Mysterious Partition Found...\n");
         return;
@@ -159,19 +163,17 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
     partition* part = masterBootRecord.get_partition(0);
 
     // Initialise FAT
-    FATFilesystem filesystem(part, &hashtable);
+    FATFilesystem fs(part, &entryHashtable);
+    filesystem = &fs;
 
-    auto root = filesystem.getRootInfo();
+    auto root = filesystem->getRootInfo();
     auto execEntry = root->lookup("EXEC1");
-    auto execFile = filesystem.open(execEntry);
-
+    auto execFile = filesystem->open(execEntry);
     runProcess(execFile);
-
 
     printf("Done\n");
 
     unsigned char c;
-
     // Infini-loop
     while(true) {
         c = uart_getc();

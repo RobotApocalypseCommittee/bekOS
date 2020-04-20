@@ -12,3 +12,18 @@ delay_us:
 get_pid:
     svc #2
     ret
+
+.globl open
+open:
+    svc #3
+    ret
+
+.globl read
+read:
+    svc #4
+    ret
+
+.globl close
+close:
+    svc #5
+    ret

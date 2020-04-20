@@ -23,6 +23,7 @@
 #include <hardtypes.h>
 #include <stdint.h>
 #include <library/vector.h>
+#include <filesystem/filesystem.h>
 #include "page_mapping.h"
 
 #define KERNEL_STACK_SIZE 4096
@@ -70,6 +71,8 @@ struct Process {
 
     uintptr_t user_stack_top;
     uintptr_t kernel_stack_top;
+
+    vector<AcquirableRef<FilesystemEntry>> openFiles = {};
 };
 
 class ProcessManager {

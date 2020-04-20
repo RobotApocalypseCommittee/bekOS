@@ -34,6 +34,7 @@ class FilesystemEntry {
 public:
     // Owns string
     char* m_name;
+    bool open = false;
     u64 last_modified;
     u64 created;
     unsigned size = 0;
