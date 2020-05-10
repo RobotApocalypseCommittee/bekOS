@@ -7,7 +7,7 @@ int main() {
     while (1) {
         delay_us(2000000);
 
-        auto x = open("heLlo.txt");
+        auto x = open("greet/hi.txt");
 
         if (x >= 0) {
             write_str("successfully opened\n");

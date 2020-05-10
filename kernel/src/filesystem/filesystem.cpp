@@ -77,3 +77,20 @@ u64 entry_hash(u64 previous, const char* name) {
 
 Filesystem::Filesystem(EntryHashtable* entryCache) : entryCache(entryCache) {}
 
+FilesystemEntryRef fullPathLookup(char* path, FilesystemEntryRef root) {
+    char* pathfragment = static_cast<char*>(kmalloc(strlen(path) + 1));
+    char* pathend = path + strlen(path);
+    while (true) {
+        char* pos = strchr(path, '/');
+        if (pos == nullptr) pos = pathend;
+        memcpy(pathfragment, path, pos - path);
+        pathfragment[pos - path] = '\0';
+        path = pos + 1;
+        root = root->lookup(pathfragment);
+        if (root.empty() || path >= pathend) {
+            kfree(pathfragment);
+            return root;
+        }
+    }
+}
+

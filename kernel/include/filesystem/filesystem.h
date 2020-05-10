@@ -105,4 +105,6 @@ public:
     EntryHashtable* entryCache;
 };
 
+FilesystemEntryRef fullPathLookup(char* path, FilesystemEntryRef root);
+
 #endif //BEKOS_FILESYSTEM_H

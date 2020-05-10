@@ -58,7 +58,7 @@ int syscall_open(char* path) {
     }
 
     auto root = filesystem->getRootInfo();
-    auto fileEntry = root->lookup(upperPath);
+    auto fileEntry = fullPathLookup(upperPath, root);
 
     if (fileEntry.empty()) {
         // file doesn't exist
