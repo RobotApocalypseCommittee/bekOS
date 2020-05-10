@@ -46,8 +46,19 @@ int syscall_get_pid() {
 extern "C"
 int syscall_open(char* path) {
 
+    char* upperPath = path;
+    for (int i = 0; i < strlen(path); i++) {
+        // if it's a lower case letter, make it upper case, otherwise, who cares
+        if ((int)path[i] > 98 && (int)path[i] < 123) {
+            upperPath[i] = (char)((int)path[i] - 32);
+        }
+        else {
+            upperPath[i] = path[i];
+        }
+    }
+
     auto root = filesystem->getRootInfo();
-    auto fileEntry = root->lookup(path);
+    auto fileEntry = root->lookup(upperPath);
 
     if (fileEntry.empty()) {
         // file doesn't exist
