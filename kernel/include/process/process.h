@@ -82,6 +82,7 @@ public:
     ProcessManager();
 
     void fork(ProcessFn fn, u64 argument = 0);
+    void fork(Process* process);
 
     void disablePreempt();
     void enablePreempt();

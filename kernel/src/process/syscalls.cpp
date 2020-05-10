@@ -54,9 +54,9 @@ int syscall_open(char* path) {
         return -1;
     }
 
-    if (fileEntry->open == true) {
-        for (int i = 0; i < processManager.getCurrentProcess()->openFiles.size(); i++) {
-            if (processManager.getCurrentProcess()->openFiles[i] == fileEntry) {
+    if (fileEntry->open) {
+        for (size_t i = 0; i < processManager.getCurrentProcess()->openFiles.size(); i++) {
+            if (processManager.getCurrentProcess()->openFiles[i]->getFilesystemEntry() == fileEntry.get()) {
                 // file is already opened by this process, so go ahead
                 return i;
             }
@@ -66,56 +66,58 @@ int syscall_open(char* path) {
     }
 
     auto fp = filesystem->open(fileEntry);
-    processManager.getCurrentProcess()->openFiles.push_back(fileEntry);
-    fileEntry->open = true;
+    for (size_t i = 0; i < processManager.getCurrentProcess()->openFiles.size(); i++) {
+        // Find empty spaces
+        if (processManager.getCurrentProcess()->openFiles[i] == nullptr) {
+            processManager.getCurrentProcess()->openFiles[i] = fp;
+            return i;
+        }
+    }
+    processManager.getCurrentProcess()->openFiles.push_back(fp);
 
     return processManager.getCurrentProcess()->openFiles.size()-1;
 }
 
 extern "C"
-int syscall_read(int index, char* buffer, int length) {
+unsigned long syscall_read(unsigned long index, char* buffer, unsigned long length) {
 
-    if (index >=processManager.getCurrentProcess()->openFiles.size()) {
+    if (index >= processManager.getCurrentProcess()->openFiles.size()) {
         return 0;
         // file of that index doesn't exist, no bytes read
     }
 
-    auto fileEntry = processManager.getCurrentProcess()->openFiles[index];
-    auto fp = filesystem->open(fileEntry);
+    auto fp = processManager.getCurrentProcess()->openFiles[index];
+    if (fp == nullptr) return 0;
 
-    if (fileEntry->size > length) {
+    auto fentry = fp->getFilesystemEntry();
+
+    if (fentry->size > length) {
         fp->read(buffer, length, 0);
-        return length;
         // reading not all of the file, so full length read
+        return length;
     }
     else {
-        fp->read(buffer, fileEntry->size, 0);
-        return fileEntry->size;
+        fp->read(buffer, fentry->size, 0);
         // file is shorter than length, so full file read
+        return fentry->size;
     }
 }
 
 extern "C"
-int syscall_close(int index) {
+int syscall_close(unsigned long index) {
 
     auto root = filesystem->getRootInfo();
 
     if (index >= processManager.getCurrentProcess()->openFiles.size()) {
-        return -1;
         // file is not open
+        return -1;
     }
 
     // remove file from process's open files
-    processManager.getCurrentProcess()->openFiles[index]->open = false;
-    vector<AcquirableRef<FilesystemEntry>> newOpenFiles = {};
-    for (int i = 0; i < processManager.getCurrentProcess()->openFiles.size(); i++) {
-        if (i != index) {
-            newOpenFiles.push_back(processManager.getCurrentProcess()->openFiles[i]);
-        }
-    }
-    processManager.getCurrentProcess()->openFiles = newOpenFiles;
-
-    // 0 = success
+    File* fp = processManager.getCurrentProcess()->openFiles[index];
+    processManager.getCurrentProcess()->openFiles[index] = nullptr;
+    fp->close();
+    delete fp;
     return 0;
 }
 
