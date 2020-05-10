@@ -21,20 +21,23 @@
 #define _assert_h
 
 #ifdef __cplusplus
+namespace bek {
 extern "C" {
 #endif
 
 #ifdef NDEBUG
 #define assert(expr)	((void) 0)
 #else
-void assertion_failed (const char *pExpr, const char *pFile, unsigned nLine);
 
-#define assert(expr)	(  expr	\
-				 ? ((void) 0)		\
-				 : assertion_failed (#expr, __FILE__, __LINE__))
+void assertion_failed(const char* pExpr, const char* pFile, unsigned nLine);
+
+#define assert(expr)    (  expr    \
+                 ? ((void) 0)        \
+                 : bek::assertion_failed (#expr, __FILE__, __LINE__))
 #endif
 
 #ifdef __cplusplus
+}
 }
 #endif
 

@@ -54,7 +54,7 @@ ARMv8MMU_L2_Entry_Table* translation_table::map_table(ARMv8MMU_L2_Entry_Table* t
         // Is invalid(not existing yet)
         uintptr_t new_page = manager->reserve_region(1, PAGE_KERNEL);
         memzero(phys_to_virt(new_page), PAGE_SIZE);
-        pages[page_no++] = new_page;
+        pages.push_back(new_page);
         ARMv8MMU_L2_Entry_Table entry;
         entry.descriptor_code = 0b11;
         entry.table_page = new_page/4096;
@@ -71,17 +71,17 @@ ARMv8MMU_L2_Entry_Table* translation_table::map_table(ARMv8MMU_L2_Entry_Table* t
 }
 
 translation_table::~translation_table() {
-    for (size_t i = 0; i < page_no; i++) {
+    for (size_t i = 0; i < pages.size(); i++) {
         manager->free_region(pages[i], 1);
     }
 
 }
 
-translation_table::translation_table(memory_manager* manager) : manager(manager), page_no(0) {
+translation_table::translation_table(memory_manager* manager) : manager(manager) {
     // Is invalid(not existing yet)
     uintptr_t new_page = manager->reserve_region(1, PAGE_KERNEL);
     memzero(phys_to_virt(new_page), PAGE_SIZE);
-    pages[page_no++] = new_page;
+    pages.push_back(new_page);
     table0 = reinterpret_cast<ARMv8MMU_L2_Entry_Table*>(phys_to_virt(new_page));
 }
 

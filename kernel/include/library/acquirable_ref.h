@@ -22,123 +22,134 @@
 
 #include "library/assert.h"
 
-template <class T>
-class AcquirableRef {
-public:
-    explicit AcquirableRef(T* ref);
-    AcquirableRef();
+namespace bek {
 
-    template <class U>
-    AcquirableRef(const AcquirableRef<U>& other) noexcept;
+    template<class T>
+    class AcquirableRef {
+    public:
+        explicit AcquirableRef(T* ref);
 
-    AcquirableRef(AcquirableRef&& other) noexcept;
-    AcquirableRef(const AcquirableRef& other);
-    AcquirableRef& operator=(AcquirableRef other) noexcept;
-    ~AcquirableRef();
+        AcquirableRef();
 
-    bool operator==(const AcquirableRef& b) const;
+        template<class U>
+        AcquirableRef(const AcquirableRef<U> &other) noexcept;
 
-    bool unique() const noexcept;
-    bool empty() const noexcept;
+        AcquirableRef(AcquirableRef &&other) noexcept;
 
-    void swap(AcquirableRef& lhs) noexcept;
+        AcquirableRef(const AcquirableRef &other);
 
-    T* get() const noexcept;
-    T& operator*() const;
-    T* operator->() const;
-private:
-    T* m_ref;
+        AcquirableRef &operator=(AcquirableRef other) noexcept;
 
-    template <class U>
-            friend class AcquirableRef;
-};
+        ~AcquirableRef();
 
-template<class T>
-AcquirableRef<T>::AcquirableRef(T* ref): m_ref(ref) {
-    if (m_ref != nullptr) {
-        m_ref->acquire();
-    }
-}
+        bool operator==(const AcquirableRef &b) const;
 
-template<class T>
-AcquirableRef<T>::~AcquirableRef() {
-    if (m_ref != nullptr) {
-        m_ref->release();
-    }
-}
+        bool unique() const noexcept;
 
-template<class T>
-AcquirableRef<T>::AcquirableRef(): m_ref(nullptr) {
+        bool empty() const noexcept;
 
-}
+        void swap(AcquirableRef &lhs) noexcept;
 
-template<class T>
-AcquirableRef<T>::AcquirableRef(const AcquirableRef &other): m_ref(other.m_ref) {
-    if (m_ref != nullptr) {
-        m_ref->acquire();
-    }
-}
+        T* get() const noexcept;
 
-template <class T>
-template <class U>
-AcquirableRef<T>::AcquirableRef(const AcquirableRef<U>& other): AcquirableRef(static_cast<T*>(other.m_ref)) {}
+        T &operator*() const;
 
-template<class T>
-AcquirableRef<T>& AcquirableRef<T>::operator=(AcquirableRef other) noexcept {
-    swap(other);
-    return *this;
-}
+        T* operator->() const;
 
-template<class T>
-void AcquirableRef<T>::swap(AcquirableRef &lhs) noexcept {
-    std::swap(lhs.m_ref, m_ref);
-}
+    private:
+        T* m_ref;
 
-template<class T>
-T* AcquirableRef<T>::get() const noexcept {
-    return m_ref;
-}
+        template<class U>
+        friend
+        class AcquirableRef;
+    };
 
-template<class T>
-T &AcquirableRef<T>::operator*() const {
-    assert(m_ref != nullptr);
-    return *m_ref;
-}
-
-template<class T>
-T* AcquirableRef<T>::operator->() const {
-    assert(m_ref != nullptr);
-    return m_ref;
-}
-
-template<class T>
-AcquirableRef<T>::AcquirableRef(AcquirableRef&& other) noexcept: AcquirableRef() {
-    swap(other);
-}
-
-template<class T>
-bool AcquirableRef<T>::operator==(const AcquirableRef &b) const {
-    return b.m_ref == m_ref;
-}
-
-template<class T>
-bool AcquirableRef<T>::unique() const noexcept {
-    if (m_ref != nullptr) {
-        if (m_ref->get_ref_count() == 1) {
-            return true;
+    template<class T>
+    AcquirableRef<T>::AcquirableRef(T* ref): m_ref(ref) {
+        if (m_ref != nullptr) {
+            m_ref->acquire();
         }
     }
-    return false;
-}
 
-template<class T>
-bool AcquirableRef<T>::empty() const noexcept {
-    return m_ref == nullptr;
-}
+    template<class T>
+    AcquirableRef<T>::~AcquirableRef() {
+        if (m_ref != nullptr) {
+            m_ref->release();
+        }
+    }
 
-template <class T, class U>
-AcquirableRef<T> static_pointer_cast(const AcquirableRef<U>& other) {
-    return AcquirableRef<T>(static_cast<T*>(other.get()));
-}
+    template<class T>
+    AcquirableRef<T>::AcquirableRef(): m_ref(nullptr) {
 
+    }
+
+    template<class T>
+    AcquirableRef<T>::AcquirableRef(const AcquirableRef &other): m_ref(other.m_ref) {
+        if (m_ref != nullptr) {
+            m_ref->acquire();
+        }
+    }
+
+    template<class T>
+    template<class U>
+    AcquirableRef<T>::AcquirableRef(const AcquirableRef<U> &other): AcquirableRef(static_cast<T*>(other.m_ref)) {}
+
+    template<class T>
+    AcquirableRef<T> &AcquirableRef<T>::operator=(AcquirableRef other) noexcept {
+        swap(other);
+        return *this;
+    }
+
+    template<class T>
+    void AcquirableRef<T>::swap(AcquirableRef &lhs) noexcept {
+        std::swap(lhs.m_ref, m_ref);
+    }
+
+    template<class T>
+    T* AcquirableRef<T>::get() const noexcept {
+        return m_ref;
+    }
+
+    template<class T>
+    T &AcquirableRef<T>::operator*() const {
+        assert(m_ref != nullptr);
+        return *m_ref;
+    }
+
+    template<class T>
+    T* AcquirableRef<T>::operator->() const {
+        assert(m_ref != nullptr);
+        return m_ref;
+    }
+
+    template<class T>
+    AcquirableRef<T>::AcquirableRef(AcquirableRef &&other) noexcept: AcquirableRef() {
+        swap(other);
+    }
+
+    template<class T>
+    bool AcquirableRef<T>::operator==(const AcquirableRef &b) const {
+        return b.m_ref == m_ref;
+    }
+
+    template<class T>
+    bool AcquirableRef<T>::unique() const noexcept {
+        if (m_ref != nullptr) {
+            if (m_ref->get_ref_count() == 1) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    template<class T>
+    bool AcquirableRef<T>::empty() const noexcept {
+        return m_ref == nullptr;
+    }
+
+    template<class T, class U>
+    AcquirableRef<T> static_pointer_cast(const AcquirableRef<U> &other) {
+        return AcquirableRef<T>(static_cast<T*>(other.get()));
+    }
+}
 #endif //BEKOS_ACQUIRABLE_REF_H

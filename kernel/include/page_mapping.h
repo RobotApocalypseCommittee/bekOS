@@ -24,6 +24,7 @@
 #include <stddef.h>
 #include "hardtypes.h"
 #include "memory_manager.h"
+#include "library/vector.h"
 
 // Granule size 4KB
 
@@ -68,8 +69,7 @@ public:
 
 private:
     memory_manager* manager;
-    uintptr_t pages[256];
-    size_t page_no;
+    bek::vector<uintptr_t> pages;
     ARMv8MMU_L2_Entry_Table *table0;
     ARMv8MMU_L2_Entry_Table* map_table(ARMv8MMU_L2_Entry_Table* table, unsigned long shift, uintptr_t va);
 

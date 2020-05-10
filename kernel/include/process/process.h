@@ -67,12 +67,12 @@ struct Process {
     ProcessState state;
 
     translation_table translationTable;
-    vector<uintptr_t> userPages;
+    bek::vector<uintptr_t> userPages;
 
     uintptr_t user_stack_top;
     uintptr_t kernel_stack_top;
 
-    vector<AcquirableRef<FilesystemEntry>> openFiles = {};
+    bek::vector<File*> openFiles = {};
 };
 
 class ProcessManager {
@@ -93,7 +93,7 @@ public:
     Process* getCurrentProcess();
 private:
 
-    vector<Process*> m_processes;
+    bek::vector<Process*> m_processes;
     Process* m_current;
 };
 

@@ -27,11 +27,11 @@
 #include "filesystem/entrycache.h"
 
 
-vector<FilesystemEntryRef> FATFilesystemDirectory::enumerate() {
+bek::vector<FilesystemEntryRef> FATFilesystemDirectory::enumerate() {
     FATEntry entry;
     u32 cluster_n = m_root_cluster;
     u32 entry_n = 0;
-    vector<FilesystemEntryRef> result;
+    bek::vector<FilesystemEntryRef> result;
     while (getNextEntry(&entry, cluster_n, entry_n)) {
         FATFilesystemEntry* new_entry;
         if (entry.type == FATEntry::FILE) {
@@ -47,7 +47,7 @@ vector<FilesystemEntryRef> FATFilesystemDirectory::enumerate() {
         new_entry->setParent(FilesystemEntryRef(this));
         auto old_ref = filesystem->entryCache->search(FilesystemEntryRef(this), new_entry->m_name);
         if (old_ref.empty()) {
-            auto new_ref = AcquirableRef<FATFilesystemEntry>(new_entry);
+            auto new_ref = bek::AcquirableRef<FATFilesystemEntry>(new_entry);
             filesystem->entryCache->insert(new_ref);
             result.push_back(new_ref);
         } else {
@@ -142,9 +142,9 @@ m_source_index(entry.source_cluster_entry)
     // Others to follow
 }
 
-vector<FilesystemEntryRef> FATFilesystemFile::enumerate() {
+bek::vector<FilesystemEntryRef> FATFilesystemFile::enumerate() {
     assert(0);
-    return vector<FilesystemEntryRef>();
+    return bek::vector<FilesystemEntryRef>();
 }
 
 FilesystemEntryRef FATFilesystemFile::lookup(const char* name) {
@@ -180,7 +180,7 @@ FilesystemEntryRef FATFilesystem::getRootInfo() {
         root_entry.start_cluster = fat.getRootCluster();
         root_entry.source_cluster_entry = root_entry.source_cluster = 0;
 
-        root_directory = AcquirableRef<FATFilesystemDirectory>(new FATFilesystemDirectory(root_entry));
+        root_directory = bek::AcquirableRef<FATFilesystemDirectory>(new FATFilesystemDirectory(root_entry));
         root_directory->setFilesystem(this, &fat);
         entryCache->insert(root_directory);
     }
@@ -193,6 +193,7 @@ FATFilesystem::FATFilesystem(partition* partition, EntryHashtable* entryCache): 
 
 File* FATFilesystem::open(FilesystemEntryRef entry) {
     auto x = new FATFile(entry);
+    entry->open = true;
     return x;
 }
 
@@ -211,10 +212,11 @@ bool FATFile::write(void* buf, size_t length, size_t offset) {
 }
 
 bool FATFile::close() {
-    return false;
+    fileEntry->open = false;
+    return true;
 }
 
-FATFile::FATFile(AcquirableRef<FATFilesystemFile> fileEntry) : fileEntry(std::move(fileEntry)) {}
+FATFile::FATFile(bek::AcquirableRef<FATFilesystemFile> fileEntry) : fileEntry(std::move(fileEntry)) {}
 
 bool FATFile::resize(size_t new_length) {
     if (new_length > fileEntry->size) {
@@ -226,4 +228,8 @@ bool FATFile::resize(size_t new_length) {
     fileEntry->size = new_length;
     fileEntry->mark_dirty();
     return true;
+}
+
+FilesystemEntry* FATFile::getFilesystemEntry() {
+    return fileEntry.get();
 }

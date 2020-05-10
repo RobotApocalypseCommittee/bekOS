@@ -155,7 +155,7 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
     printf("Partitions:\n");
     master_boot_record masterBootRecord(first_sector, &my_sd);
     entryHashtable = EntryHashtable();
-    if (!masterBootRecord.get_partition_info(0)->type == PART_FAT32) {
+    if (masterBootRecord.get_partition_info(0)->type != PART_FAT32) {
         printf("Mysterious Partition Found...\n");
         return;
     }

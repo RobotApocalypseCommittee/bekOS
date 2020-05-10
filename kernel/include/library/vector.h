@@ -24,61 +24,64 @@
 #include <utility>
 #include "liballoc/liballoc.h"
 
-template <class T>
-class vector {
-public:
-    vector(): m_size(0), m_capacity(1) {
-        array = reinterpret_cast<T*>(kmalloc(m_capacity*sizeof(T)));
+namespace bek {
+    template<class T>
+    class vector {
+    public:
+        vector() : m_size(0), m_capacity(1) {
+            array = reinterpret_cast<T*>(kmalloc(m_capacity * sizeof(T)));
+        };
+
+        vector(const vector<T> &v) {
+            m_size = v.m_size;
+            m_capacity = v.m_capacity;
+            array = reinterpret_cast<T*>(kmalloc(m_capacity * sizeof(T)));
+            memcpy(array, v.array, m_size * sizeof(T));
+        }
+
+        void reserve(size_t n) {
+            while (m_capacity < n) {
+                m_capacity <<= 2u;
+            }
+            reallocate();
+        }
+
+        void push_back(const T &item) {
+            if (m_capacity == m_size) {
+                m_capacity <<= 2u;
+                reallocate();
+            }
+            array[m_size] = item;
+            m_size++;
+        }
+
+        void push_back(T &&item) {
+            if (m_capacity == m_size) {
+                m_capacity <<= 2u;
+                reallocate();
+            }
+            array[m_size] = std::move(item);
+            m_size++;
+        }
+
+        inline T &operator[](size_t n) {
+            return array[n];
+        }
+
+        inline size_t size() {
+            return m_size;
+        }
+
+        void reallocate() {
+            array = reinterpret_cast<T*>(krealloc(array, m_capacity * sizeof(T)));
+        }
+
+    private:
+        size_t m_size;
+        size_t m_capacity;
+        T* array;
     };
-    vector(const vector<T>& v) {
-        m_size = v.m_size;
-        m_capacity = v.m_capacity;
-        array = reinterpret_cast<T*>(kmalloc(m_capacity*sizeof(T)));
-        memcpy(array, v.array, m_size* sizeof(T));
-    }
-
-    void reserve(size_t n) {
-        while (m_capacity < n) {
-            m_capacity <<= 2u;
-        }
-        reallocate();
-    }
-
-    void push_back(const T &item) {
-        if (m_capacity == m_size) {
-            m_capacity <<= 2u;
-            reallocate();
-        }
-        array[m_size] = item;
-        m_size++;
-    }
-
-    void push_back(T &&item) {
-        if (m_capacity == m_size) {
-            m_capacity <<= 2u;
-            reallocate();
-        }
-        array[m_size] = std::move(item);
-        m_size++;
-    }
-
-    inline T& operator[] (size_t n) {
-        return array[n];
-    }
-
-    inline size_t size() {
-        return m_size;
-    }
-
-    void reallocate() {
-        array = reinterpret_cast<T*>(krealloc(array, m_capacity*sizeof(T)));
-    }
-
-private:
-    size_t m_size;
-    size_t m_capacity;
-    T* array;
-};
+}
 
 
 #endif //BEKOS_VECTOR_H

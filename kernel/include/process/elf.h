@@ -97,7 +97,7 @@ public:
 
 private:
     File* f;
-    vector<elf_program_header> m_important_headers;
+    bek::vector<elf_program_header> m_important_headers;
     u64 entry_point;
     u64 lowest_segment = -1;
 

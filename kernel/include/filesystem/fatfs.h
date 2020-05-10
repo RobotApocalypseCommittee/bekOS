@@ -46,7 +46,7 @@ friend class FATFile;
 class FATFilesystemDirectory: public FATFilesystemEntry {
 public:
     using FATFilesystemEntry::FATFilesystemEntry;
-    vector<FilesystemEntryRef> enumerate() override;
+    bek::vector<FilesystemEntryRef> enumerate() override;
 
     FilesystemEntryRef lookup(const char* name) override;
 private:
@@ -55,14 +55,14 @@ private:
 class FATFilesystemFile: public FATFilesystemEntry {
 public:
     using FATFilesystemEntry::FATFilesystemEntry;
-    vector<FilesystemEntryRef> enumerate() override;
+    bek::vector<FilesystemEntryRef> enumerate() override;
 
     FilesystemEntryRef lookup(const char* name) override;
 };
 
 class FATFile: public File {
 public:
-    explicit FATFile(AcquirableRef<FATFilesystemFile> fileEntry);
+    explicit FATFile(bek::AcquirableRef<FATFilesystemFile> fileEntry);
 
     bool read(void* buf, size_t length, size_t offset) override;
 
@@ -72,8 +72,10 @@ public:
 
     bool resize(size_t new_length) override;
 
+    FilesystemEntry* getFilesystemEntry() override;
+
 private:
-    AcquirableRef<FATFilesystemFile> fileEntry;
+    bek::AcquirableRef<FATFilesystemFile> fileEntry;
 };
 
 class FATFilesystem: public Filesystem {
@@ -88,7 +90,7 @@ public:
 
 private:
     FileAllocationTable fat;
-    AcquirableRef<FATFilesystemDirectory> root_directory;
+    bek::AcquirableRef<FATFilesystemDirectory> root_directory;
 };
 
 #endif //BEKOS_FATFS_H

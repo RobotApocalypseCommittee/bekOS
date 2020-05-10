@@ -28,7 +28,7 @@
 #include "library/acquirable_ref.h"
 
 class FilesystemEntry;
-typedef AcquirableRef<FilesystemEntry> FilesystemEntryRef;
+typedef bek::AcquirableRef<FilesystemEntry> FilesystemEntryRef;
 
 class FilesystemEntry {
 public:
@@ -60,7 +60,7 @@ public:
 
     void mark_dirty();
 
-    virtual vector<FilesystemEntryRef> enumerate() = 0;
+    virtual bek::vector<FilesystemEntryRef> enumerate() = 0;
     virtual FilesystemEntryRef lookup(const char* name) = 0;
 
     u64 get_hash();
@@ -86,6 +86,8 @@ public:
     virtual bool close() = 0;
 
     virtual ~File() = default;
+
+    virtual FilesystemEntry* getFilesystemEntry() = 0;
 };
 
 class EntryHashtable;
