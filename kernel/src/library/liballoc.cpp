@@ -10,7 +10,7 @@
  * Modified by Joe for bekOS.
  */
 
-#include <liballoc/liballoc.h>
+#include <library/liballoc.h>
 #include <stdint.h>
 
 /**  Durand's Amazing Super Duper Memory functions.  */
@@ -838,30 +838,6 @@ void*   PREFIX(realloc)(void *p, size_t size)
 	PREFIX(free)( p );
 
 	return ptr;
-}
-
-void* operator new(size_t size)
-{
-    void* res = PREFIX(malloc)(size);
-    return res;
-}
-void* operator new[](size_t size)
-{
-    void* res = PREFIX(malloc)(size);
-    return res;
-}
-
-void operator delete(void* ptr)
-{
-    PREFIX(free)(ptr);
-}
-void operator delete[](void* ptr)
-{
-    PREFIX(free)(ptr);
-}
-
-void* operator new( size_t count, void* ptr) {
-    return ptr;
 }
 
 

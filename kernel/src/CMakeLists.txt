@@ -2,7 +2,7 @@
 
 add_executable(kernel boot.S mm.S kernel.cpp
         peripherals/peripherals.cpp peripherals/gentimer.cpp peripherals/uart.cpp peripherals/mailbox.cpp peripherals/property_tags.cpp peripherals/emmc.cpp peripherals/system_timer.cpp peripherals/interrupt_controller.cpp
-        liballoc/liballoc.cpp liballoc/stubs.cpp
+        library/liballoc.cpp library/stubs.cpp
         filesystem/mbr.cpp filesystem/fat.cpp filesystem/partition.cpp filesystem/filesystem.cpp filesystem/fatfs.cpp filesystem/entrycache.cpp
         printf.c utils.cpp page_mapping.cpp memory_manager.cpp library/kstring.c library/assert.c
         interrupts/int_handle_utils.cpp interrupts/int_handle.S interrupts/int_ctrl.S

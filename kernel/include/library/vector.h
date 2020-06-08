@@ -20,9 +20,8 @@
 #ifndef BEKOS_VECTOR_H
 #define BEKOS_VECTOR_H
 
+#include "library/utility.h"
 #include "kstring.h"
-#include <utility>
-#include "liballoc/liballoc.h"
 
 namespace bek {
     template<class T>
@@ -32,11 +31,25 @@ namespace bek {
             array = reinterpret_cast<T*>(kmalloc(m_capacity * sizeof(T)));
         };
 
-        vector(const vector<T> &v) {
+        vector(const vector<T> &v) __attribute((deprecated("Do you want to copy vector?"))) {
             m_size = v.m_size;
             m_capacity = v.m_capacity;
             array = reinterpret_cast<T*>(kmalloc(m_capacity * sizeof(T)));
-            memcpy(array, v.array, m_size * sizeof(T));
+            for (size_t i = 0; i < m_size; i++) {
+                new (&array[i]) T(v[i]);
+            }
+        }
+
+        vector& operator=(const vector<T> &v) __attribute((deprecated("Do you want to copy vector?"))) {
+            if (this != v) {
+                clear();
+                reserve(v.m_size);
+                for (size_t i = 0; i < m_size; i++) {
+                    new (&array[i]) T(v[i]);
+                }
+                m_size = v.m_size;
+            }
+            return *this;
         }
 
         void reserve(size_t n) {
@@ -46,21 +59,16 @@ namespace bek {
             reallocate();
         }
 
-        void push_back(const T &item) {
-            if (m_capacity == m_size) {
-                m_capacity <<= 2u;
-                reallocate();
-            }
-            array[m_size] = item;
-            m_size++;
+        inline void push_back(const T &item) {
+            push_back(T(item));
         }
 
-        void push_back(T &&item) {
+        inline void push_back(T &&item) {
             if (m_capacity == m_size) {
                 m_capacity <<= 2u;
                 reallocate();
             }
-            array[m_size] = std::move(item);
+            new (&array[m_size]) T(bek::move(item));
             m_size++;
         }
 
@@ -73,7 +81,30 @@ namespace bek {
         }
 
         void reallocate() {
-            array = reinterpret_cast<T*>(krealloc(array, m_capacity * sizeof(T)));
+            if constexpr (std::is_trivially_copyable_v<T>) {
+                array = reinterpret_cast<T*>(krealloc(array, m_capacity * sizeof(T)));
+            } else {
+                auto new_array = reinterpret_cast<T*>(malloc(array, m_capacity * sizeof(T)));
+                for (size_t i = 0; i < m_size; i++) {
+                    new (&new_array[i]) T(bek::move(array[i]));
+                    array[i].~T();
+                }
+                kfree(array);
+                array = new_array;
+            }
+        }
+
+        void clear() {
+            for (int i = 0; i < m_size; i++) {
+                array[i].~T();
+            }
+            m_size = 0;
+
+        }
+
+        virtual ~vector() {
+            clear();
+            kfree(array);
         }
 
     private:
