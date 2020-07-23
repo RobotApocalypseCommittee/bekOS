@@ -18,6 +18,8 @@
  */
 
 #include "filesystem/filesystem.h"
+
+#include <utility>
 #include "printf.h"
 
 void FilesystemEntry::acquire() {
@@ -37,7 +39,7 @@ void FilesystemEntry::release() {
 }
 
 void FilesystemEntry::setParent(FilesystemEntryRef newParent) {
-    parent = newParent;
+    parent = std::move(newParent);
 }
 
 u64 FilesystemEntry::get_hash() {
@@ -47,7 +49,7 @@ u64 FilesystemEntry::get_hash() {
     return m_hash;
 }
 
-unsigned FilesystemEntry::get_ref_count() {
+unsigned FilesystemEntry::get_ref_count() const {
     return ref_count;
 }
 

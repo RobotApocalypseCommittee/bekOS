@@ -38,7 +38,7 @@
 #include "interrupts/int_ctrl.h"
 memory_manager memoryManager;
 interrupt_controller interruptController;
-ProcessManager processManager;
+ProcessManager* processManager;
 EntryHashtable entryHashtable;
 Filesystem* filesystem;
 
@@ -50,17 +50,17 @@ void _putchar(char character) {
 }
 
 void onTick() {
-    processManager.getCurrentProcess()->processorTimeCounter--;
-    if (processManager.getCurrentProcess()->processorTimeCounter > 0) {
+    processManager->getCurrentProcess()->processorTimeCounter--;
+    if (processManager->getCurrentProcess()->processorTimeCounter > 0) {
         return;
     }
-    processManager.schedule();
+    processManager->schedule();
 }
 
 void runProcess(File* execFile) {
     auto elfFile = new elf_file(execFile);
     printf("Parse Result: %d", elfFile->parse());
-    processManager.fork(elf_loader_fn, reinterpret_cast<u64>(elfFile));
+    processManager->fork(elf_loader_fn, reinterpret_cast<u64>(elfFile));
     system_timer<1> timer;
     timer.setTickHandler(onTick);
     interruptController.register_handler(interrupt_controller::SYSTEM_TIMER_1, timer.getHandler());
@@ -119,6 +119,7 @@ extern "C" /* Use C linkage for kernel_main. */
 void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
 {
     // Declare as unused
+    (void) el;
     (void) r1;
     (void) atags;
 
@@ -132,7 +133,7 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
 
     // Allow 'error handling'
     interruptController = interrupt_controller();
-    processManager = ProcessManager();
+    processManager = new ProcessManager;
     set_vector_table();
     enable_interrupts();
 

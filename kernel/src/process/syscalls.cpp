@@ -40,7 +40,7 @@ void syscall_delay_us(unsigned long us) {
 
 extern "C"
 int syscall_get_pid() {
-    return processManager.getCurrentProcess()->processID;
+    return processManager->getCurrentProcess()->processID;
 }
 
 extern "C"
@@ -66,8 +66,8 @@ int syscall_open(char* path) {
     }
 
     if (fileEntry->open) {
-        for (size_t i = 0; i < processManager.getCurrentProcess()->openFiles.size(); i++) {
-            if (processManager.getCurrentProcess()->openFiles[i]->getFilesystemEntry() == fileEntry.get()) {
+        for (size_t i = 0; i < processManager->getCurrentProcess()->openFiles.size(); i++) {
+            if (processManager->getCurrentProcess()->openFiles[i]->getFilesystemEntry() == fileEntry.get()) {
                 // file is already opened by this process, so go ahead
                 return i;
             }
@@ -77,27 +77,27 @@ int syscall_open(char* path) {
     }
 
     auto fp = filesystem->open(fileEntry);
-    for (size_t i = 0; i < processManager.getCurrentProcess()->openFiles.size(); i++) {
+    for (size_t i = 0; i < processManager->getCurrentProcess()->openFiles.size(); i++) {
         // Find empty spaces
-        if (processManager.getCurrentProcess()->openFiles[i] == nullptr) {
-            processManager.getCurrentProcess()->openFiles[i] = fp;
+        if (processManager->getCurrentProcess()->openFiles[i] == nullptr) {
+            processManager->getCurrentProcess()->openFiles[i] = fp;
             return i;
         }
     }
-    processManager.getCurrentProcess()->openFiles.push_back(fp);
+    processManager->getCurrentProcess()->openFiles.push_back(fp);
 
-    return processManager.getCurrentProcess()->openFiles.size()-1;
+    return processManager->getCurrentProcess()->openFiles.size()-1;
 }
 
 extern "C"
 unsigned long syscall_read(unsigned long index, char* buffer, unsigned long length) {
 
-    if (index >= processManager.getCurrentProcess()->openFiles.size()) {
+    if (index >= processManager->getCurrentProcess()->openFiles.size()) {
         return 0;
         // file of that index doesn't exist, no bytes read
     }
 
-    auto fp = processManager.getCurrentProcess()->openFiles[index];
+    auto fp = processManager->getCurrentProcess()->openFiles[index];
     if (fp == nullptr) return 0;
 
     auto fentry = fp->getFilesystemEntry();
@@ -119,14 +119,14 @@ int syscall_close(unsigned long index) {
 
     auto root = filesystem->getRootInfo();
 
-    if (index >= processManager.getCurrentProcess()->openFiles.size()) {
+    if (index >= processManager->getCurrentProcess()->openFiles.size()) {
         // file is not open
         return -1;
     }
 
     // remove file from process's open files
-    File* fp = processManager.getCurrentProcess()->openFiles[index];
-    processManager.getCurrentProcess()->openFiles[index] = nullptr;
+    File* fp = processManager->getCurrentProcess()->openFiles[index];
+    processManager->getCurrentProcess()->openFiles[index] = nullptr;
     fp->close();
     delete fp;
     return 0;

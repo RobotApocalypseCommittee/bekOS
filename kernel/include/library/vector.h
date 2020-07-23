@@ -40,6 +40,10 @@ namespace bek {
             }
         }
 
+        vector(vector<T>&& v) noexcept : vector() {
+            swap(v);
+        }
+
         vector& operator=(const vector<T> &v) __attribute((deprecated("Do you want to copy vector?"))) {
             if (this != v) {
                 clear();
@@ -50,6 +54,17 @@ namespace bek {
                 m_size = v.m_size;
             }
             return *this;
+        }
+
+        vector& operator=(vector<T>&& v) noexcept {
+            swap(v);
+            return *this;
+        }
+
+        void swap(vector<T>& other) noexcept {
+            bek::swap(m_capacity, other.m_capacity);
+            bek::swap(m_size, other.m_size);
+            bek::swap(array, other.array);
         }
 
         void reserve(size_t n) {
@@ -84,7 +99,7 @@ namespace bek {
             if constexpr (std::is_trivially_copyable_v<T>) {
                 array = reinterpret_cast<T*>(krealloc(array, m_capacity * sizeof(T)));
             } else {
-                auto new_array = reinterpret_cast<T*>(malloc(array, m_capacity * sizeof(T)));
+                auto new_array = reinterpret_cast<T*>(kmalloc(m_capacity * sizeof(T)));
                 for (size_t i = 0; i < m_size; i++) {
                     new (&new_array[i]) T(bek::move(array[i]));
                     array[i].~T();
@@ -95,7 +110,7 @@ namespace bek {
         }
 
         void clear() {
-            for (int i = 0; i < m_size; i++) {
+            for (size_t i = 0; i < m_size; i++) {
                 array[i].~T();
             }
             m_size = 0;
@@ -108,8 +123,8 @@ namespace bek {
         }
 
     private:
-        size_t m_size;
-        size_t m_capacity;
+        size_t m_size{};
+        size_t m_capacity{};
         T* array;
     };
 }

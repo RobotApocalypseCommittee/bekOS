@@ -95,8 +95,8 @@ u64 elf_file::decideStackAddress() {
 
 void elf_loader_fn(u64 elf_object) {
     auto* elf = reinterpret_cast<elf_file*>(elf_object);
-    processManager.disablePreempt();
-    Process* p = processManager.getCurrentProcess();
+    processManager->disablePreempt();
+    Process* p = processManager->getCurrentProcess();
     elf->load(p);
     // Allocate some memory for the stack
     uintptr_t stackpage = memoryManager.reserve_region(1, PAGE_KERNEL);
@@ -104,6 +104,6 @@ void elf_loader_fn(u64 elf_object) {
     p->translationTable.map(elf->decideStackAddress() - PAGE_SIZE, stackpage);
     p->user_stack_top = elf->decideStackAddress();
     set_usertable(p->translationTable.get_table_address());
-    processManager.enablePreempt();
+    processManager->enablePreempt();
     become_userspace(elf->getEntryPoint(), elf->decideStackAddress());
 }

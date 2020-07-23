@@ -31,10 +31,6 @@
  *
  * Broadcom BCM2835 Peripherals Guide
  */
-
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "hicpp-signed-bitwise"
-
 #include "peripherals/emmc.h"
 #include <stdint.h>
 #include <stddef.h>
@@ -427,9 +423,7 @@ bool timeout_wait(uint64_t read_address, uint32_t mask, unsigned int value, unsi
 
 bool SDCard::mbox_power_on() {
     property_tags tags;
-    PropertyTagPowerState powerState;
-    powerState.device_id = 0x0;
-    powerState.state = POWER_STATE_WAIT | POWER_STATE_ON;
+    PropertyTagPowerState powerState{.device_id = 0x0, .state = POWER_STATE_WAIT | POWER_STATE_ON};
     if (!tags.request_tag(0x00028001, &powerState, sizeof(PropertyTagPowerState))) {
         // Failure
         return false;
@@ -442,9 +436,7 @@ bool SDCard::mbox_power_on() {
 
 bool SDCard::mbox_power_off() {
     property_tags tags;
-    PropertyTagPowerState powerState;
-    powerState.device_id = 0x0;
-    powerState.state = POWER_STATE_WAIT | POWER_STATE_OFF;
+    PropertyTagPowerState powerState{.device_id = 0x0, .state = POWER_STATE_WAIT | POWER_STATE_OFF};
     if (!tags.request_tag(0x00028001, &powerState, sizeof(PropertyTagPowerState))) {
         // Failure
         return false;
@@ -668,7 +660,7 @@ void SDCard::issue_command_int(uint32_t cmd_reg, uint32_t argument, int timeout)
         }
 
         int cur_block = 0;
-        uint32_t *cur_buf_addr = (uint32_t *)buf;
+        auto cur_buf_addr = (uint32_t *)buf;
         while(cur_block < blocks_to_transfer)
         {
 #ifdef EMMC_DEBUG
@@ -763,18 +755,16 @@ void SDCard::handle_card_interrupt() {
     {
         issue_command_int(sd_commands[SEND_STATUS], card_rca << 16,
                              500000);
+#ifdef EMMC_DEBUG
         if(last_cmd_success == 0)
         {
-#ifdef EMMC_DEBUG
             printf("SD: unable to get card status\n");
-#endif
         }
         else
         {
-#ifdef EMMC_DEBUG
             printf("SD: card status: %08x\n", last_r0);
-#endif
         }
+#endif
     }
     else
     {
@@ -957,24 +947,10 @@ void SDCard::issue_command(uint32_t command, uint32_t argument, int timeout) {
 
 }
 
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "OCDFAInspection"
 int SDCard::card_init() {
     // Check the sanity of the sd_commands and sd_acommands structures
-    if(sizeof(sd_commands) != (64 * sizeof(uint32_t)))
-    {
-        printf("EMMC: fatal error, sd_commands of incorrect size: %i"
-               " expected %i\n", sizeof(sd_commands),
-               64 * sizeof(uint32_t));
-        return -1;
-    }
-    if(sizeof(sd_acommands) != (64 * sizeof(uint32_t)))
-    {
-        printf("EMMC: fatal error, sd_acommands of incorrect size: %i"
-               " expected %i\n", sizeof(sd_acommands),
-               64 * sizeof(uint32_t));
-        return -1;
-    }
+    static_assert(sizeof(sd_commands) == (64 * sizeof(uint32_t)), "EMMC: sd_commands of incorrect size");
+    static_assert(sizeof(sd_acommands) == (64 * sizeof(uint32_t)), "EMMC: sd_acommands of incorrect size");
 
 #if SDHCI_IMPLEMENTATION == SDHCI_IMPLEMENTATION_BCM_2708
     // Power cycle the card to ensure its in its startup state
@@ -1055,11 +1031,11 @@ int SDCard::card_init() {
     mmio_write(EMMC_BASE + EMMC_CONTROL2, 0);
 
     // Get the base clock rate
-    uint32_t base_clock = get_base_clock_freq();
-    if(base_clock == 0)
+    uint32_t new_base_clock = get_base_clock_freq();
+    if(new_base_clock == 0)
     {
         printf("EMMC: assuming clock rate to be 100MHz\n");
-        base_clock = 100000000;
+        new_base_clock = 100000000;
     }
 
         // Set clock rate to something slow
@@ -1070,7 +1046,7 @@ int SDCard::card_init() {
     control1 |= 1;			// enable clock
 
     // Set to identification frequency (400 kHz)
-    uint32_t f_id = get_clock_divider(base_clock, SD_CLOCK_ID);
+    uint32_t f_id = get_clock_divider(new_base_clock, SD_CLOCK_ID);
     if(f_id == SD_GET_CLOCK_DIVIDER_FAIL)
     {
         printf("EMMC: unable to get a valid clock divider for ID frequency\n");
@@ -1136,7 +1112,7 @@ int SDCard::card_init() {
     last_r1 = 0;
     last_r2 = 0;
     last_r3 = 0;
-    this->base_clock = base_clock;
+    this->base_clock = new_base_clock;
     buf = nullptr;
     blocks_to_transfer = 0;
     block_size = 0;
@@ -1289,7 +1265,7 @@ int SDCard::card_init() {
 
     // At this point, we know the card is definitely an SD card, so will definitely
     //  support SDR12 mode which runs at 25 MHz
-    switch_clock_rate(base_clock, SD_CLOCK_NORMAL);
+    switch_clock_rate(new_base_clock, SD_CLOCK_NORMAL);
 
     // A small wait before the voltage switch
     bad_udelay(5000);
@@ -1570,7 +1546,6 @@ int SDCard::card_init() {
 
     return 0;
 }
-#pragma clang diagnostic pop
 
 bool SDCard::mbox_power_cycle() {
     if(!mbox_power_off())
@@ -1805,10 +1780,7 @@ int SDCard::write(unsigned long start, void* l_buffer, unsigned long len) {
 }
 
 bool SDCard::init() {
-    if (card_init() != 0) {
-        return false;
-    }
-    return true;
+    return card_init() == 0;
 }
 
 unsigned int SDCard::get_sector_size() {
@@ -1818,7 +1790,3 @@ unsigned int SDCard::get_sector_size() {
 bool SDCard::supports_writes() {
     return true;
 }
-
-
-#pragma clang diagnostic pop
-#pragma clang diagnostic pop

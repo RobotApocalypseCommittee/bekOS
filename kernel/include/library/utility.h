@@ -21,6 +21,8 @@
 #define BEKOS_UTILITY_H
 
 #include <type_traits>
+#include <stdint.h>
+#include <hardtypes.h>
 #include "library/liballoc.h"
 
 inline void* operator new(size_t size)
@@ -69,6 +71,19 @@ namespace bek {
     typename std::remove_reference<T>::type&& move( T&& t ) noexcept {
         return static_cast<typename std::remove_reference<T>::type&&>(t);
     }
+
+    template<class T>
+    void swap(T& a, T& b) noexcept {
+        T tmp = move(a);
+        a = move(b);
+        b = move(tmp);
+    }
+
+    template<class T>
+    u64 hash(T);
+
+    template<>
+    u64 hash(u64 x);
 }
 
 #endif //BEKOS_UTILITY_H

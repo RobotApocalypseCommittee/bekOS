@@ -81,6 +81,10 @@ public:
 
     ProcessManager();
 
+    ProcessManager(const ProcessManager&) = delete;
+    void operator=(const ProcessManager&) = delete;
+    ProcessManager& operator=(ProcessManager&& p) = default;
+
     void fork(ProcessFn fn, u64 argument = 0);
     void fork(Process* process);
 
@@ -98,6 +102,6 @@ private:
     Process* m_current;
 };
 
-extern ProcessManager processManager;
+extern ProcessManager* processManager;
 
 #endif //BEKOS_PROCESS_H

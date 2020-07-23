@@ -102,7 +102,7 @@ namespace bek {
 
     template<class T>
     void AcquirableRef<T>::swap(AcquirableRef &lhs) noexcept {
-        std::swap(lhs.m_ref, m_ref);
+        bek::swap(lhs.m_ref, m_ref);
     }
 
     template<class T>

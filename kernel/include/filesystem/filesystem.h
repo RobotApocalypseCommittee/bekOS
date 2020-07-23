@@ -56,7 +56,7 @@ public:
 
     void acquire();
     void release();
-    unsigned get_ref_count();
+    unsigned get_ref_count() const;
 
     void mark_dirty();
 
