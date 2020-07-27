@@ -17,26 +17,32 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef _assert_h
-#define _assert_h
+#ifndef BEKOS_ARRAY_H
+#define BEKOS_ARRAY_H
+#include "hardtypes.h"
+#include "library/assert.h"
 
-#ifdef __cplusplus
+
 namespace bek {
-extern "C" {
-#endif
 
-#ifdef NDEBUG
-#define assert(expr)	((void) 0)
-#else
+    template<class T, u64 _size>
+    class arr {
+    public:
+        inline constexpr u64 size() {
+            return _size;
+        }
 
-void assertion_failed(const char* pExpr, const char* pFile, unsigned nLine);
+        inline T& operator[](u64 index) {
+            assert(index < size());
+            return _data[index];
+        }
 
-#define assert(expr)    ( (expr) ? ((void)0) : bek::assertion_failed (#expr, __FILE__, __LINE__))
-#endif
+        inline T* data() {
+            return _data;
+        }
 
-#ifdef __cplusplus
+    private:
+        T _data[_size];
+    };
 }
-}
-#endif
-
-#endif
+#endif //BEKOS_ARRAY_H

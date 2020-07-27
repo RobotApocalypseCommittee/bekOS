@@ -21,35 +21,40 @@
 #define BEKOS_SECTORCACHE_H
 
 #include <hardtypes.h>
-#include "filesystem.h"
-
+#include <library/acquirable_ref.h>
 
 struct CacheEntry {
-    u64 entryID;
-    u64 size;
+    u64 address;
     void* data;
+    unsigned int ref_count;
+    bool dirty;
+    bool loaded;
+
+    void acquire();
+    void release();
 };
 
+using CacheEntryRef = bek::AcquirableRef<CacheEntry>;
+
+struct CacheNode;
 struct InternalCacheEntry;
 
-// Stores CacheEntries in linked list and BST
-class SectorCache {
+// Stores CacheEntries in linked list and search tree
+class BlockCache {
 public:
-    CacheEntry* lookup(u64 id);
+    CacheEntryRef get(u64 id);
 
-    /// Adds an entry
-    /// \note Caller must ensure entry does not already exist in cache.
-    /// \param entry Filled with data
-    void addEntry(CacheEntry entry);
+    void removeEntry(u64 id);
 
 private:
-
-    void insertionRepair(InternalCacheEntry* node);
-
+    CacheNode* splitNode(u64 id, CacheNode* current, CacheNode* parent);
+    InternalCacheEntry* createEntry(u64 id);
     u64 entry_count;
     u64 desired_count;
     InternalCacheEntry* first_entry;
-    InternalCacheEntry* root_entry;
+    CacheNode* root_entry;
+    bek::spinlock lock;
+    u64 block_size;
 
 };
 

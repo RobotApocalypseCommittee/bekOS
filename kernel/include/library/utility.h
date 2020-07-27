@@ -84,6 +84,23 @@ namespace bek {
 
     template<>
     u64 hash(u64 x);
+
+    template<class T>
+    void copy(T* dest, const T* src, size_t n) {
+        while (n > 0) {
+            n--;
+            *(dest++) = *(src++);
+        }
+    }
+
+    template<class T>
+    void copy_backward(T* dest, const T* src, size_t n) {
+        dest += n - 1; src += n - 1;
+        while (n > 0) {
+            n--;
+            *(dest--) = *(src--);
+        }
+    }
 }
 
 #endif //BEKOS_UTILITY_H

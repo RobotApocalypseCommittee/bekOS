@@ -17,26 +17,22 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef _assert_h
-#define _assert_h
+#include "library/lock.h"
 
-#ifdef __cplusplus
 namespace bek {
-extern "C" {
-#endif
 
-#ifdef NDEBUG
-#define assert(expr)	((void) 0)
-#else
+    void spinlock::lock() {
+        // TODO: Check we can be interrupted - otherwise could end in tragedy.
+        while (state.test_and_set(std::memory_order_acquire)) {
+            // TODO: Attempt context switch
+        }
+    }
 
-void assertion_failed(const char* pExpr, const char* pFile, unsigned nLine);
+    bool spinlock::try_lock() {
+        return !state.test_and_set(std::memory_order_acquire);
+    }
 
-#define assert(expr)    ( (expr) ? ((void)0) : bek::assertion_failed (#expr, __FILE__, __LINE__))
-#endif
-
-#ifdef __cplusplus
+    void spinlock::unlock() {
+        state.clear(std::memory_order_consume);
+    }
 }
-}
-#endif
-
-#endif

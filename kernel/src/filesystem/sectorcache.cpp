@@ -17,165 +17,166 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <library/lock.h>
+#include <kstring.h>
+#include <library/utility.h>
 #include "filesystem/sectorcache.h"
+#include "library/array.h"
+
+#define CHILD_COUNT 8
+#define LEAF_COUNT  2
 
 struct InternalCacheEntry {
-    CacheEntry entry;
-    InternalCacheEntry* left{};
-    InternalCacheEntry* right{};
-    InternalCacheEntry* parent{};
-    InternalCacheEntry* next;
-    bool black;
+    explicit InternalCacheEntry(CacheEntry entry) : entry(entry) {}
 
-    InternalCacheEntry(const CacheEntry &entry, InternalCacheEntry *next) : entry(entry), next(next), black(false) {}
+    CacheEntry entry;
+    InternalCacheEntry *next{};
+    InternalCacheEntry *prev{};
+
 };
 
-InternalCacheEntry* get_sibling(InternalCacheEntry* node) {
-    if (node->parent == nullptr) return nullptr;
-    if (node == node->parent->left) {
-        return node->parent->right;
+
+
+struct CacheNode {
+    bek::arr<u64, CHILD_COUNT - 1> indices;
+    bool to_leaf;
+    u8 child_count;
+    bek::arr<void *, CHILD_COUNT> children;
+};
+
+void addToNode(u64 id, void* ptr, CacheNode* current) {
+    assert(current->child_count < CHILD_COUNT);
+    int index = current->child_count - 1;
+    for (int i = 0; i < current->child_count - 1; i++) {
+        if (id < current->indices[i]) {
+            index = i;
+            // Budge over
+            bek::copy_backward(current->children.data() + index + 2,
+                               current->children.data() + index + 1,
+                               current->child_count - 1 - index);
+            bek::copy_backward(current->indices.data() + index + 1,
+                               current->indices.data() + index,
+                               current->child_count - 1 - index);
+            break;
+        }
+    }
+    // Add to node
+    current->indices[index] = id;
+    current->children[index + 1] = ptr;
+    current->child_count++;
+}
+
+CacheNode* BlockCache::splitNode(u64 id, CacheNode *current, CacheNode *parent) {
+    // We know it wont be less than half
+    int middle_index = (current->child_count / 2) - 1;
+    u64 middle_id = current->indices[middle_index];
+    int left_count = middle_index + 1;
+    int right_count = current->child_count - left_count;
+
+    auto *new_node = new CacheNode;
+    new_node->child_count = right_count;
+    new_node->to_leaf = current->to_leaf;
+    bek::copy(new_node->children.data(), current->children.data() + left_count, right_count);
+    bek::copy(new_node->indices.data(), current->indices.data() + left_count, right_count - 1);
+
+    current->child_count = left_count;
+
+    if (parent) {
+        // Max by default - we know the array is not full
+        addToNode(middle_id, new_node, parent);
     } else {
-        return node->parent->left;
+        // We are splitting root node -> create new parent
+        parent = new CacheNode;
+        parent->child_count = 2;
+        parent->to_leaf = false;
+        parent->children[0] = current;
+        parent->children[1] = new_node;
+        parent->indices[0] = middle_id;
+        root_entry = parent;
     }
-
-}
-
-void rotate_left(InternalCacheEntry* root) {
-    InternalCacheEntry* pivot = root->right;
-    InternalCacheEntry* parent = root->parent;
-    assert(pivot != nullptr);
-
-    auto* oldleft = pivot->left;
-
-    pivot->left = root;
-    root->parent = pivot;
-
-    root->right = oldleft;
-    if (oldleft != nullptr) {
-        oldleft->parent = root;
-    }
-
-    pivot->parent = parent;
-    if (parent != nullptr) {
-        if (root == parent->left) {
-            parent->left = pivot;
-        } else {
-            parent->right = pivot;
-        }
-    }
-}
-
-void rotate_right(InternalCacheEntry* root) {
-    InternalCacheEntry* pivot = root->left;
-    InternalCacheEntry* parent = root->parent;
-    assert(pivot != nullptr);
-
-    auto* oldright = pivot->right;
-
-    pivot->right = root;
-    root->parent = pivot;
-
-    root->right = oldright;
-    if (oldright != nullptr) {
-        oldright->parent = root;
-    }
-
-    pivot->parent = parent;
-    if (parent != nullptr) {
-        if (root == parent->left) {
-            parent->left = pivot;
-        } else {
-            parent->right = pivot;
-        }
-    }
-}
-
-void SectorCache::addEntry(CacheEntry entry) {
-    if (entry_count >= desired_count) {
-        // TODO: Remove last
-    }
-    auto* new_entry = new InternalCacheEntry(entry, first_entry);
-    first_entry = new_entry;
-
-    // Insert into tree
-    InternalCacheEntry* current_root = root_entry;
-    while (current_root != nullptr) {
-        if (new_entry->entry.entryID < current_root->entry.entryID) {
-            if (current_root->left == nullptr) {
-                current_root->left = new_entry;
-                new_entry->parent = current_root;
-                break;
-            } else {
-                current_root = current_root->left;
-                continue; // Not strictly necessary
-            }
-        } else {
-            if (current_root->right == nullptr) {
-                current_root->right = new_entry;
-                new_entry->parent = current_root;
-                break;
-            } else {
-                current_root = current_root->right;
-                continue;
-            }
-        }
-    }
-    insertionRepair(new_entry);
-}
-
-void SectorCache::insertionRepair(InternalCacheEntry *node) {
-    if (node->parent == nullptr) {
-        // Root node
-        node->black = true;
-    } else if (node->parent->black) {
-        // Do nothing
-    } else if (get_sibling(node->parent) != nullptr && !get_sibling(node->parent)->black) {
-        // Make both parents black, propagate
-        node->parent->black = true;
-        get_sibling(node->parent)->black = true;
-        // TODO: Recursive - potentially sticky
-        // If there is uncle, there is grandparent
-        insertionRepair(node->parent->parent);
+    if (id < middle_id) {
+        return current;
     } else {
-        // parent is red, parent's sibling is black
-        auto* parent = node->parent;
-        auto* grandparent = parent->parent; // Parent not black, so grandparent not null
-        bool grandparent_root = grandparent->parent == nullptr;
-
-        auto* c_node = node;
-        // If new is 'inside', move it to parent's place
-        if (node == parent->right && parent == grandparent->left) {
-            rotate_left(parent);
-            bek::swap(parent, c_node);
-        } else if (node == parent->left && parent == grandparent->right) {
-            rotate_right(parent);
-            bek::swap(parent, c_node);
-        }
-
-        if (c_node == parent->left) {
-            rotate_right(grandparent);
-        } else {
-            rotate_left(grandparent);
-        }
-        parent->black = true;
-        grandparent->black = false;
-        if (grandparent_root) {
-            root_entry = parent;
-        }
+        return new_node;
     }
-
 }
 
-CacheEntry* SectorCache::lookup(u64 id) {
-    auto* current_root = root_entry;
-    while (current_root != nullptr) {
-        if (id == current_root->entry.entryID) {
-            return &current_root->entry;
-        } else if (id < current_root->entry.entryID) {
-            current_root = current_root->left;
+CacheEntryRef BlockCache::get(u64 id) {
+    // Lock tree
+    bek::locker locker{lock};
+    // Begin search
+    CacheNode *parentNode = nullptr;
+    CacheNode *currentNode = root_entry;
+    InternalCacheEntry* result = nullptr;
+    bool tentative_found = false;
+    // Treats to_leaf nodes as indexed the same way
+    while (currentNode != nullptr) {
+        // Not there yet, descend level
+        // First, check if full and split
+        if (currentNode->child_count == CHILD_COUNT) {
+            currentNode = splitNode(id, currentNode, parentNode);
+        }
+        // Find next - by default maximum
+        int child_index = currentNode->child_count - 1;
+        // Loop through indices
+        for (int i = 0; i < currentNode->child_count - 1; i++) {
+            if (id < currentNode->indices[i]) {
+                child_index = i;
+                break;
+            }
+        }
+        if (!currentNode->to_leaf) {
+            // Descend
+            parentNode = currentNode;
+            currentNode = static_cast<CacheNode *>(currentNode->children[child_index]);
         } else {
-            current_root = current_root->right;
+            tentative_found = true;
+            result = static_cast<InternalCacheEntry*>(currentNode->children[child_index]);
+            break;
         }
     }
-    return nullptr;
+    if (tentative_found) {
+        assert (result != nullptr);
+        if (result->entry.address == id) {
+            // Huzzah
+            return CacheEntryRef(&result->entry);
+        } else {
+            if (entry_count < desired_count) {
+                // Go ahead create more
+                entry_count++;
+                auto* entry = createEntry(id);
+                addToNode(id, entry, currentNode);
+                return CacheEntryRef(&result->entry);
+            } else {
+                // TODO: Flush or something
+            }
+        }
+    } else {
+        // This shouldn't be possible
+        // TODO: Neaten
+        assert(0);
+    }
+}
+
+InternalCacheEntry *BlockCache::createEntry(u64 id) {
+    CacheEntry new_entry;
+    new_entry.address = id;
+    // TODO: Block allocator AAAAA
+    new_entry.data = new u8[block_size];
+    new_entry.dirty = false;
+    new_entry.loaded = false;
+    new_entry.ref_count = 0;
+    auto* n = new InternalCacheEntry(new_entry);
+    n->next = first_entry;
+    first_entry->prev = n;
+    first_entry = n;
+    return n;
+}
+
+void CacheEntry::acquire() {
+    ref_count++;
+}
+
+void CacheEntry::release() {
+    ref_count--;
 }
