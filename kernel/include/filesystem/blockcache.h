@@ -17,18 +17,24 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_SECTORCACHE_H
-#define BEKOS_SECTORCACHE_H
+#ifndef BEKOS_BLOCKCACHE_H
+#define BEKOS_BLOCKCACHE_H
 
 #include <hardtypes.h>
 #include <library/acquirable_ref.h>
 
+class BlockIndexer;
+
 struct CacheEntry {
-    u64 address;
-    void* data;
-    unsigned int ref_count;
-    bool dirty;
-    bool loaded;
+    CacheEntry(BlockIndexer &indexer, u32 index);
+
+    BlockIndexer& indexer;
+    u32 index;
+
+    unsigned int ref_count{};
+    void* data {nullptr};
+    bool dirty {false};
+    bool loaded{false};
 
     void acquire();
     void release();
@@ -39,23 +45,31 @@ using CacheEntryRef = bek::AcquirableRef<CacheEntry>;
 struct CacheNode;
 struct InternalCacheEntry;
 
-// Stores CacheEntries in linked list and search tree
+// Manages all CacheEntry instances, controls LRU clearing when necessary
 class BlockCache {
 public:
-    CacheEntryRef get(u64 id);
 
-    void removeEntry(u64 id);
-
+    InternalCacheEntry* registerEntry(BlockIndexer& indexer, u32 index);
+    void notifyUse(InternalCacheEntry &entry);
 private:
-    CacheNode* splitNode(u64 id, CacheNode* current, CacheNode* parent);
-    InternalCacheEntry* createEntry(u64 id);
     u64 entry_count;
     u64 desired_count;
     InternalCacheEntry* first_entry;
-    CacheNode* root_entry;
-    bek::spinlock lock;
-    u64 block_size;
-
 };
 
-#endif //BEKOS_SECTORCACHE_H
+// Maps ids (usually positions in file) to CacheEntry instances
+class BlockIndexer {
+public:
+    CacheEntryRef get(u32 id);
+private:
+    CacheNode* splitNode(u32 id, CacheNode* current, CacheNode* parent);
+    void mergeNode(int index, CacheNode* parent);
+    void removeEntry(InternalCacheEntry* entry);
+    void rebalance(CacheNode* node);
+    CacheNode* root_entry;
+    BlockCache& block_cache;
+    u64 block_size;
+    bek::spinlock lock;
+};
+
+#endif //BEKOS_BLOCKCACHE_H

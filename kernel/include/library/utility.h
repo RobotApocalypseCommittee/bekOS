@@ -101,6 +101,12 @@ namespace bek {
             *(dest--) = *(src--);
         }
     }
+
+    template<class T, class U>
+    struct pair {
+        T first;
+        U second;
+    };
 }
 
 #endif //BEKOS_UTILITY_H

@@ -6,7 +6,7 @@ add_executable(kernel boot.S mm.S kernel.cpp
         filesystem/mbr.cpp filesystem/fat.cpp filesystem/partition.cpp filesystem/filesystem.cpp filesystem/fatfs.cpp filesystem/entrycache.cpp
         printf.c utils.cpp page_mapping.cpp memory_manager.cpp library/kstring.c library/assert.c
         interrupts/int_handle_utils.cpp interrupts/int_handle.S interrupts/int_ctrl.S
-        process/process.cpp process/process_entry.S process/elf.cpp process/syscalls.cpp filesystem/sectorcache.cpp library/utility.cpp library/lock.cpp)
+        process/process.cpp process/process_entry.S process/elf.cpp process/syscalls.cpp filesystem/blockcache.cpp library/utility.cpp library/lock.cpp)
 target_include_directories(kernel PRIVATE ${freestanding_include_directories} ${CMAKE_CURRENT_SOURCE_DIR}/../include)
 target_compile_options(kernel PRIVATE -ffreestanding -nostdlib -nodefaultlibs -nostartfiles -Wall -Wextra -fno-exceptions -fno-rtti)
 set_target_properties(kernel PROPERTIES
