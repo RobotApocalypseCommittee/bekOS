@@ -24,17 +24,11 @@
 #include <stdint.h>
 #include "page_mapping.h"
 
-uint32_t byte_swap32(uint32_t swapee);
-
 unsigned long phys_to_virt(unsigned long physical_address);
 
 unsigned long virt_to_phys(unsigned long virtual_address);
 
-unsigned int read_u32_LE(void* data, unsigned int offset);
 
-unsigned short read_u16_LE(void* data, unsigned int offset);
-
-void write_u32_LE(void* data, unsigned int offset, unsigned int value);
 
 long round_up(long n, long multiple);
 

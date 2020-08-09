@@ -17,29 +17,20 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <memory_locations.h>
-#include <kstring.h>
+#ifndef BEKOS_DEVICE_H
+#define BEKOS_DEVICE_H
+
+class BlockDevice {
+public:
+    virtual unsigned long block_size() = 0;
+    virtual bool supports_writes() = 0;
+
+    bool readBytes(unsigned long start, void* buffer, unsigned long count);
+    bool writeBytes(unsigned long start, const void* buffer, unsigned long count);
+
+    virtual bool readBlock(unsigned long index, void* buffer, unsigned long offset, unsigned long count) = 0;
+    virtual bool writeBlock(unsigned long index, const void *buffer, unsigned long offset, unsigned long count) = 0;
+};
 
 
-#include "utils.h"
-
-unsigned long phys_to_virt(unsigned long physical_address) {
-    return physical_address + VA_START;
-}
-
-unsigned long virt_to_phys(unsigned long virtual_address) {
-    return virtual_address - VA_START;
-}
-
-long round_up(long n, long multiple) {
-    int remainder = n % multiple;
-    if (remainder == 0)
-        return n;
-
-    return n + multiple - remainder;
-}
-
-extern "C" void __cxa_pure_virtual()
-{
-    // Do nothing or print an error message.
-}
+#endif //BEKOS_DEVICE_H

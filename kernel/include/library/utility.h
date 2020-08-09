@@ -67,6 +67,16 @@ inline void* operator new[](size_t, void* ptr)
 
 namespace bek {
 
+    template<typename T>
+    inline T readLE(const u8* data);
+
+    template<typename T>
+    inline void writeLE(T value, u8* data);
+
+
+    template<typename T>
+    inline T swapBytes(T value);
+
     template< class T >
     typename std::remove_reference<T>::type&& move( T&& t ) noexcept {
         return static_cast<typename std::remove_reference<T>::type&&>(t);
@@ -100,6 +110,16 @@ namespace bek {
             n--;
             *(dest--) = *(src--);
         }
+    }
+
+    template<typename T>
+    inline T min(T a, T b) {
+        return a > b ? b : a;
+    }
+
+    template<typename T>
+    inline T max(T a, T b) {
+        return a > b ? a : b;
     }
 
     template<class T, class U>

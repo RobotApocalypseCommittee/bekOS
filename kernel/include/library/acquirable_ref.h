@@ -27,7 +27,7 @@ namespace bek {
     template<class T>
     class AcquirableRef {
     public:
-        explicit AcquirableRef(T* ref);
+        AcquirableRef(T* ref);
 
         AcquirableRef();
 
@@ -62,6 +62,18 @@ namespace bek {
         template<class U>
         friend
         class AcquirableRef;
+    };
+
+    template<class T>
+    class Acquirable {
+    public:
+        typedef AcquirableRef<T> ref;
+    private:
+        unsigned int _ref_count = 0;
+        inline void acquire() { _ref_count++; }
+        inline void release() { _ref_count--; }
+
+        friend class AcquirableRef<T>;
     };
 
     template<class T>

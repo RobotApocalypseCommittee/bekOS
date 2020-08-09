@@ -25,22 +25,16 @@
 
 class BlockIndexer;
 
-struct CacheEntry {
+struct CacheEntry: public bek::Acquirable<CacheEntry> {
     CacheEntry(BlockIndexer &indexer, u32 index);
 
     BlockIndexer& indexer;
-    u32 index;
+    u64 index;
 
-    unsigned int ref_count{};
     void* data {nullptr};
     bool dirty {false};
     bool loaded{false};
-
-    void acquire();
-    void release();
 };
-
-using CacheEntryRef = bek::AcquirableRef<CacheEntry>;
 
 struct CacheNode;
 struct InternalCacheEntry;
@@ -60,9 +54,11 @@ private:
 // Maps ids (usually positions in file) to CacheEntry instances
 class BlockIndexer {
 public:
-    CacheEntryRef get(u32 id);
+    BlockIndexer(BlockCache &blockCache, u64 blockSize);
+
+    CacheEntry::ref get(u64 id);
 private:
-    CacheNode* splitNode(u32 id, CacheNode* current, CacheNode* parent);
+    CacheNode* splitNode(u64 id, CacheNode* current, CacheNode* parent);
     void mergeNode(int index, CacheNode* parent);
     void removeEntry(InternalCacheEntry* entry);
     void rebalance(CacheNode* node);

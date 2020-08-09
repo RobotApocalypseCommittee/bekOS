@@ -26,14 +26,6 @@
 
 CacheEntry::CacheEntry(BlockIndexer &indexer, u32 index) : indexer(indexer), index(index) {}
 
-void CacheEntry::acquire() {
-    ref_count++;
-}
-
-void CacheEntry::release() {
-    ref_count--;
-}
-
 struct InternalCacheEntry {
     explicit InternalCacheEntry(CacheEntry entry) : entry(entry) {}
 
@@ -94,7 +86,7 @@ bek::pair<u32, void*> stealFromNode(int index, CacheNode* node, bool right) {
     return retval;
 }
 
-CacheNode *BlockIndexer::splitNode(u32 id, CacheNode *current, CacheNode *parent) {
+CacheNode *BlockIndexer::splitNode(u64 id, CacheNode *current, CacheNode *parent) {
     // We know it wont be less than half
     int middle_index = (current->child_count / 2) - 1;
     u64 middle_id = current->indices[middle_index];
@@ -131,7 +123,7 @@ CacheNode *BlockIndexer::splitNode(u32 id, CacheNode *current, CacheNode *parent
     }
 }
 
-CacheEntryRef BlockIndexer::get(u32 id) {
+CacheEntry::ref BlockIndexer::get(u64 id) {
     // Lock tree
     bek::locker locker{lock};
     // Begin search
@@ -167,15 +159,15 @@ CacheEntryRef BlockIndexer::get(u32 id) {
     if (result->entry.index == id) {
         // Huzzah
         block_cache.notifyUse(*result);
-        return CacheEntryRef(&result->entry);
+        return &result->entry;
     } else {
         auto *entry = block_cache.registerEntry(*this, id);
         if (entry) {
             entry->parent = currentNode;
             addToNode(id, entry, currentNode);
-            return CacheEntryRef(&result->entry);
+            return &result->entry;
         }
-        return CacheEntryRef();
+        return nullptr;
     }
 }
 
@@ -195,6 +187,8 @@ void BlockIndexer::removeEntry(InternalCacheEntry *entry) {
     // Delete element
     stealFromNode(index, parent, index == 0);
     rebalance(parent);
+    // Note the InternalCacheEntry still exists
+    entry->parent = nullptr;
 }
 
 void BlockIndexer::mergeNode(int index, CacheNode *parent) {
@@ -250,6 +244,8 @@ void BlockIndexer::rebalance(CacheNode *node) {
         }
     }
 }
+
+BlockIndexer::BlockIndexer(BlockCache &blockCache, u64 blockSize) : block_cache(blockCache), block_size(blockSize) {}
 
 InternalCacheEntry *BlockCache::registerEntry(BlockIndexer &indexer, u32 index) {
     // TODO: Better allocator?

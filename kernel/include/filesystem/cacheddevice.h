@@ -17,20 +17,27 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_HDEVICE_H
-#define BEKOS_HDEVICE_H
+#ifndef BEKOS_CACHEDDEVICE_H
+#define BEKOS_CACHEDDEVICE_H
 
+#include "device.h"
+#include "blockcache.h"
 
-class hdevice {
+class CachedDevice final: public BlockDevice {
 public:
-    virtual unsigned int get_sector_size() = 0;
+    explicit CachedDevice(BlockCache& cache, BlockDevice& device);
 
-    virtual bool supports_writes() = 0;
+    bool supports_writes() override;
 
-    virtual int read(unsigned long start, void* buffer, unsigned long length) = 0;
+    unsigned long block_size() override;
 
-    virtual int write(unsigned long start, void* buffer, unsigned long length) = 0;
+    bool readBlock(unsigned long index, void *buffer, unsigned long offset, unsigned long count) override;
+
+    bool writeBlock(unsigned long index, const void *buffer, unsigned long offset, unsigned long count) override;
+
+private:
+    BlockDevice& m_device;
+    BlockIndexer m_cache;
 };
 
-
-#endif //BEKOS_HDEVICE_H
+#endif //BEKOS_CACHEDDEVICE_H
