@@ -31,7 +31,8 @@ enum class ClusterType {
 };
 
 const unsigned int CLUSTER_EOC = 0x0FFFFFFF;
-const unsigned int CLUSTER_MASK = 0xF0000000;
+const unsigned int METADATA_MASK = 0xF0000000;
+
 
 ClusterType get_cluster_type(unsigned int cluster_n) {
     cluster_n = cluster_n & 0x0FFFFFFFu;
@@ -107,87 +108,56 @@ bool fatname_to_fname(char* fatname, char* fname) {
     return true;
 }
 
-void FileAllocationTable::init_from_bpb(void* buf, size_t size) {
-    (void) size;
-    uint8_t* b_arr = reinterpret_cast<uint8_t*>(buf);
-    unsigned short bytes_per_sector = read_u16_LE(buf, 0x0B);
-    assert(bytes_per_sector == m_partition->get_sector_size());
-    unsigned char sec_per_clus = b_arr[0xD];
-    unsigned short reserved_sector_count = read_u16_LE(buf, 0x0E);
-    num_fats = b_arr[0x10];
-    sectors_per_fat = read_u32_LE(buf, 0x24);
-    unsigned int root_first_cluster = read_u32_LE(buf, 0x2C);
-    fat_begin_lba = reserved_sector_count;
-    cluster_begin_lba = reserved_sector_count + (num_fats * sectors_per_fat);
-    sectors_per_cluster = sec_per_clus;
-    root_dir_first_cluster = root_first_cluster;
 
-}
-
-void FileAllocationTable::init() {
-    m_partition->read(0, m_buffer, 512);
-    init_from_bpb(m_buffer, 512);
+FileAllocationTable::FileAllocationTable(FATInfo info, BlockDevice &device): m_info(info), m_device(device) {
+    // TODO: Is this even necessary?
+    assert(info.sector_size == device.block_size());
 }
 
 unsigned int FileAllocationTable::getNextCluster(unsigned int current_cluster) {
     // Four bytes for each entry
-    unsigned int entries_per_sector = m_partition->get_sector_size() / 4;
-    unsigned int nFATSector = current_cluster / entries_per_sector;
-    unsigned int sector_offset = current_cluster % entries_per_sector;
-    // Add the offset to first sector in FAT
-    unsigned int nSector = fat_begin_lba + nFATSector;
-    m_partition->read(nSector * m_partition->get_sector_size(), m_buffer, m_partition->get_sector_size());
-    return read_u32_LE(m_buffer, sector_offset * 4);
+    unsigned int entries_per_sector = m_device.block_size() / 4;
+    u8 buffer[4];
+    // Read int
+    m_device.readBytes(m_info.fat_begin_sector * m_info.sector_size + current_cluster * 4, buffer, 4);
+    return bek::readLE<u32>(&buffer[0]);
 }
 
 unsigned int FileAllocationTable::allocateNextCluster(unsigned int current_cluster) {
-    // Loop through FAT
-    unsigned int i = 0;
-    // Skip first two
-    unsigned int j = 2;
-    unsigned int entries_per_sector = m_partition->get_sector_size() / 4;
-    for (; i < sectors_per_fat; i++) {
-        m_partition->read((i + fat_begin_lba)*m_partition->get_sector_size(), m_buffer, m_partition->get_sector_size());
-        for (; j < m_partition->get_sector_size(); j += 4) {
-            if (static_cast<ClusterType>(read_u32_LE(m_buffer, j)) != ClusterType::Free) continue;
-            write_u32_LE(m_buffer, j, (read_u32_LE(m_buffer, j) & CLUSTER_MASK) | CLUSTER_EOC);
-            // Commit to disk
-            m_partition->write((i + fat_begin_lba)*m_partition->get_sector_size(), m_buffer, m_partition->get_sector_size());
+    // TODO: This is stupid, and involves lots of extra copying - do something less stupid
+    // Which will require an extra fiddling on CachedDevice
+    auto buf = bek::vector<u8>(m_info.sector_size);
 
-            unsigned int new_cluster_num = (j/4) + (i * entries_per_sector);
-            // Find the targeted entry
-            unsigned int nFATSector = current_cluster / entries_per_sector;
-            unsigned int sector_offset = current_cluster % entries_per_sector;
-            // Add the offset to first sector in FAT
-            unsigned int nSector = fat_begin_lba + nFATSector;
-            m_partition->read(nSector * m_partition->get_sector_size(), m_buffer, m_partition->get_sector_size());
-            write_u32_LE(m_buffer, sector_offset * 4, (read_u32_LE(m_buffer, sector_offset * 4) & CLUSTER_MASK) | new_cluster_num);
-            m_partition->write(nSector * m_partition->get_sector_size(), m_buffer, m_partition->get_sector_size());
+    unsigned int first_checked_entry = bek::min(2u, m_free_cluster_hint);
+    // ints of length 4 bytes
+    unsigned int entries_per_sector = m_info.sector_size / 4;
+    unsigned int first_checked_sector = first_checked_entry / entries_per_sector;
+    unsigned int first_offset = first_checked_entry % entries_per_sector;
+
+    for (unsigned int i = first_checked_sector; i < m_info.fat_sectors; i++) {
+        m_device.readBlock(i + m_info.fat_begin_sector, buf.data(), 0, m_info.sector_size);
+        unsigned int j = (i == first_checked_sector) ? first_offset : 0;
+        for (; j < m_device.block_size(); j += 4) {
+            auto cluster_status = bek::readLE<u32>(&buf.data()[j]);
+            if (get_cluster_type(cluster_status) != ClusterType::Free) continue;
+            auto new_cluster_num = i * entries_per_sector + (j / 4);
+
+            u8 s_buffer[4]; // LE
+            bek::writeLE<u32>((cluster_status & METADATA_MASK) | CLUSTER_EOC, s_buffer);
+            m_device.writeBytes((m_info.fat_begin_sector + i) * m_device.block_size() + j, s_buffer, 4);
+
+            m_free_cluster_hint = new_cluster_num + 1;
+
+            u64 byte_index = m_info.fat_begin_sector * m_info.sector_size + current_cluster * 4;
+            m_device.readBytes(byte_index, s_buffer, 4);
+            auto curr_cluster_status = bek::readLE<u32>(s_buffer);
+            bek::writeLE<u32>((curr_cluster_status & METADATA_MASK) | new_cluster_num, s_buffer);
+            m_device.writeBytes(byte_index, s_buffer, 4);
             return new_cluster_num;
         }
-        j = 0;
     }
     // Error
     return 0;
-}
-
-
-
-void* FileAllocationTable::fetchSector(unsigned int cluster, unsigned int sector) {
-    unsigned int nSector = sector + (cluster - 2) * sectors_per_cluster + cluster_begin_lba;
-    m_partition->read(nSector * m_partition->get_sector_size(), m_buffer, m_partition->get_sector_size());
-    return m_buffer;
-}
-
-// TODO: Investigate pre-fetching cluster chains for files...
-FileAllocationTable::FileAllocationTable(partition* mPartition) : m_partition(mPartition) {}
-
-unsigned int FileAllocationTable::getClusterSectors() {
-    return sectors_per_cluster;
-}
-
-u32 FileAllocationTable::getRootCluster() {
-    return root_dir_first_cluster;
 }
 
 bool FileAllocationTable::readData(void* buf, unsigned int start_cluster, size_t offset, size_t size) {
@@ -199,19 +169,17 @@ bool FileAllocationTable::writeData(void* buf, unsigned int start_cluster, size_
 }
 
 bool
-FileAllocationTable::doDataInterchange(void* buf, unsigned int start_cluster, size_t offset, size_t size, bool write) {
+FileAllocationTable::doDataInterchange(u8 *buf, unsigned int start_cluster, size_t offset, size_t size, bool write) {
     // Find start cluster
-    unsigned int sectorSize = m_partition->get_sector_size();
-
-    unsigned int cluster_offset = offset / (sectors_per_cluster * sectorSize);
-    unsigned int sector_offset = (offset / sectorSize) % sectors_per_cluster;
-    unsigned int byte_offset = offset % sectorSize;
+    const unsigned int cluster_size = m_info.sectors_per_cluster * m_info.sector_size;
+    unsigned int cluster_n = offset / cluster_size;
+    unsigned int first_byte_offset = offset % cluster_size;
     unsigned int current_cluster = start_cluster;
 
-    for (unsigned int c = 0; c < cluster_offset; c++) {
+    for (unsigned int c = 0; c < cluster_n; c++) {
         current_cluster = getNextCluster(current_cluster);
         if (get_cluster_type(current_cluster) != ClusterType::NextPointer) {
-            // TODO: Extend
+            // TODO: Extend?
             return false;
         }
     }
@@ -219,54 +187,29 @@ FileAllocationTable::doDataInterchange(void* buf, unsigned int start_cluster, si
     size_t completed_size = 0;
     while (completed_size < size) {
         // Read to end of sector
-        unsigned int len_to_copy = size - completed_size > sectorSize - byte_offset ? sectorSize - byte_offset: size - completed_size;
+        unsigned int byte_offset = (completed_size == 0) ? first_byte_offset : 0;
+        unsigned int len_to_copy = bek::min<unsigned long>(size - completed_size, cluster_size - byte_offset);
         if (write) {
-            // Buffer -> sector
-            // First check whether full or partial sector
-            if (len_to_copy == sectorSize) {
-                // Full sector - dont worry about other data
-                if (!writeSector(current_cluster, sector_offset, static_cast<char*>(buf) + completed_size)) {
-                    return false;
-                }
-            } else {
-                // Have to read, copy, and write
-                char* sector = static_cast<char*>(fetchSector(current_cluster, sector_offset));
-                memcpy(sector + byte_offset, static_cast<char*>(buf) + completed_size, len_to_copy);
-                if (!writeSector(current_cluster, sector_offset, sector)) {
-                    return false;
-                }
-            }
+            m_device.writeBytes(m_info.clusters_begin_sector * m_info.sector_size + current_cluster * cluster_size + byte_offset, buf, len_to_copy);
         } else {
-            // sector -> buffer
-            char* sector = static_cast<char*>(fetchSector(current_cluster, sector_offset));
-            memcpy(static_cast<char*>(buf) + completed_size, sector + byte_offset, len_to_copy);
+            m_device.readBytes(m_info.clusters_begin_sector * m_info.sector_size + current_cluster * cluster_size + byte_offset, buf, len_to_copy);
         }
         completed_size += len_to_copy;
-        // All subsequent reads
-        byte_offset = 0;
+        buf += len_to_copy;
 
-        sector_offset++;
-        if (sector_offset % sectors_per_cluster == 0) {
-            current_cluster = getNextCluster(current_cluster);
-            auto cluster_type = get_cluster_type(current_cluster);
-            if (cluster_type != ClusterType::NextPointer) {
-                // Treat it as if End of Cluster
-                return false;
-            }
-            sector_offset = 0;
+
+        // Next cluster
+        current_cluster = getNextCluster(current_cluster);
+        if (get_cluster_type(current_cluster) != ClusterType::NextPointer) {
+            // TODO: Extend?
+            return false;
         }
     }
     return true;
 }
 
-bool FileAllocationTable::writeSector(unsigned int cluster, unsigned int sector, void* buf) {
-    unsigned int nSector = sector + (cluster - 2) * sectors_per_cluster + cluster_begin_lba;
-    m_partition->write(nSector * m_partition->get_sector_size(), buf, m_partition->get_sector_size());
-    return true;
-}
-
 bool FileAllocationTable::extendFile(unsigned int start_cluster, size_t size) {
-    size_t bytes_per_cluster = sectors_per_cluster * m_partition->get_sector_size();
+    size_t bytes_per_cluster = m_info.sector_size * m_info.sectors_per_cluster;
     size_t current_size = bytes_per_cluster;
     unsigned int current_cluster = start_cluster;
     unsigned int last_cluster;
@@ -284,15 +227,15 @@ bool FileAllocationTable::extendFile(unsigned int start_cluster, size_t size) {
 
 
 bool FATEntry::is_hidden() {
-    return attrib & (1 << 1);
+    return attrib & (1u << 1);
 }
 
 bool FATEntry::is_read_only() {
-    return attrib & (1 << 0);
+    return attrib & (1u << 0);
 }
 
 bool FATEntry::is_directory() {
-    return attrib & (1 << 4);
+    return attrib & (1u << 4);
 }
 
 

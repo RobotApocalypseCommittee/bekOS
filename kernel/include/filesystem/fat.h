@@ -22,13 +22,18 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <hardtypes.h>
-#include "hdevice.h"
+#include <library/optional.h>
+#include "device.h"
 #include "partition.h"
 
-
-#define FAT_SECTOR_SIZE 512
-#define FAT_DIR_ENTRY_SIZE 32
-#define FAT_DIR_ENTRIES_IN_SECTOR (FAT_SECTOR_SIZE / FAT_DIR_ENTRY_SIZE)
+struct FATInfo {
+    u16 sector_size; // In bytes
+    u32 sectors_per_cluster;
+    u32 fat_begin_sector;
+    u32 fat_sectors;
+    u32 clusters_begin_sector;
+    u32 root_begin_cluster;
+};
 
 struct HardFATEntry {
     char fatname[11];
@@ -68,40 +73,25 @@ bool fatname_to_fname(char* fatname, char* fname);
 
 class FileAllocationTable {
 public:
-    FileAllocationTable(partition* mPartition);
 
-    void init();
+    FileAllocationTable(FATInfo info, BlockDevice& device);
 
     unsigned int getNextCluster(unsigned int current_cluster);
 
     unsigned int allocateNextCluster(unsigned int current_cluster);
-
-    void* fetchSector(unsigned int cluster, unsigned int sector);
-    bool writeSector(unsigned int cluster, unsigned int sector, void* buf);
-
-    unsigned int getClusterSectors();
 
     bool readData(void* buf, unsigned int start_cluster, size_t offset, size_t size);
 
     bool writeData(void* buf, unsigned int start_cluster, size_t offset, size_t size);
 
     bool extendFile(unsigned int start_cluster, size_t size);
-
-    u32 getRootCluster();
 private:
 
-    void init_from_bpb(void* buf, size_t size);
+    bool doDataInterchange(u8 *buf, unsigned int start_cluster, size_t offset, size_t size, bool write);
 
-    bool doDataInterchange(void* buf, unsigned int start_cluster, size_t offset, size_t size, bool write);
-
-    unsigned long fat_begin_lba;
-    unsigned long cluster_begin_lba;
-    unsigned long sectors_per_cluster;
-    unsigned long root_dir_first_cluster;
-    unsigned int sectors_per_fat;
-    unsigned int num_fats;
-    uint8_t m_buffer[512];
-    hdevice* m_partition;
+    FATInfo m_info;
+    BlockDevice& m_device;
+    unsigned int m_free_cluster_hint{0};
 };
 
 #endif //BEKOS_FAT_H

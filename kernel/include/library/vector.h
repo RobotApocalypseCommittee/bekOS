@@ -20,6 +20,7 @@
 #ifndef BEKOS_VECTOR_H
 #define BEKOS_VECTOR_H
 
+#include "utils.h"
 #include "library/utility.h"
 #include "kstring.h"
 
@@ -30,6 +31,13 @@ namespace bek {
         vector() : m_size(0), m_capacity(1) {
             array = reinterpret_cast<T*>(kmalloc(m_capacity * sizeof(T)));
         };
+
+        explicit vector(size_t size): m_size(size), m_capacity(next_power_2(size)) {
+            array = reinterpret_cast<T*>(kmalloc(m_capacity * sizeof(T)));
+            for (size_t i = 0; i < size; i++) {
+                new (&array[i]) T();
+            }
+        }
 
         vector(const vector<T> &v) __attribute((deprecated("Do you want to copy vector?"))) {
             m_size = v.m_size;
@@ -93,6 +101,10 @@ namespace bek {
 
         inline size_t size() {
             return m_size;
+        }
+
+        inline T* data() {
+            return &array[0];
         }
 
         void reallocate() {

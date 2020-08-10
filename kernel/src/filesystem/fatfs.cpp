@@ -25,7 +25,29 @@
 #include <utils.h>
 
 #include "filesystem/entrycache.h"
+#include "library/optional.h"
 
+using namespace bek;
+
+
+
+bek::optional<FATInfo> fromBootSector(BlockDevice& device) {
+    assert(device.block_size() >= 512);
+    u8 buffer[512];
+    device.read(0, &buffer[0], 512);
+
+    if (readLE<u32>(&buffer[0x1FE]) != 0xAA55) return {};
+    if (buffer[0x42] != 0x28 && buffer[0x42] != 0x29) return {};
+    auto sector_size = readLE<u16>(&buffer[0x0B]);
+    auto sectors_per_cluster = buffer[0x0D];
+    auto reserved_sectors = readLE<u16>(&buffer[0x0E]);
+    auto fat_count = buffer[0x10];
+    auto sectors_per_fat = readLE<u32>(&buffer[0x24]);
+    auto root_begin_cluster = readLE<u32>(&buffer[0x2C]);
+    auto fat_begin_sector = reserved_sectors;
+    auto clusters_begin_sector = reserved_sectors + fat_count * sectors_per_fat;
+    return FATInfo{sector_size, sectors_per_cluster, fat_begin_sector, sectors_per_fat, clusters_begin_sector, root_begin_cluster};
+}
 
 bek::vector<FilesystemEntryRef> FATFilesystemDirectory::enumerate() {
     FATEntry entry;
