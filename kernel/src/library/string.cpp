@@ -118,4 +118,6 @@ namespace bek {
     u8 string::get_short_length() const {
         return m_short.length >> 1;
     }
+
+    string::string() {}
 }

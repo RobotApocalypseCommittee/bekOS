@@ -30,9 +30,69 @@ enum class ClusterType {
     Reserved
 };
 
+enum class EntryType {
+    Normal,
+    EndOfDirectory,
+    Deleted,
+    LongFileName
+};
+
 const unsigned int CLUSTER_EOC = 0x0FFFFFFF;
 const unsigned int METADATA_MASK = 0xF0000000;
+constexpr auto DIRENTRY_SIZE = 32;
 
+struct HardFATEntry {
+    char fatname[11];
+    uint8_t attrib;
+    uint64_t pad1;
+    uint16_t cluster_high;
+    uint32_t pad2;
+    uint16_t cluster_low;
+    uint32_t size;
+
+    FATEntry toEntry(u32 source_cluster, u32 cluster_index);
+    EntryType getType();
+
+    explicit HardFATEntry(const FATEntry &e);
+
+} __attribute__((__packed__));
+
+FATEntry HardFATEntry::toEntry(u32 source_cluster, u32 cluster_index) {
+    assert(getType() == EntryType::Normal);
+    char name83[13];
+    fatname_to_fname(&fatname[0], &name83[0]);
+    return FATEntry {
+        .name = bek::string(name83),
+        .size = size,
+        .start_cluster = static_cast<u32>(cluster_low) | (static_cast<u32>(cluster_high) << 16),
+        .source_cluster = source_cluster,
+        .source_cluster_entry = cluster_index,
+        .type = (attrib & (1u << 4)) ? FATEntry::DIRECTORY : FATEntry::FILE,
+        .attributes = attrib
+    };
+}
+
+EntryType HardFATEntry::getType() {
+    if (fatname[0] == 0) {
+        return EntryType::EndOfDirectory;
+    } else if (fatname[0] == 0xE5) {
+        return EntryType::Deleted;
+    } else if ((attrib & 0b00001111) == 0b00001111) {
+        return EntryType::LongFileName;
+    } else {
+        return EntryType::Normal;
+    }
+}
+
+HardFATEntry::HardFATEntry(const FATEntry &e): attrib(e.attributes), cluster_high(e.start_cluster >> 16), cluster_low(e.start_cluster), size(e.size), {
+    assert(e.name.size() <= 12);
+    fname_to_fat(e.name.data(), fatname);
+}
+
+
+inline u32 cluster_index(unsigned int cluster) {
+    return cluster & (~METADATA_MASK);
+}
 
 ClusterType get_cluster_type(unsigned int cluster_n) {
     cluster_n = cluster_n & 0x0FFFFFFFu;
@@ -109,7 +169,7 @@ bool fatname_to_fname(char* fatname, char* fname) {
 }
 
 
-FileAllocationTable::FileAllocationTable(FATInfo info, BlockDevice &device): m_info(info), m_device(device) {
+FileAllocationTable::FileAllocationTable(FATInfo info, BlockDevice &device): m_buffer(device.block_size()), m_info(info), m_device(device) {
     // TODO: Is this even necessary?
     assert(info.sector_size == device.block_size());
 }
@@ -124,10 +184,7 @@ unsigned int FileAllocationTable::getNextCluster(unsigned int current_cluster) {
 }
 
 unsigned int FileAllocationTable::allocateNextCluster(unsigned int current_cluster) {
-    // TODO: This is stupid, and involves lots of extra copying - do something less stupid
-    // Which will require an extra fiddling on CachedDevice
-    auto buf = bek::vector<u8>(m_info.sector_size);
-
+    bek::locker locker(m_lock);
     unsigned int first_checked_entry = bek::min(2u, m_free_cluster_hint);
     // ints of length 4 bytes
     unsigned int entries_per_sector = m_info.sector_size / 4;
@@ -135,10 +192,10 @@ unsigned int FileAllocationTable::allocateNextCluster(unsigned int current_clust
     unsigned int first_offset = first_checked_entry % entries_per_sector;
 
     for (unsigned int i = first_checked_sector; i < m_info.fat_sectors; i++) {
-        m_device.readBlock(i + m_info.fat_begin_sector, buf.data(), 0, m_info.sector_size);
+        m_device.readBlock(i + m_info.fat_begin_sector, m_buffer.data(), 0, m_info.sector_size);
         unsigned int j = (i == first_checked_sector) ? first_offset : 0;
         for (; j < m_device.block_size(); j += 4) {
-            auto cluster_status = bek::readLE<u32>(&buf.data()[j]);
+            auto cluster_status = bek::readLE<u32>(&m_buffer.data()[j]);
             if (get_cluster_type(cluster_status) != ClusterType::Free) continue;
             auto new_cluster_num = i * entries_per_sector + (j / 4);
 
@@ -160,12 +217,12 @@ unsigned int FileAllocationTable::allocateNextCluster(unsigned int current_clust
     return 0;
 }
 
-bool FileAllocationTable::readData(void* buf, unsigned int start_cluster, size_t offset, size_t size) {
-    return doDataInterchange(buf, start_cluster, offset, size, false);
+bool FileAllocationTable::readData(void *buf, unsigned int start_cluster, size_t offset, size_t size) {
+    return doDataInterchange(static_cast<u8 *>(buf), start_cluster, offset, size, false);
 }
 
-bool FileAllocationTable::writeData(void* buf, unsigned int start_cluster, size_t offset, size_t size) {
-    return doDataInterchange(buf, start_cluster, offset, size, true);
+bool FileAllocationTable::writeData(void *buf, unsigned int start_cluster, size_t offset, size_t size) {
+    return doDataInterchange(static_cast<u8 *>(buf), start_cluster, offset, size, true);
 }
 
 bool
@@ -209,6 +266,7 @@ FileAllocationTable::doDataInterchange(u8 *buf, unsigned int start_cluster, size
 }
 
 bool FileAllocationTable::extendFile(unsigned int start_cluster, size_t size) {
+    bek::locker locker(m_lock);
     size_t bytes_per_cluster = m_info.sector_size * m_info.sectors_per_cluster;
     size_t current_size = bytes_per_cluster;
     unsigned int current_cluster = start_cluster;
@@ -225,17 +283,52 @@ bool FileAllocationTable::extendFile(unsigned int start_cluster, size_t size) {
     return true;
 }
 
+bek::vector<FATEntry> FileAllocationTable::getEntries(unsigned int start_cluster) {
+    bek::locker locker(m_lock);
 
-bool FATEntry::is_hidden() {
-    return attrib & (1u << 1);
+    const auto entries_per_block = m_device.block_size() / DIRENTRY_SIZE;
+
+    unsigned int current_cluster = start_cluster;
+
+    bek::vector<FATEntry> entries;
+
+    while (get_cluster_type(current_cluster) == ClusterType::NextPointer) {
+
+        for (unsigned int sector = 0; sector < m_info.sectors_per_cluster; sector++) {
+            if (!readSector(current_cluster, sector)) {
+                // TODO: Error
+                assert(0);
+            }
+
+            auto* raw_entries = reinterpret_cast<HardFATEntry*>(m_buffer.data());
+
+            for (unsigned int i = 0; i < entries_per_block; i++) {
+                if (raw_entries[i].getType() == EntryType::EndOfDirectory) {
+                    return entries;
+                } else if (raw_entries[i].getType() == EntryType::Normal) {
+                    entries.push_back(raw_entries[i].toEntry(current_cluster, sector*entries_per_block + i));
+                }
+            }
+        }
+
+        current_cluster = getNextCluster(current_cluster);
+    }
+    return entries;
 }
 
-bool FATEntry::is_read_only() {
-    return attrib & (1u << 0);
+bool FileAllocationTable::readSector(unsigned int cluster, unsigned int sector) {
+    return m_device.readBlock(m_info.clusters_begin_sector + cluster_index(cluster) * m_info.sectors_per_cluster + sector, m_buffer.data(), 0, m_device.block_size());
 }
 
-bool FATEntry::is_directory() {
-    return attrib & (1u << 4);
+bool FileAllocationTable::commitEntry(const FATEntry& entry) {
+    const auto entries_per_block = m_info.sector_size / DIRENTRY_SIZE;
+    HardFATEntry e{entry};
+    return m_device.writeBlock(
+            m_info.clusters_begin_sector + entry.source_cluster * m_info.sectors_per_cluster + (entry.source_cluster_entry / entries_per_block),
+            reinterpret_cast<void*>(&e),
+            (entry.source_cluster_entry % entries_per_block) * DIRENTRY_SIZE,
+            sizeof(HardFATEntry)
+            );
 }
 
 

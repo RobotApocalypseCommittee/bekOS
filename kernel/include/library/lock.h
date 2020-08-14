@@ -28,8 +28,13 @@ namespace bek {
     public:
         spinlock() = default;
 
+        /// Acquires lock; will block until it succeeds (can cause deadlock).
         void lock();
+
+        /// Try to acquire lock, does not block if it is already locked. If true returned, *must* unlock later.
         bool try_lock();
+
+        /// Unlocks a mutex - must be in thread which has locked it already, or warranty void.
         void unlock();
 
         spinlock(const spinlock&) = delete;

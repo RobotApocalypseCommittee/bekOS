@@ -27,6 +27,8 @@ namespace bek {
 /// String w/ short string optimisation, cos why not?
     class string {
     public:
+
+        string();
         explicit string(const char* source);
 
         /// length excludes null-terminator

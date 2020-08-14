@@ -23,6 +23,8 @@
 #include <stdint.h>
 #include <hardtypes.h>
 #include <library/optional.h>
+#include <library/string.h>
+#include <library/lock.h>
 #include "device.h"
 #include "partition.h"
 
@@ -35,37 +37,22 @@ struct FATInfo {
     u32 root_begin_cluster;
 };
 
-struct HardFATEntry {
-    char fatname[11];
-    uint8_t attrib;
-    uint64_t pad1;
-    uint16_t cluster_high;
-    uint32_t pad2;
-    uint16_t cluster_low;
-    uint32_t size;
-} __attribute__((__packed__));
+
 
 struct FATEntry {
-    char name[13];
-    enum FATENTRYType {
-        FREE,
-        FILE,
-        DIRECTORY,
-        END,
-        UNKNOWN
-    } type;
-    uint8_t attrib;
-    unsigned int size;
-    unsigned int start_cluster;
+    bek::string name;
+    u32 size;
+    u32 start_cluster;
     u32 source_cluster;
     u32 source_cluster_entry;
+    enum FATENTRYType {
+        FILE,
+        DIRECTORY
+    } type;
+    u8 attributes;
 
     bool is_hidden();
-
     bool is_read_only();
-
-    bool is_directory();
-
 };
 
 bool fname_to_fat(const char* fname, char* fatname);
@@ -80,15 +67,27 @@ public:
 
     unsigned int allocateNextCluster(unsigned int current_cluster);
 
-    bool readData(void* buf, unsigned int start_cluster, size_t offset, size_t size);
+    inline bool readData(void *buf, unsigned int start_cluster, size_t offset, size_t size);
 
-    bool writeData(void* buf, unsigned int start_cluster, size_t offset, size_t size);
+    inline bool writeData(void *buf, unsigned int start_cluster, size_t offset, size_t size);
 
     bool extendFile(unsigned int start_cluster, size_t size);
+
+    bek::vector<FATEntry> getEntries(unsigned int start_cluster);
+
+    bool commitEntry(const FATEntry& entry);
+
 private:
+
+    /// Must be holding lock
+    inline bool readSector(unsigned int cluster, unsigned int sector);
 
     bool doDataInterchange(u8 *buf, unsigned int start_cluster, size_t offset, size_t size, bool write);
 
+    bek::spinlock m_lock;
+    // TODO: hacky?
+    /// A buffer of bytes, size of disk block
+    bek::vector<u8> m_buffer;
     FATInfo m_info;
     BlockDevice& m_device;
     unsigned int m_free_cluster_hint{0};
