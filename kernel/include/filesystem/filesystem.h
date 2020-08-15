@@ -22,6 +22,7 @@
 
 // Info about file/directory without accessing data
 
+#include <library/string.h>
 #include "hardtypes.h"
 
 #include "library/vector.h"
@@ -32,13 +33,12 @@ typedef bek::AcquirableRef<FilesystemEntry> FilesystemEntryRef;
 
 class FilesystemEntry {
 public:
-    // Owns string
-    char* m_name;
-    bool open = false;
+    bek::string name;
     u64 last_modified;
     u64 created;
-    unsigned size = 0;
     FilesystemEntryRef parent;
+    unsigned size = 0;
+    bool open = false;
     enum FilesystemEntryType {
         DIRECTORY,
         FILE

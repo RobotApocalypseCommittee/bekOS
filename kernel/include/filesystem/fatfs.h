@@ -24,18 +24,16 @@
 #include "fat.h"
 
 class FATFilesystem;
+class FileAllocationTable;
 
 class FATFilesystemEntry: public FilesystemEntry {
 public:
-    explicit FATFilesystemEntry(const FATEntry&);
-
-    void setFilesystem(FATFilesystem* pFilesystem, FileAllocationTable* pTable);
+    explicit FATFilesystemEntry(const FATEntry&, FATFilesystem&);
 
 protected:
     void commit_changes() override;
 
-    FATFilesystem* filesystem = nullptr;
-    FileAllocationTable* table = nullptr;
+    FATFilesystem& filesystem;
     unsigned m_root_cluster = 0;
     unsigned m_source_cluster = 0;
     unsigned m_source_index = 0;
@@ -49,8 +47,6 @@ public:
     bek::vector<FilesystemEntryRef> enumerate() override;
 
     FilesystemEntryRef lookup(const char* name) override;
-private:
-    bool getNextEntry(FATEntry* nextEntry, u32& cluster_n, u32& entry_n);
 };
 class FATFilesystemFile: public FATFilesystemEntry {
 public:
@@ -86,11 +82,14 @@ public:
 
     File* open(FilesystemEntryRef entry) override;
 
-    explicit FATFilesystem(partition* partition, EntryHashtable* entryCache);
+    explicit FATFilesystem(BlockDevice& partition, EntryHashtable& entryCache);
+
+    FileAllocationTable& getFAT();
 
 private:
     FileAllocationTable fat;
     bek::AcquirableRef<FATFilesystemDirectory> root_directory;
+
 };
 
 #endif //BEKOS_FATFS_H

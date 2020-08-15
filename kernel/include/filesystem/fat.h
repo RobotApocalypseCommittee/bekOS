@@ -77,6 +77,8 @@ public:
 
     bool commitEntry(const FATEntry& entry);
 
+    FATEntry getRootEntry();
+
 private:
 
     /// Must be holding lock

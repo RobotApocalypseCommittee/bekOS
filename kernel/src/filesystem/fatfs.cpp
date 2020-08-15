@@ -19,10 +19,7 @@
 
 
 #include "filesystem/fatfs.h"
-#include <library/assert.h>
 
-#include <utility>
-#include <utils.h>
 
 #include "filesystem/entrycache.h"
 #include "library/optional.h"
@@ -34,7 +31,7 @@ using namespace bek;
 bek::optional<FATInfo> fromBootSector(BlockDevice& device) {
     assert(device.block_size() >= 512);
     u8 buffer[512];
-    device.read(0, &buffer[0], 512);
+    device.readBlock(0, &buffer[0], 0, 512);
 
     if (readLE<u32>(&buffer[0x1FE]) != 0xAA55) return {};
     if (buffer[0x42] != 0x28 && buffer[0x42] != 0x29) return {};
@@ -49,121 +46,6 @@ bek::optional<FATInfo> fromBootSector(BlockDevice& device) {
     return FATInfo{sector_size, sectors_per_cluster, fat_begin_sector, sectors_per_fat, clusters_begin_sector, root_begin_cluster};
 }
 
-bek::vector<FilesystemEntryRef> FATFilesystemDirectory::enumerate() {
-    FATEntry entry;
-    u32 cluster_n = m_root_cluster;
-    u32 entry_n = 0;
-    bek::vector<FilesystemEntryRef> result;
-    while (getNextEntry(&entry, cluster_n, entry_n)) {
-        FATFilesystemEntry* new_entry;
-        if (entry.type == FATEntry::FILE) {
-            new_entry = new FATFilesystemFile(entry);
-        } else if (entry.type == FATEntry::DIRECTORY) {
-            new_entry = new FATFilesystemDirectory(entry);
-        } else {
-            continue;
-        }
-
-
-        new_entry->setFilesystem(filesystem, table);
-        new_entry->setParent(FilesystemEntryRef(this));
-        auto old_ref = filesystem->entryCache->search(FilesystemEntryRef(this), new_entry->m_name);
-        if (old_ref.empty()) {
-            auto new_ref = bek::AcquirableRef<FATFilesystemEntry>(new_entry);
-            filesystem->entryCache->insert(new_ref);
-            result.push_back(new_ref);
-        } else {
-            // Already loaded
-            result.push_back(old_ref);
-        }
-    }
-    return result;
-}
-
-FilesystemEntryRef FATFilesystemDirectory::lookup(const char* name) {
-    auto res = filesystem->entryCache->search(FilesystemEntryRef(this), name);
-    if (res.empty()) {
-        FATEntry entry;
-        u32 cluster_n = m_root_cluster;
-        u32 entry_n = 0;
-        while (getNextEntry(&entry, cluster_n, entry_n)) {
-            if (entry.type == FATEntry::FILE || entry.type == FATEntry::DIRECTORY) {
-                if (strcmp(entry.name, name) == 0) {
-                    FATFilesystemEntry* new_entry;
-                    if (entry.type == FATEntry::FILE) {
-                        new_entry = new FATFilesystemFile(entry);
-                    } else if (entry.type == FATEntry::DIRECTORY) {
-                        new_entry = new FATFilesystemDirectory(entry);
-                    } else {
-                        continue;
-                    }
-                    new_entry->setParent(FilesystemEntryRef(this));
-                    new_entry->setFilesystem(filesystem, table);
-                    auto new_ref = FilesystemEntryRef(new_entry);
-                    filesystem->entryCache->insert(new_ref);
-                    return new_ref;
-                }
-            }
-        }
-        // Found nothing
-        return FilesystemEntryRef();
-    }
-    return res;
-}
-
-bool FATFilesystemDirectory::getNextEntry(FATEntry* nextEntry, u32 &cluster_n, u32 &entry_n) {
-    const unsigned entries_per_cluster = table->getClusterSectors() * FAT_DIR_ENTRIES_IN_SECTOR;
-    if (cluster_n >= 0xFFFFFFF8 || cluster_n == 1 || cluster_n == 0) {
-        // Noo valid cluster
-        return false;
-    }
-    unsigned nSector = (entry_n % entries_per_cluster) / FAT_DIR_ENTRIES_IN_SECTOR;
-    auto* listing_sector = reinterpret_cast<HardFATEntry*>(table->fetchSector(cluster_n, nSector));
-    unsigned nOffset = entry_n % FAT_DIR_ENTRIES_IN_SECTOR;
-    auto entry = listing_sector[nOffset];
-    // Now check entry
-    if (entry.fatname[0] == '\0') {
-        nextEntry->type = FATEntry::END;
-        return false;
-    } else if ((entry.attrib & 0b1111) == 0b1111) {
-        // Long File name -> ignore for now
-        nextEntry->type = FATEntry::UNKNOWN;
-    } else if (entry.fatname[0] == 0xE5) {
-        // Free
-        nextEntry->type = FATEntry::FREE;
-    } else {
-        // Valid file
-        fatname_to_fname(entry.fatname, nextEntry->name);
-        nextEntry->attrib = entry.attrib;
-        nextEntry->size = entry.size;
-        nextEntry->start_cluster = (entry.cluster_high << 16) | entry.cluster_low;
-        nextEntry->type = entry.attrib & (1 << 4) ? FATEntry::DIRECTORY : FATEntry::FILE;
-        nextEntry->source_cluster = cluster_n;
-        nextEntry->source_cluster_entry = entry_n % entries_per_cluster;
-    }
-    // Now increment indexes
-    entry_n++;
-    if (entry_n % (entries_per_cluster) == 0) {
-        cluster_n = table->getNextCluster(cluster_n);
-    }
-    return true;
-}
-
-void FATFilesystemEntry::setFilesystem(FATFilesystem* pFilesystem, FileAllocationTable* pTable) {
-    filesystem = pFilesystem;
-    table = pTable;
-}
-
-FATFilesystemEntry::FATFilesystemEntry(const FATEntry& entry): m_root_cluster(entry.start_cluster),
-m_source_cluster(entry.source_cluster),
-m_source_index(entry.source_cluster_entry)
-{
-    size = entry.size;
-    m_name = new char[strlen(entry.name) + 1];
-    strcpy(m_name, entry.name);
-    // Others to follow
-}
-
 bek::vector<FilesystemEntryRef> FATFilesystemFile::enumerate() {
     assert(0);
     return bek::vector<FilesystemEntryRef>();
@@ -175,20 +57,6 @@ FilesystemEntryRef FATFilesystemFile::lookup(const char* name) {
     return FilesystemEntryRef();
 }
 
-void FATFilesystemEntry::commit_changes() {
-    unsigned nSector = m_source_index / FAT_DIR_ENTRIES_IN_SECTOR;
-    auto* listing_sector = reinterpret_cast<HardFATEntry*>(table->fetchSector(m_source_cluster, nSector));
-    unsigned nOffset = m_source_index % FAT_DIR_ENTRIES_IN_SECTOR;
-    auto* entry = &listing_sector[nOffset];
-    write_u32_LE(&entry->size, 0, size);
-    // Give up on LE
-    entry->cluster_high = m_root_cluster >> 16u;
-    entry->cluster_low = static_cast<unsigned short>(m_root_cluster);
-    fname_to_fat(m_name, entry->fatname);
-    // Now commit to disk
-    table->writeSector(m_source_cluster, nSector, listing_sector);
-}
-
 FilesystemEntryRef FATFilesystem::getInfo(char* path) {
     (void) path;
     // TODO: DO
@@ -197,21 +65,13 @@ FilesystemEntryRef FATFilesystem::getInfo(char* path) {
 
 FilesystemEntryRef FATFilesystem::getRootInfo() {
     if (root_directory.empty()) {
-        FATEntry root_entry;
-        strcpy(root_entry.name, "root");
-        root_entry.start_cluster = fat.getRootCluster();
-        root_entry.source_cluster_entry = root_entry.source_cluster = 0;
-
-        root_directory = bek::AcquirableRef<FATFilesystemDirectory>(new FATFilesystemDirectory(root_entry));
-        root_directory->setFilesystem(this, &fat);
+        auto entry = fat.getRootEntry();
+        root_directory = bek::AcquirableRef<FATFilesystemDirectory>(new FATFilesystemDirectory(entry, *this));
         entryCache->insert(root_directory);
     }
     return root_directory;
 }
 
-FATFilesystem::FATFilesystem(partition* partition, EntryHashtable* entryCache): Filesystem(entryCache), fat(partition) {
-    fat.init();
-}
 
 File* FATFilesystem::open(FilesystemEntryRef entry) {
     auto x = new FATFile(entry);
@@ -219,18 +79,26 @@ File* FATFilesystem::open(FilesystemEntryRef entry) {
     return x;
 }
 
+FileAllocationTable &FATFilesystem::getFAT() {
+    return fat;
+}
+
+FATFilesystem::FATFilesystem(BlockDevice &partition, EntryHashtable &entryCache): Filesystem(&entryCache), fat(fromBootSector(partition).release(), partition) {
+
+}
+
 bool FATFile::read(void* buf, size_t length, size_t offset) {
     if (offset + length > fileEntry->size) {
         return false;
     }
-    return fileEntry->table->readData(buf, fileEntry->m_root_cluster, offset, length);
+    return fileEntry->filesystem.getFAT().readData(buf, fileEntry->m_root_cluster, offset, length);
 }
 
 bool FATFile::write(void* buf, size_t length, size_t offset) {
     if (offset + length > fileEntry->size) {
         return false;
     }
-    return fileEntry->table->writeData(buf, fileEntry->m_root_cluster, offset, length);
+    return fileEntry->filesystem.getFAT().writeData(buf, fileEntry->m_root_cluster, offset, length);
 }
 
 bool FATFile::close() {
@@ -243,7 +111,7 @@ FATFile::FATFile(bek::AcquirableRef<FATFilesystemFile> fileEntry) : fileEntry(st
 bool FATFile::resize(size_t new_length) {
     if (new_length > fileEntry->size) {
         // Do nothing unless extending
-        if (!fileEntry->table->extendFile(fileEntry->m_root_cluster, new_length)){
+        if (!fileEntry->filesystem.getFAT().extendFile(fileEntry->m_root_cluster, new_length)){
             return false;
         }
     }

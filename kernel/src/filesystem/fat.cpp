@@ -331,4 +331,14 @@ bool FileAllocationTable::commitEntry(const FATEntry& entry) {
             );
 }
 
+FATEntry FileAllocationTable::getRootEntry() {
+    return FATEntry{
+            .name = bek::string("root"),
+            .start_cluster = m_info.root_begin_cluster,
+            .source_cluster = 0,
+            .source_cluster_entry = 0,
+            .type = FATEntry::DIRECTORY,
+    }
+}
+
 
