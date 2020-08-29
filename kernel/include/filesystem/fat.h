@@ -19,9 +19,6 @@
 #ifndef BEKOS_FAT_H
 #define BEKOS_FAT_H
 
-#include <stddef.h>
-#include <stdint.h>
-#include <hardtypes.h>
 #include <library/optional.h>
 #include <library/string.h>
 #include <library/lock.h>

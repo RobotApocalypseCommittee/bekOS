@@ -57,7 +57,7 @@ int syscall_open(char* path) {
         }
     }
 
-    auto root = filesystem->getRootInfo();
+    auto root = fs->getRootInfo();
     auto fileEntry = fullPathLookup(upperPath, root);
 
     if (fileEntry.empty()) {
@@ -76,7 +76,7 @@ int syscall_open(char* path) {
         return -1;
     }
 
-    auto fp = filesystem->open(fileEntry);
+    auto fp = fs->open(fileEntry);
     for (size_t i = 0; i < processManager->getCurrentProcess()->openFiles.size(); i++) {
         // Find empty spaces
         if (processManager->getCurrentProcess()->openFiles[i] == nullptr) {
@@ -117,7 +117,7 @@ unsigned long syscall_read(unsigned long index, char* buffer, unsigned long leng
 extern "C"
 int syscall_close(unsigned long index) {
 
-    auto root = filesystem->getRootInfo();
+    auto root = fs->getRootInfo();
 
     if (index >= processManager->getCurrentProcess()->openFiles.size()) {
         // file is not open

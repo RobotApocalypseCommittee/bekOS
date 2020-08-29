@@ -31,11 +31,11 @@
  *
  * Broadcom BCM2835 Peripherals Guide
  */
+
+
 #include "peripherals/emmc.h"
-#include <stdint.h>
-#include <stddef.h>
-#include <peripherals/property_tags.h>
-#include <peripherals/gpio.h>
+#include "peripherals/property_tags.h"
+#include "peripherals/gpio.h"
 #include <utils.h>
 #include "printf.h"
 #include "peripherals/gentimer.h"
@@ -217,11 +217,11 @@ const char *SDCard::err_irpts[] = { "CMD_TIMEOUT", "CMD_CRC", "CMD_END_BIT", "CM
 	"AUTO_CMD12", "ADMA", "TUNING", "RSVD" };
 #endif
 
-uint32_t hci_ver;
+u32 hci_ver;
 
-uint32_t capabilities_0;
-uint32_t capabilities_1;
-const uint32_t SDCard::sd_commands[] = {
+u32 capabilities_0;
+u32 capabilities_1;
+const u32 SDCard::sd_commands[] = {
         SD_CMD_INDEX(0),
         SD_CMD_RESERVED(1),
         SD_CMD_INDEX(2) | SD_RESP_R2,
@@ -288,7 +288,7 @@ const uint32_t SDCard::sd_commands[] = {
         SD_CMD_RESERVED(63)
 };
 
-const uint32_t SDCard::sd_acommands[] = {
+const u32 SDCard::sd_acommands[] = {
         SD_CMD_RESERVED(0),
         SD_CMD_RESERVED(1),
         SD_CMD_RESERVED(2),
@@ -410,7 +410,7 @@ const uint32_t SDCard::sd_acommands[] = {
 
 
 
-bool timeout_wait(uint64_t read_address, uint32_t mask, unsigned int value, unsigned int usec_timeout) {
+bool timeout_wait(u64 read_address, u32 mask, unsigned int value, unsigned int usec_timeout) {
     do {
         if ((mmio_read(read_address) & mask) ? value : !value) {
             return true;
@@ -447,7 +447,7 @@ bool SDCard::mbox_power_off() {
     return true;
 }
 
-uint32_t SDCard::get_base_clock_freq() {
+u32 SDCard::get_base_clock_freq() {
     property_tags tags;
     PropertyTagClockRate clockRate;
     clockRate.clock_id = 0x1;
@@ -460,19 +460,19 @@ uint32_t SDCard::get_base_clock_freq() {
     return clockRate.rate;
 }
 
-uint32_t SDCard::get_clock_divider(uint32_t base, uint32_t target) {
-    uint32_t targetted_divisor;
+u32 SDCard::get_clock_divider(u32 base, u32 target) {
+    u32 targetted_divisor;
     if (target > base) {
         targetted_divisor = 1;
     } else {
         targetted_divisor = base / target;
-        uint32_t mod = base % target;
+        u32 mod = base % target;
         if (mod)
             targetted_divisor--;
     }
     int divisor = -1;
     for (int first_bit = 31; first_bit >= 0; first_bit--) {
-        uint32_t bit_test = (1<<first_bit);
+        u32 bit_test = (1<<first_bit);
         if (targetted_divisor & bit_test) {
             divisor = first_bit;
             targetted_divisor &= ~bit_test;
@@ -495,9 +495,9 @@ uint32_t SDCard::get_clock_divider(uint32_t base, uint32_t target) {
     if (divisor >= 0x400) {
         divisor = 0x3ff;
     }
-    uint32_t freq_select = divisor & 0xff;
-    uint32_t upper_bits = (divisor >> 8) & 0x3;
-    uint32_t ret = (freq_select << 8) | (upper_bits << 6) | (0 << 5);
+    u32 freq_select = divisor & 0xff;
+    u32 upper_bits = (divisor >> 8) & 0x3;
+    u32 ret = (freq_select << 8) | (upper_bits << 6) | (0 << 5);
     /*
     int denominator = 1;
     if(divisor != 0)
@@ -507,8 +507,8 @@ uint32_t SDCard::get_clock_divider(uint32_t base, uint32_t target) {
     return ret;
 }
 
-bool SDCard::switch_clock_rate(uint32_t base, uint32_t target) {
-    uint32_t divider = get_clock_divider(base, target);
+bool SDCard::switch_clock_rate(u32 base, u32 target) {
+    u32 divider = get_clock_divider(base, target);
 
     // Wait for the command inhibit (CMD and DAT) bits to clear
     while (mmio_read(EMMC_BASE + EMMC_STATUS) & 0x3) {
@@ -516,7 +516,7 @@ bool SDCard::switch_clock_rate(uint32_t base, uint32_t target) {
     }
 
     // Set the SD clock off
-    uint32_t control1 = mmio_read(EMMC_BASE + EMMC_CONTROL1);
+    u32 control1 = mmio_read(EMMC_BASE + EMMC_CONTROL1);
     control1 &= ~(1 << 2);
     mmio_write(EMMC_BASE + EMMC_CONTROL1, control1);
     bad_udelay(2000);
@@ -537,7 +537,7 @@ bool SDCard::switch_clock_rate(uint32_t base, uint32_t target) {
 }
 
 bool SDCard::reset_cmd() {
-    uint32_t control1 = mmio_read(EMMC_BASE + EMMC_CONTROL1);
+    u32 control1 = mmio_read(EMMC_BASE + EMMC_CONTROL1);
     control1 |= SD_RESET_CMD;
     mmio_write(EMMC_BASE + EMMC_CONTROL1, control1);
     if(!timeout_wait(EMMC_BASE + EMMC_CONTROL1, SD_RESET_CMD, 0, 1000000))
@@ -549,7 +549,7 @@ bool SDCard::reset_cmd() {
 }
 
 bool SDCard::reset_dat() {
-    uint32_t control1 = mmio_read(EMMC_BASE + EMMC_CONTROL1);
+    u32 control1 = mmio_read(EMMC_BASE + EMMC_CONTROL1);
     control1 |= SD_RESET_DAT;
     mmio_write(EMMC_BASE + EMMC_CONTROL1, control1);
     if(!timeout_wait(EMMC_BASE + EMMC_CONTROL1, SD_RESET_DAT, 0, 1000000))
@@ -560,7 +560,7 @@ bool SDCard::reset_dat() {
     return true;
 }
 
-void SDCard::issue_command_int(uint32_t cmd_reg, uint32_t argument, int timeout) {
+void SDCard::issue_command_int(u32 cmd_reg, u32 argument, int timeout) {
     last_cmd_reg = cmd_reg;
     last_cmd_success = 0;
 
@@ -599,7 +599,7 @@ void SDCard::issue_command_int(uint32_t cmd_reg, uint32_t argument, int timeout)
         last_cmd_success = 0;
         return;
     }
-    uint32_t blksizecnt = block_size | (blocks_to_transfer << 16);
+    u32 blksizecnt = block_size | (blocks_to_transfer << 16);
     mmio_write(EMMC_BASE + EMMC_BLKSIZECNT, blksizecnt);
 
     // Set argument 1 reg
@@ -612,7 +612,7 @@ void SDCard::issue_command_int(uint32_t cmd_reg, uint32_t argument, int timeout)
 
     // Wait for command complete interrupt
     timeout_wait(EMMC_BASE + EMMC_INTERRUPT, 0x8001, 1, timeout);
-    uint32_t irpts = mmio_read(EMMC_BASE + EMMC_INTERRUPT);
+    u32 irpts = mmio_read(EMMC_BASE + EMMC_INTERRUPT);
 
     // Clear command complete status
     mmio_write(EMMC_BASE + EMMC_INTERRUPT, 0xffff0001);
@@ -649,7 +649,7 @@ void SDCard::issue_command_int(uint32_t cmd_reg, uint32_t argument, int timeout)
     // If with data, wait for the appropriate interrupt
     if((cmd_reg & SD_CMD_ISDATA))
     {
-        uint32_t wr_irpt;
+        u32 wr_irpt;
         int is_write = 0;
         if(cmd_reg & SD_CMD_DAT_DIR_CH)
             wr_irpt = (1 << 5);     // read
@@ -660,7 +660,7 @@ void SDCard::issue_command_int(uint32_t cmd_reg, uint32_t argument, int timeout)
         }
 
         int cur_block = 0;
-        auto cur_buf_addr = (uint32_t *)buf;
+        auto cur_buf_addr = (u32 *)buf;
         while(cur_block < blocks_to_transfer)
         {
 #ifdef EMMC_DEBUG
@@ -683,17 +683,17 @@ void SDCard::issue_command_int(uint32_t cmd_reg, uint32_t argument, int timeout)
             }
 
             // Transfer the block
-            size_t cur_byte_no = 0;
+            uSize cur_byte_no = 0;
             while(cur_byte_no < block_size)
             {
                 if(is_write)
                 {
-                    uint32_t data = *cur_buf_addr;
+                    u32 data = *cur_buf_addr;
                     mmio_write(EMMC_BASE + EMMC_DATA, data);
                 }
                 else
                 {
-                    uint32_t data = mmio_read(EMMC_BASE + EMMC_DATA);
+                    u32 data = mmio_read(EMMC_BASE + EMMC_DATA);
                     *cur_buf_addr = data;
                 }
                 cur_byte_no += 4;
@@ -744,7 +744,7 @@ void SDCard::handle_card_interrupt() {
     // Handle a card interrupt
 
 #ifdef EMMC_DEBUG
-    uint32_t status = mmio_read(EMMC_BASE + EMMC_STATUS);
+    u32 status = mmio_read(EMMC_BASE + EMMC_STATUS);
 
     printf("SD: card interrupt\n");
     printf("SD: controller status: %08x\n", status);
@@ -776,8 +776,8 @@ void SDCard::handle_card_interrupt() {
 }
 
 void SDCard::handle_interrupts() {
-    uint32_t irpts = mmio_read(EMMC_BASE + EMMC_INTERRUPT);
-    uint32_t reset_mask = 0;
+    u32 irpts = mmio_read(EMMC_BASE + EMMC_INTERRUPT);
+    u32 reset_mask = 0;
 
     if(irpts & SD_COMMAND_COMPLETE)
     {
@@ -867,7 +867,7 @@ void SDCard::handle_interrupts() {
 
 }
 
-void SDCard::issue_command(uint32_t command, uint32_t argument, int timeout) {
+void SDCard::issue_command(u32 command, u32 argument, int timeout) {
     // First, handle any pending interrupts
     handle_interrupts();
 
@@ -895,7 +895,7 @@ void SDCard::issue_command(uint32_t command, uint32_t argument, int timeout) {
         }
         last_cmd = APP_CMD;
 
-        uint32_t rca = 0;
+        u32 rca = 0;
         if(card_rca)
             rca = card_rca << 16;
         issue_command_int(sd_commands[APP_CMD], rca, timeout);
@@ -949,8 +949,8 @@ void SDCard::issue_command(uint32_t command, uint32_t argument, int timeout) {
 
 int SDCard::card_init() {
     // Check the sanity of the sd_commands and sd_acommands structures
-    static_assert(sizeof(sd_commands) == (64 * sizeof(uint32_t)), "EMMC: sd_commands of incorrect size");
-    static_assert(sizeof(sd_acommands) == (64 * sizeof(uint32_t)), "EMMC: sd_acommands of incorrect size");
+    static_assert(sizeof(sd_commands) == (64 * sizeof(u32)), "EMMC: sd_commands of incorrect size");
+    static_assert(sizeof(sd_acommands) == (64 * sizeof(u32)), "EMMC: sd_acommands of incorrect size");
 
 #if SDHCI_IMPLEMENTATION == SDHCI_IMPLEMENTATION_BCM_2708
     // Power cycle the card to ensure its in its startup state
@@ -965,10 +965,10 @@ int SDCard::card_init() {
 #endif
 
     // Read the controller version
-    uint32_t ver = mmio_read(EMMC_BASE + EMMC_SLOTISR_VER);
-    uint32_t vendor = ver >> 24;
-    uint32_t sdversion = (ver >> 16) & 0xff;
-    uint32_t slot_status = ver & 0xff;
+    u32 ver = mmio_read(EMMC_BASE + EMMC_SLOTISR_VER);
+    u32 vendor = ver >> 24;
+    u32 sdversion = (ver >> 16) & 0xff;
+    u32 slot_status = ver & 0xff;
     printf("EMMC: vendor %x, sdversion %x, slot_status %x\n", vendor, sdversion, slot_status);
     hci_ver = sdversion;
 
@@ -986,7 +986,7 @@ int SDCard::card_init() {
 #ifdef EMMC_DEBUG
     printf("EMMC: resetting controller\n");
 #endif
-    uint32_t control1 = mmio_read(EMMC_BASE + EMMC_CONTROL1);
+    u32 control1 = mmio_read(EMMC_BASE + EMMC_CONTROL1);
     control1 |= (1 << 24);
     // Disable clock
     control1 &= ~(1 << 2);
@@ -1017,7 +1017,7 @@ int SDCard::card_init() {
     printf("EMMC: checking for an inserted card\n");
 #endif
     timeout_wait((EMMC_BASE + EMMC_STATUS) , (1 << 16), 1, 500000);
-    uint32_t status_reg = mmio_read(EMMC_BASE + EMMC_STATUS);
+    u32 status_reg = mmio_read(EMMC_BASE + EMMC_STATUS);
     if((status_reg & (1 << 16)) == 0)
     {
         printf("EMMC: no card inserted\n");
@@ -1031,7 +1031,7 @@ int SDCard::card_init() {
     mmio_write(EMMC_BASE + EMMC_CONTROL2, 0);
 
     // Get the base clock rate
-    uint32_t new_base_clock = get_base_clock_freq();
+    u32 new_base_clock = get_base_clock_freq();
     if(new_base_clock == 0)
     {
         printf("EMMC: assuming clock rate to be 100MHz\n");
@@ -1046,7 +1046,7 @@ int SDCard::card_init() {
     control1 |= 1;			// enable clock
 
     // Set to identification frequency (400 kHz)
-    uint32_t f_id = get_clock_divider(new_base_clock, SD_CLOCK_ID);
+    u32 f_id = get_clock_divider(new_base_clock, SD_CLOCK_ID);
     if(f_id == SD_GET_CLOCK_DIVIDER_FAIL)
     {
         printf("EMMC: unable to get a valid clock divider for ID frequency\n");
@@ -1086,7 +1086,7 @@ int SDCard::card_init() {
     // Reset interrupts
     mmio_write(EMMC_BASE + EMMC_INTERRUPT, 0xffffffff);
     // Have all interrupts sent to the INTERRUPT register
-    uint32_t irpt_mask = 0xffffffff & (~SD_CARD_INTERRUPT);
+    u32 irpt_mask = 0xffffffff & (~SD_CARD_INTERRUPT);
 #ifdef SD_CARD_INTERRUPTS
     irpt_mask |= SD_CARD_INTERRUPT;
 #endif
@@ -1210,7 +1210,7 @@ int SDCard::card_init() {
     int card_is_busy = 1;
     while(card_is_busy)
     {
-        uint32_t v2_flags = 0;
+        u32 v2_flags = 0;
         if(v2_later)
         {
             // Set SDHC support
@@ -1298,7 +1298,7 @@ int SDCard::card_init() {
 
         // Check DAT[3:0]
         status_reg = mmio_read(EMMC_BASE + EMMC_STATUS);
-        uint32_t dat30 = (status_reg >> 20) & 0xf;
+        u32 dat30 = (status_reg >> 20) & 0xf;
         if(dat30 != 0)
         {
 #ifdef EMMC_DEBUG
@@ -1310,7 +1310,7 @@ int SDCard::card_init() {
         }
 
         // Set 1.8V signal enable to 1
-        uint32_t control0 = mmio_read(EMMC_BASE + EMMC_CONTROL0);
+        u32 control0 = mmio_read(EMMC_BASE + EMMC_CONTROL0);
         control0 |= (1 << 8);
         mmio_write(EMMC_BASE + EMMC_CONTROL0, control0);
 
@@ -1362,10 +1362,10 @@ int SDCard::card_init() {
         printf("SD: error sending ALL_SEND_CID\n");
         return -1;
     }
-    uint32_t card_cid_0 = last_r0;
-    uint32_t card_cid_1 = last_r1;
-    uint32_t card_cid_2 = last_r2;
-    uint32_t card_cid_3 = last_r3;
+    u32 card_cid_0 = last_r0;
+    u32 card_cid_1 = last_r1;
+    u32 card_cid_2 = last_r2;
+    u32 card_cid_3 = last_r3;
 
 #ifdef EMMC_DEBUG
     printf("SD: card CID: %08x%08x%08x%08x\n", card_cid_3, card_cid_2, card_cid_1, card_cid_0);
@@ -1383,17 +1383,17 @@ int SDCard::card_init() {
         return -1;
     }
 
-    uint32_t cmd3_resp = last_r0;
+    u32 cmd3_resp = last_r0;
 #ifdef EMMC_DEBUG
     printf("SD: CMD3 response: %08x\n", cmd3_resp);
 #endif
 
     card_rca = (cmd3_resp >> 16) & 0xffff;
-    uint32_t crc_error = (cmd3_resp >> 15) & 0x1;
-    uint32_t illegal_cmd = (cmd3_resp >> 14) & 0x1;
-    uint32_t error = (cmd3_resp >> 13) & 0x1;
-    uint32_t status = (cmd3_resp >> 9) & 0xf;
-    uint32_t ready = (cmd3_resp >> 8) & 0x1;
+    u32 crc_error = (cmd3_resp >> 15) & 0x1;
+    u32 illegal_cmd = (cmd3_resp >> 14) & 0x1;
+    u32 error = (cmd3_resp >> 13) & 0x1;
+    u32 status = (cmd3_resp >> 9) & 0xf;
+    u32 ready = (cmd3_resp >> 8) & 0x1;
 
     if(crc_error)
     {
@@ -1431,7 +1431,7 @@ int SDCard::card_init() {
         return -1;
     }
 
-    uint32_t cmd7_resp = last_r0;
+    u32 cmd7_resp = last_r0;
     status = (cmd7_resp >> 9) & 0xf;
 
     if((status != 3) && (status != 4))
@@ -1451,7 +1451,7 @@ int SDCard::card_init() {
         }
     }
     block_size = 512;
-    uint32_t controller_block_size = mmio_read(EMMC_BASE + EMMC_BLKSIZECNT);
+    u32 controller_block_size = mmio_read(EMMC_BASE + EMMC_BLKSIZECNT);
     controller_block_size &= (~0xfff);
     controller_block_size |= 0x200;
     mmio_write(EMMC_BASE + EMMC_BLKSIZECNT, controller_block_size);
@@ -1470,11 +1470,11 @@ int SDCard::card_init() {
 
     // Determine card version
     // Note that the SCR is big-endian
-    uint32_t scr0 = byte_swap32(scr.scr[0]);
+    u32 scr0 = bek::swapBytes<u32>(scr.scr[0]);
     scr.sd_version = SD_VER_UNKNOWN;
-    uint32_t sd_spec = (scr0 >> (56 - 32)) & 0xf;
-    uint32_t sd_spec3 = (scr0 >> (47 - 32)) & 0x1;
-    uint32_t sd_spec4 = (scr0 >> (42 - 32)) & 0x1;
+    u32 sd_spec = (scr0 >> (56 - 32)) & 0xf;
+    u32 sd_spec3 = (scr0 >> (47 - 32)) & 0x1;
+    u32 sd_spec4 = (scr0 >> (42 - 32)) & 0x1;
     scr.sd_bus_widths = (scr0 >> (48 - 32)) & 0xf;
     if(sd_spec == 0)
         scr.sd_version = SD_VER_1;
@@ -1511,8 +1511,8 @@ int SDCard::card_init() {
 #endif
 
         // Disable card interrupt in host
-        uint32_t old_irpt_mask = mmio_read(EMMC_BASE + EMMC_IRPT_MASK);
-        uint32_t new_iprt_mask = old_irpt_mask & ~(1 << 8);
+        u32 old_irpt_mask = mmio_read(EMMC_BASE + EMMC_IRPT_MASK);
+        u32 new_iprt_mask = old_irpt_mask & ~(1 << 8);
         mmio_write(EMMC_BASE + EMMC_IRPT_MASK, new_iprt_mask);
 
         // Send ACMD6 to change the card's bit mode
@@ -1522,7 +1522,7 @@ int SDCard::card_init() {
         else
         {
             // Change bit mode for Host
-            uint32_t control0 = mmio_read(EMMC_BASE + EMMC_CONTROL0);
+            u32 control0 = mmio_read(EMMC_BASE + EMMC_CONTROL0);
             control0 |= 0x2;
             mmio_write(EMMC_BASE + EMMC_CONTROL0, control0);
 
@@ -1558,7 +1558,7 @@ bool SDCard::mbox_power_cycle() {
 
 void SDCard::sd_power_off() {
     /* Power off the SD card */
-    uint32_t control0 = mmio_read(EMMC_BASE + EMMC_CONTROL0);
+    u32 control0 = mmio_read(EMMC_BASE + EMMC_CONTROL0);
     control0 &= ~(1 << 8);	// Set SD Bus Power bit off in Power Control Register
     mmio_write(EMMC_BASE + EMMC_CONTROL0, control0);
 }
@@ -1585,8 +1585,8 @@ int SDCard::ensure_data_mode() {
         return -1;
     }
 
-    uint32_t status = last_r0;
-    uint32_t cur_state = (status >> 9) & 0xf;
+    u32 status = last_r0;
+    u32 cur_state = (status >> 9) & 0xf;
 #ifdef EMMC_DEBUG
     printf("status %i\n", cur_state);
 #endif
@@ -1655,7 +1655,7 @@ int SDCard::ensure_data_mode() {
     return 0;
 }
 
-int SDCard::do_data_command(int is_write, void* l_buffer, size_t buf_size, uint32_t block_no) {
+int SDCard::do_data_command(int is_write, void* l_buffer, uSize buf_size, u32 block_no) {
     // PLSS table 4.20 - SDSC cards use byte addresses rather than block addresses
     if(!card_supports_sdhc)
         block_no *= 512;
@@ -1723,25 +1723,17 @@ int SDCard::do_data_command(int is_write, void* l_buffer, size_t buf_size, uint3
     return 0;
 }
 
-int SDCard::read(unsigned long start, void* l_buffer, unsigned long len) {
 
-    // Check start is the start of a block
-    if (start % 512 != 0) {
-#ifdef EMMC_DEBUG
-        printf("Must access SD card at block start");
-#endif
-        return -1;
-    }
-    uint32_t block_no = start/512;
+bool SDCard::readBlock(unsigned long index, void *buffer, unsigned long offset, unsigned long count) {
     // Check the status of the card
     if(ensure_data_mode() != 0)
         return -1;
 
 #ifdef EMMC_DEBUG
-    printf("SD: read() card ready, reading from block %u\n", block_no);
+    printf("SD: read() card ready, reading from block %u\n", index);
 #endif
 
-    if(do_data_command(0, l_buffer, len, block_no) < 0)
+    if(do_data_command(0, buffer, len, block_no) < 0)
         return -1;
 
 #ifdef EMMC_DEBUG
@@ -1751,22 +1743,13 @@ int SDCard::read(unsigned long start, void* l_buffer, unsigned long len) {
     return len;
 }
 
-int SDCard::write(unsigned long start, void* l_buffer, unsigned long len) {
-    // Check start is the start of a block
-    if (start % 512 != 0) {
-#ifdef EMMC_DEBUG
-        printf("Must access SD card at block start");
-#endif
-        return -1;
-    }
-    uint32_t block_no = start/512;
-
+bool SDCard::writeBlock(unsigned long index, const void *buffer, unsigned long offset, unsigned long count) {
     // Check the status of the card
     if(ensure_data_mode() != 0)
         return -1;
 
 #ifdef EMMC_DEBUG
-    printf("SD: read() card ready, reading from block %u\n", block_no);
+    printf("SD: read() card ready, reading from block %u\n", index);
 #endif
 
     if(do_data_command(1, l_buffer, len, block_no) < 0)
@@ -1781,10 +1764,6 @@ int SDCard::write(unsigned long start, void* l_buffer, unsigned long len) {
 
 bool SDCard::init() {
     return card_init() == 0;
-}
-
-unsigned int SDCard::get_sector_size() {
-    return block_size;
 }
 
 bool SDCard::supports_writes() {

@@ -32,7 +32,7 @@ namespace bek {
             array = reinterpret_cast<T*>(kmalloc(m_capacity * sizeof(T)));
         };
 
-        explicit vector(size_t size): m_size(size), m_capacity(next_power_2(size)) {
+        explicit vector(size_t size): m_size(size), m_capacity(size) {
             array = reinterpret_cast<T*>(kmalloc(m_capacity * sizeof(T)));
             for (size_t i = 0; i < size; i++) {
                 new (&array[i]) T();

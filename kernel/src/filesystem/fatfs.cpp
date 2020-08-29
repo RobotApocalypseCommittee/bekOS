@@ -16,17 +16,12 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
-
 #include "filesystem/fatfs.h"
-
 
 #include "filesystem/entrycache.h"
 #include "library/optional.h"
 
 using namespace bek;
-
-
 
 bek::optional<FATInfo> fromBootSector(BlockDevice& device) {
     assert(device.block_size() >= 512);
@@ -46,27 +41,10 @@ bek::optional<FATInfo> fromBootSector(BlockDevice& device) {
     return FATInfo{sector_size, sectors_per_cluster, fat_begin_sector, sectors_per_fat, clusters_begin_sector, root_begin_cluster};
 }
 
-bek::vector<FilesystemEntryRef> FATFilesystemFile::enumerate() {
-    assert(0);
-    return bek::vector<FilesystemEntryRef>();
-}
-
-FilesystemEntryRef FATFilesystemFile::lookup(const char* name) {
-    (void) name;
-    assert(0);
-    return FilesystemEntryRef();
-}
-
-FilesystemEntryRef FATFilesystem::getInfo(char* path) {
-    (void) path;
-    // TODO: DO
-    return FilesystemEntryRef();
-}
-
-FilesystemEntryRef FATFilesystem::getRootInfo() {
+fs::EntryRef fs::FATFilesystem::getRootInfo() {
     if (root_directory.empty()) {
         auto entry = fat.getRootEntry();
-        root_directory = bek::AcquirableRef<FATFilesystemDirectory>(new FATFilesystemDirectory(entry, *this));
+        root_directory = bek::AcquirableRef(new fs::FATDirectoryEntry(entry, *this));
         entryCache->insert(root_directory);
     }
     return root_directory;
@@ -120,6 +98,3 @@ bool FATFile::resize(size_t new_length) {
     return true;
 }
 
-FilesystemEntry* FATFile::getFilesystemEntry() {
-    return fileEntry.get();
-}

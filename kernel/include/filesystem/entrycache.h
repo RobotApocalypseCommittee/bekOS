@@ -22,22 +22,27 @@
 
 #include "filesystem.h"
 
+namespace fs {
 struct HashtableEntry {
-    FilesystemEntryRef filesystemEntry;
-    HashtableEntry* next;
+    EntryRef filesystemEntry;
+    HashtableEntry *next;
 };
 #define ENTRY_HASHTABLE_BUCKETS 10
+
 class EntryHashtable {
 public:
     EntryHashtable() = default;
 
-    FilesystemEntryRef search(FilesystemEntryRef root, const char* name);
-    void insert(FilesystemEntryRef entry);
-    void remove(FilesystemEntryRef ref);
+    EntryRef search(EntryRef root, const char *name);
+
+    void insert(EntryRef entry);
+
+    void remove(EntryRef ref);
+
     void clean();
 
 private:
-    HashtableEntry* buckets[ENTRY_HASHTABLE_BUCKETS] = {nullptr};
+    HashtableEntry *buckets[ENTRY_HASHTABLE_BUCKETS] = {nullptr};
 };
-
+}
 #endif //BEKOS_ENTRYCACHE_H

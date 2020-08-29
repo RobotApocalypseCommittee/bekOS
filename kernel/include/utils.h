@@ -28,8 +28,6 @@ unsigned long phys_to_virt(unsigned long physical_address);
 
 unsigned long virt_to_phys(unsigned long virtual_address);
 
-unsigned long next_power_2(unsigned long x);
-
 long round_up(long n, long multiple);
 
 #endif //BEKOS_UTILS_H

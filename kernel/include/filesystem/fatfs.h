@@ -23,12 +23,13 @@
 #include "filesystem.h"
 #include "fat.h"
 
-class FATFilesystem;
-class FileAllocationTable;
+namespace fs {
 
-class FATFilesystemEntry: public FilesystemEntry {
+class FATFilesystem;
+
+class FATEntry: public Entry {
 public:
-    explicit FATFilesystemEntry(const FATEntry&, FATFilesystem&);
+    explicit FATEntry(const FATEntry&, FATFilesystem&);
 
 protected:
     void commit_changes() override;
@@ -41,24 +42,21 @@ protected:
 friend class FATFile;
 };
 
-class FATFilesystemDirectory: public FATFilesystemEntry {
+class FATDirectoryEntry: public FATEntry {
 public:
-    using FATFilesystemEntry::FATFilesystemEntry;
-    bek::vector<FilesystemEntryRef> enumerate() override;
+    using FATEntry::FATEntry;
+    bek::vector<EntryRef> enumerate() override;
 
-    FilesystemEntryRef lookup(const char* name) override;
+    EntryRef lookup(const char* name) override;
 };
-class FATFilesystemFile: public FATFilesystemEntry {
+class FATFileEntry: public FATEntry {
 public:
-    using FATFilesystemEntry::FATFilesystemEntry;
-    bek::vector<FilesystemEntryRef> enumerate() override;
-
-    FilesystemEntryRef lookup(const char* name) override;
+    using FATEntry::FATEntry;
 };
 
 class FATFile: public File {
 public:
-    explicit FATFile(bek::AcquirableRef<FATFilesystemFile> fileEntry);
+    explicit FATFile(bek::AcquirableRef<FATFileEntry> fileEntry);
 
     bool read(void* buf, size_t length, size_t offset) override;
 
@@ -68,28 +66,29 @@ public:
 
     bool resize(size_t new_length) override;
 
-    FilesystemEntry* getFilesystemEntry() override;
+    Entry &getEntry() override;
 
 private:
-    bek::AcquirableRef<FATFilesystemFile> fileEntry;
+    bek::AcquirableRef<FATFileEntry> fileEntry;
 };
 
 class FATFilesystem: public Filesystem {
 public:
-    FilesystemEntryRef getInfo(char* path) override;
-
-    FilesystemEntryRef getRootInfo() override;
-
-    File* open(FilesystemEntryRef entry) override;
-
     explicit FATFilesystem(BlockDevice& partition, EntryHashtable& entryCache);
 
-    FileAllocationTable& getFAT();
+    EntryRef getInfo(char* path) override;
+
+    EntryRef getRootInfo() override;
+
+    File* open(EntryRef entry) override;
+
+    FileAllocationTable& getFAT() const;
 
 private:
     FileAllocationTable fat;
-    bek::AcquirableRef<FATFilesystemDirectory> root_directory;
+    bek::AcquirableRef<FATDirectoryEntry> root_directory;
 
 };
 
+}
 #endif //BEKOS_FATFS_H

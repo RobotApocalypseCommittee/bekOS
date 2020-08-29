@@ -31,18 +31,6 @@ unsigned long virt_to_phys(unsigned long virtual_address) {
     return virtual_address - VA_START;
 }
 
-unsigned long next_power_2(unsigned long x) {
-    x--;
-    x |= x >> 1;
-    x |= x >> 2;
-    x |= x >> 4;
-    x |= x >> 8;
-    x |= x >> 16;
-    x |= x >> 32;
-    x++;
-    return x;
-}
-
 long round_up(long n, long multiple) {
     int remainder = n % multiple;
     if (remainder == 0)

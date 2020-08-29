@@ -22,44 +22,51 @@
 #include <utility>
 #include "printf.h"
 
-void FilesystemEntry::acquire() {
+void fs::Entry::acquire() {
     // TODO: Safety
     ref_count++;
-    printf("Acquired: %s, %d\n", m_name, ref_count);
+    printf("Acquired: %s, %d\n", name.data(), ref_count);
 }
 
-void FilesystemEntry::release() {
+void fs::Entry::release() {
     // TODO: Safety
     ref_count--;
-    printf("Released: %s, %d\n", m_name, ref_count);
+    printf("Released: %s, %d\n", name.data(), ref_count);
     if (_dirty && ref_count == 0) {
-        printf("Committing changes to %s\n", m_name);
+        printf("Committing changes to %s\n", name.data());
         commit_changes();
     }
 }
 
-void FilesystemEntry::setParent(FilesystemEntryRef newParent) {
+void fs::Entry::setParent(EntryRef newParent) {
     parent = std::move(newParent);
 }
 
-u64 FilesystemEntry::get_hash() {
+u64 fs::Entry::get_hash() {
     if (m_hash == 0) {
-        m_hash = entry_hash(parent.get() != nullptr ? parent->get_hash() : 0, m_name);
+        m_hash = entry_hash(parent.get() != nullptr ? parent->get_hash() : 0, name.data());
     }
     return m_hash;
 }
 
-unsigned FilesystemEntry::get_ref_count() const {
+unsigned fs::Entry::get_ref_count() const {
     return ref_count;
 }
 
-FilesystemEntry::~FilesystemEntry() {
-    printf("Deleting %s\n", m_name);
-    delete []m_name;
+fs::Entry::~Entry() {
+    printf("Deleting %s\n", name.data());
 }
 
-void FilesystemEntry::mark_dirty() {
+void fs::Entry::mark_dirty() {
     _dirty = true;
+}
+
+bek::vector<fs::EntryRef> fs::Entry::enumerate() {
+    assert(false && "Should be implemented");
+}
+
+fs::EntryRef fs::Entry::lookup(const char *name) {
+    assert(false && "Should be implemented");
 }
 
 
@@ -77,9 +84,9 @@ u64 entry_hash(u64 previous, const char* name) {
     return hash;
 }
 
-Filesystem::Filesystem(EntryHashtable* entryCache) : entryCache(entryCache) {}
+fs::Filesystem(EntryHashtable* entryCache) : entryCache(entryCache) {}
 
-FilesystemEntryRef fullPathLookup(char* path, FilesystemEntryRef root) {
+EntryRef fullPathLookup(char* path, EntryRef root) {
     char* pathfragment = static_cast<char*>(kmalloc(strlen(path) + 1));
     char* pathend = path + strlen(path);
     while (true) {

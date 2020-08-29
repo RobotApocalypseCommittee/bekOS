@@ -21,7 +21,7 @@
 #define BEKOS_PARTITION_H
 
 
-#include "hdevice.h"
+#include "device.h"
 
 class partition: public hdevice {
 public:

@@ -19,25 +19,25 @@
 
 #include "filesystem/entrycache.h"
 
-FilesystemEntryRef EntryHashtable::search(FilesystemEntryRef root, const char* name) {
+fs::EntryRef fs::EntryHashtable::search(EntryRef root, const char* name) {
     u64 hash = entry_hash(root->get_hash(), name) % ENTRY_HASHTABLE_BUCKETS;
     auto* x = buckets[hash];
     while (x != nullptr) {
-        if (strcmp(x->filesystemEntry->m_name, name) == 0 && root == x->filesystemEntry->parent) {
+        if (strcmp(x->filesystemEntry->name.data(), name) == 0 && root == x->filesystemEntry->parent) {
             // Identical
             return x->filesystemEntry;
         }
         x = x->next;
     }
-    return FilesystemEntryRef();
+    return EntryRef();
 }
 
-void EntryHashtable::insert(FilesystemEntryRef entry) {
+void fs::EntryHashtable::insert(EntryRef entry) {
     u64 hash = entry->get_hash() % ENTRY_HASHTABLE_BUCKETS;
     buckets[hash] = new HashtableEntry { entry, buckets[hash]};
 }
 
-void EntryHashtable::remove(FilesystemEntryRef ref) {
+void fs::EntryHashtable::remove(EntryRef ref) {
     auto* x = buckets[ref->get_hash() % ENTRY_HASHTABLE_BUCKETS];
     if (x != nullptr) {
         if (x->filesystemEntry == ref) {
@@ -51,16 +51,17 @@ void EntryHashtable::remove(FilesystemEntryRef ref) {
                 if (x->filesystemEntry == ref) {
                     prev->next = x->next;
                     delete x;
+                    break;
                 }
             }
         }
     }
 }
 
-void EntryHashtable::clean() {
-    for (int i = 0; i < ENTRY_HASHTABLE_BUCKETS; i++) {
-        auto* x = buckets[i];
-        auto* prev_ptr = &buckets[i];
+void fs::EntryHashtable::clean() {
+    for (auto & bucket : buckets) {
+        auto* x = bucket;
+        auto* prev_ptr = &bucket;
         while (x != nullptr) {
             if (x->filesystemEntry.unique()) {
                 // Delete me

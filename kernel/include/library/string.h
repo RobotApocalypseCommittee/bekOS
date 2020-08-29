@@ -20,62 +20,85 @@
 #ifndef BEKOS_STRING_H
 #define BEKOS_STRING_H
 
-#include <hardtypes.h>
+#include "types.h"
 
 namespace bek {
 
+class string_view {
+public:
+    /// Length of string (not including null terminator)
+    string_view(const char* string, uSize length);
+    /// Must be null-terminated
+    explicit string_view(const char* string);
+
+    string_view(const string_view& v) = default;
+
+    string_view& operator=(const string_view& v) = default;
+
+    [[nodiscard]] const char* data() const;
+    [[nodiscard]] uSize size() const;
+    [[nodiscard]] string_view substr(uSize pos, uSize len) const;
+
+    void remove_prefix(uSize n);
+    void remove_suffix(uSize n);
+
+private:
+    const char* m_data;
+    uSize m_size;
+};
+
 /// String w/ short string optimisation, cos why not?
-    class string {
-    public:
+class string {
+public:
 
-        string();
-        explicit string(const char* source);
+    string();
+    explicit string(const char* source);
 
-        /// length excludes null-terminator
-        explicit string(u32 length, char init);
+    /// length excludes null-terminator
+    explicit string(u32 length, char init);
 
-        /// Excludes null-terminator
-        inline u32 size() const;
+    /// Excludes null-terminator
+    inline u32 size() const;
 
-        inline const char* data() const;
+    inline const char* data() const;
 
-        string(const string&);
-        string(string&&);
-        string& operator=(string);
-        ~string();
+    string(const string&);
+    string(string&&);
+    string& operator=(string);
+    ~string();
 
-        friend void swap(string& first, string& second);
-    private:
-        struct long_str {
-            /// Allocated byte capacity, includes null terminator
-            /// Assuming little endian, store 1 always in LSBit -> leftmost byte in memory
-            u32 capacity;
-            /// String length, exclude null terminator
-            u32 length;
-            /// Pointer to data
-            char* data;
-        };
-
-        struct short_str {
-            /// LSBit is 0, shifted
-            u8 length;
-            /// Short string capacity
-            char in_data[15];
-        };
-
-        union {
-            long_str m_long{};
-            short_str m_short;
-        };
-
-        inline bool is_long() const;
-
-        inline void set_short_length(u8 len);
-        inline void set_long_length(u32 length);
-        inline void set_long_capacity(u32 capacity);
-        inline u32  get_long_capacity() const;
-        inline u8   get_short_length() const;
+    friend void swap(string& first, string& second);
+private:
+    struct long_str {
+        /// Allocated byte capacity, includes null terminator
+        /// Assuming little endian, store 1 always in LSBit -> leftmost byte in memory
+        u32 capacity;
+        /// String length, exclude null terminator
+        u32 length;
+        /// Pointer to data
+        char* data;
     };
+
+    struct short_str {
+        /// LSBit is 0, shifted
+        u8 length;
+        /// Short string capacity
+        char in_data[15];
+    };
+
+    union {
+        long_str m_long{};
+        short_str m_short;
+    };
+
+    inline bool is_long() const;
+
+    inline void set_short_length(u8 len);
+    inline void set_long_length(u32 length);
+    inline void set_long_capacity(u32 capacity);
+    inline u32  get_long_capacity() const;
+    inline u8   get_short_length() const;
+};
 
 }
 

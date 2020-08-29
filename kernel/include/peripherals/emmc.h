@@ -20,79 +20,74 @@
 #ifndef BEKOS_EMMC_H
 #define BEKOS_EMMC_H
 
-#include <stdint.h>
-#include <stddef.h>
-#include "filesystem/hdevice.h"
+#include "library/types.h"
+#include "filesystem/device.h"
 
 
 struct SDSCR {
-    uint32_t scr[2];
-    uint32_t sd_bus_widths;
+    u32 scr[2];
+    u32 sd_bus_widths;
     int sd_version;
 };
-class SDCard: public hdevice {
+class SDCard: public BlockDevice {
 public:
     bool init();
-    int read(unsigned long start, void* l_buffer, unsigned long len) override;
-    int write(unsigned long start, void* l_buffer, unsigned long len) override;
-
-    unsigned int get_sector_size() override;
 
     bool supports_writes() override;
+
+    bool readBlock(unsigned long index, void *buffer, unsigned long offset, unsigned long count) override;
+
+    bool writeBlock(unsigned long index, const void *buffer, unsigned long offset, unsigned long count) override;
 
 private:
     bool mbox_power_on();
     bool mbox_power_off();
     bool mbox_power_cycle();
     void sd_power_off();
-    uint32_t get_base_clock_freq();
-    uint32_t get_clock_divider(uint32_t base, uint32_t target);
-    bool switch_clock_rate(uint32_t base, uint32_t target);
+    u32 get_base_clock_freq();
+    u32 get_clock_divider(u32 base, u32 target);
+    bool switch_clock_rate(u32 base, u32 target);
     bool reset_cmd();
     bool reset_dat();
-    void issue_command_int(uint32_t cmd_reg, uint32_t argument, int timeout);
+    void issue_command_int(u32 cmd_reg, u32 argument, int timeout);
     void handle_card_interrupt();
     void handle_interrupts();
-    void issue_command(uint32_t command, uint32_t argument, int timeout);
+    void issue_command(u32 command, u32 argument, int timeout);
     int card_init();
     int ensure_data_mode();
-    int do_data_command(int is_write, void* l_buffer, size_t buf_size, uint32_t block_no);
+    int do_data_command(int is_write, void* l_buffer, uSize buf_size, u32 block_no);
 
-
-
-
-
-    uint32_t card_supports_sdhc;
-    uint32_t card_supports_18v;
-    uint32_t card_ocr;
-    uint32_t card_rca;
-    uint32_t last_interrupt;
-    uint32_t last_error;
+    u32 card_supports_sdhc;
+    u32 card_supports_18v;
+    u32 card_ocr;
+    u32 card_rca;
+    u32 last_interrupt;
+    u32 last_error;
 
     struct SDSCR scr;
 
     int failed_voltage_switch;
 
-    uint32_t last_cmd_reg;
-    uint32_t last_cmd;
-    uint32_t last_cmd_success;
-    uint32_t last_r0;
-    uint32_t last_r1;
-    uint32_t last_r2;
-    uint32_t last_r3;
+    u32 last_cmd_reg;
+    u32 last_cmd;
+    u32 last_cmd_success;
+    u32 last_r0;
+    u32 last_r1;
+    u32 last_r2;
+    u32 last_r3;
 
     void *buf;
     int blocks_to_transfer;
-    size_t block_size;
+    uSize block_size;
     int card_removal;
-    uint32_t base_clock;
+    u32 base_clock;
 
-    static const uint32_t sd_commands[];
-    static const uint32_t sd_acommands[];
+    static const u32 sd_commands[];
+    static const u32 sd_acommands[];
     static const  char *err_irpts[];
     static const char* sd_versions[];
 
-    uint32_t device_id[4];
+    u32 device_id[4];
 };
 
 #endif //BEKOS_EMMC_H

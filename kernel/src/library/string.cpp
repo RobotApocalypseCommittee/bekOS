@@ -120,4 +120,22 @@ namespace bek {
     }
 
     string::string() {}
+
+string_view::string_view(const char *string, uSize length): m_data{string}, m_size{length} {}
+
+string_view::string_view(const char *string): m_data(string), m_size(strlen(string)) {}
+
+const char *string_view::data() const {
+    return m_data;
+}
+
+string_view string_view::substr(uSize pos, uSize len) const {
+    assert(pos <= size());
+    return string_view{m_data + pos, bek::min(len, size() - pos)};
+}
+
+uSize string_view::size() const {
+    return m_size;
+}
+
 }

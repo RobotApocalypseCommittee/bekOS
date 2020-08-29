@@ -21,7 +21,7 @@
 #include "printf.h"
 
 
-void assertion_failed(const char* pExpr, const char* pFile, unsigned nLine) {
+void bek::assertion_failed(const char* pExpr, const char* pFile, unsigned nLine) {
     printf("Assertion Failed: %s in %s, line %d\n", pExpr, pFile, nLine);
     // TODO: Halt the program/error recovery
 }

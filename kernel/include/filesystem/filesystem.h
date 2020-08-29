@@ -22,48 +22,55 @@
 
 // Info about file/directory without accessing data
 
-#include <library/string.h>
-#include "hardtypes.h"
+#include "library/string.h"
+#include "library/types.h"
 
 #include "library/vector.h"
 #include "library/acquirable_ref.h"
 
-class FilesystemEntry;
-typedef bek::AcquirableRef<FilesystemEntry> FilesystemEntryRef;
+namespace fs {
+class EntryHashtable;
+class Entry;
 
-class FilesystemEntry {
+using EntryRef = bek::AcquirableRef<Entry>;
+
+enum class EntryType {
+    DIRECTORY,
+    FILE
+};
+
+class Entry {
 public:
     bek::string name;
     u64 last_modified;
     u64 created;
-    FilesystemEntryRef parent;
+    EntryRef parent;
     unsigned size = 0;
     bool open = false;
-    enum FilesystemEntryType {
-        DIRECTORY,
-        FILE
-    } type;
+    EntryType type;
 
-    void setParent(FilesystemEntryRef newParent);
+    void setParent(EntryRef newParent);
 
-    FilesystemEntry(const FilesystemEntry &) = delete;
+    Entry(const Entry &) = delete;
 
-    FilesystemEntry() = default;
+    Entry() = default;
 
-    FilesystemEntry &operator=(const FilesystemEntry &) = delete;
+    Entry &operator=(const Entry &) = delete;
 
-    virtual ~FilesystemEntry();
+    virtual ~Entry();
 
     void acquire();
+
     void release();
+
     unsigned get_ref_count() const;
 
     void mark_dirty();
 
-    virtual bek::vector<FilesystemEntryRef> enumerate() = 0;
-    virtual FilesystemEntryRef lookup(const char* name) = 0;
-
     u64 get_hash();
+
+    virtual bek::vector<EntryRef> enumerate();
+    virtual EntryRef lookup(const char *name);
 
 protected:
     virtual void commit_changes() = 0;
@@ -74,37 +81,37 @@ private:
     u64 m_hash{0};
 };
 
-u64 entry_hash(u64 previous, const char* name);
+u64 entry_hash(u64 previous, const char *name);
 
 // An open file
 struct File {
 public:
-    virtual bool read(void* buf, size_t length, size_t offset) = 0;
-    virtual bool write(void* buf, size_t length, size_t offset) = 0;
+    virtual bool read(void *buf, size_t length, size_t offset) = 0;
+
+    virtual bool write(void *buf, size_t length, size_t offset) = 0;
+
     virtual bool resize(size_t new_length) = 0;
 
     virtual bool close() = 0;
 
     virtual ~File() = default;
 
-    virtual FilesystemEntry* getFilesystemEntry() = 0;
+    virtual Entry& getEntry() = 0;
 };
-
-class EntryHashtable;
 
 class Filesystem {
 public:
-    explicit Filesystem(EntryHashtable* entryCache);
+    explicit Filesystem(EntryHashtable &entryCache);
 
-    virtual FilesystemEntryRef getInfo(char* path) = 0;
-    virtual FilesystemEntryRef getRootInfo() = 0;
+    virtual EntryRef getInfo(char *path) = 0;
 
-    virtual File* open(FilesystemEntryRef entry) = 0;
+    virtual EntryRef getRootInfo() = 0;
 
-
-    EntryHashtable* entryCache;
+    virtual File *open(EntryRef entry) = 0;
+private:
+    EntryHashtable &entryCache;
 };
 
-FilesystemEntryRef fullPathLookup(char* path, FilesystemEntryRef root);
-
+EntryRef fullPathLookup(const bek::string &path, EntryRef root);
+}
 #endif //BEKOS_FILESYSTEM_H

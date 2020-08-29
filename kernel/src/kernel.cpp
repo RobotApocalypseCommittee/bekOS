@@ -165,11 +165,11 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
 
     // Initialise FAT
     FATFilesystem fs(part, &entryHashtable);
-    filesystem = &fs;
+    fs = &fs;
 
-    auto root = filesystem->getRootInfo();
+    auto root = fs->getRootInfo();
     auto execEntry = root->lookup("EXEC1");
-    auto execFile = filesystem->open(execEntry);
+    auto execFile = fs->open(execEntry);
     runProcess(execFile);
 
     printf("Done\n");
