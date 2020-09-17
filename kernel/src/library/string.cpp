@@ -23,119 +23,124 @@
 #include "library/utility.h"
 
 const u8 short_max_length = 14;
+using namespace bek;
 
-namespace bek {
+void bek::swap(string &first, string &second) {
+    /// Assume short occupies same space as long
+    swap(first.m_short, second.m_short);
+}
 
-    void swap(string &first, string &second) {
-        /// Assume short occupies same space as long
-        swap(first.m_short, second.m_short);
+bek::string::string(const string &s) {
+    if (s.is_long()) {
+        // Copy most of representation
+        m_long.capacity = s.m_long.capacity;
+        m_long.length = s.m_long.length;
+        m_long.data = new char[m_long.capacity];
+        copy(m_long.data, s.m_long.data, m_long.length + 1);
+    } else {
+        // Simply copy
+        m_short = s.m_short;
     }
+}
 
-    string::string(const string &s) {
-        if (s.is_long()) {
-            // Copy most of representation
-            m_long.capacity = s.m_long.capacity;
-            m_long.length = s.m_long.length;
-            m_long.data = new char[m_long.capacity];
-            copy(m_long.data, s.m_long.data, m_long.length + 1);
-        } else {
-            // Simply copy
-            m_short = s.m_short;
-        }
+bek::string::~string() {
+    if (is_long()) delete[] m_long.data;
+}
+
+bek::string::string(const char *source) {
+    u32 len = strlen(source);
+    if (len > short_max_length) {
+        // Long string
+        set_long_capacity(len + 1);
+        set_long_length(len);
+        m_long.data = new char[len + 1];
+        strcpy(m_long.data, source);
+    } else {
+        set_short_length(len);
+        strcpy(&m_short.in_data[0], source);
     }
+}
 
-    string::~string() {
-        if (is_long()) delete[] m_long.data;
+bek::string::string(u32 length, char init) {
+    if (length > short_max_length) {
+        set_long_length(length);
+        set_long_capacity(length + 1);
+        m_long.data = new char[length + 1];
+        memset(m_long.data, init, length);
+        m_long.data[length] = '\0';
+    } else {
+        set_short_length(length);
+        memset(&m_short.in_data[0], init, length);
+        m_short.in_data[length] = '\0';
     }
+}
 
-    string::string(const char *source) {
-        u32 len = strlen(source);
-        if (len > short_max_length) {
-            // Long string
-            set_long_capacity(len + 1);
-            set_long_length(len);
-            m_long.data = new char[len + 1];
-            strcpy(m_long.data, source);
-        } else {
-            set_short_length(len);
-            strcpy(&m_short.in_data[0], source);
-        }
-    }
+string &bek::string::operator=(string s) {
+    swap(*this, s);
+    return *this;
+}
 
-    string::string(u32 length, char init) {
-        if (length > short_max_length) {
-            set_long_length(length);
-            set_long_capacity(length + 1);
-            m_long.data = new char[length + 1];
-            memset(m_long.data, init, length);
-            m_long.data[length] = '\0';
-        } else {
-            set_short_length(length);
-            memset(&m_short.in_data[0], init, length);
-            m_short.in_data[length] = '\0';
-        }
-    }
+bek::string::string(string &&s) {
+    swap(*this, s);
+}
 
-    string &string::operator=(string s) {
-        swap(*this, s);
-        return *this;
-    }
 
-    string::string(string &&s) {
-        swap(*this, s);
-    }
+void bek::string::set_short_length(u8 len) {
+    assert(len <= 14);
+    m_short.length = len << 1;
+}
 
-    bool string::is_long() const {
-        return m_short.length & 0x1;
-    }
+void bek::string::set_long_length(u32 length) {
+    m_long.length = length;
+}
 
-    u32 string::size() const {
-        return is_long() ? m_long.length : get_short_length();
-    }
+void bek::string::set_long_capacity(u32 capacity) {
+    assert(capacity < ((1 << 31) - 1));
+    m_long.capacity = (capacity << 1) | 0x1;
+}
 
-    const char *string::data() const {
-        return is_long() ? m_long.data : &m_short.in_data[0];
-    }
+u32 bek::string::get_long_capacity() const {
+    return m_long.capacity >> 1;
+}
 
-    void string::set_short_length(u8 len) {
-        assert(len <= 14);
-        m_short.length = len << 1;
-    }
+u8 bek::string::get_short_length() const {
+    return m_short.length >> 1;
+}
 
-    void string::set_long_length(u32 length) {
-        m_long.length = length;
-    }
+bek::string::string() {}
 
-    void string::set_long_capacity(u32 capacity) {
-        assert(capacity < ((1 << 31) - 1));
-        m_long.capacity = (capacity << 1) | 0x1;
-    }
+bek::string_view::string_view(const char *string, uSize length) : m_data{string}, m_size{length} {}
 
-    u32 string::get_long_capacity() const {
-        return m_long.capacity >> 1;
-    }
+bek::string_view::string_view(const char *string) : m_data(string), m_size(strlen(string)) {}
 
-    u8 string::get_short_length() const {
-        return m_short.length >> 1;
-    }
-
-    string::string() {}
-
-string_view::string_view(const char *string, uSize length): m_data{string}, m_size{length} {}
-
-string_view::string_view(const char *string): m_data(string), m_size(strlen(string)) {}
-
-const char *string_view::data() const {
+const char *bek::string_view::data() const {
     return m_data;
 }
 
-string_view string_view::substr(uSize pos, uSize len) const {
+string_view bek::string_view::substr(uSize pos, uSize len) const {
     assert(pos <= size());
     return string_view{m_data + pos, bek::min(len, size() - pos)};
 }
 
-uSize string_view::size() const {
+uSize bek::string_view::size() const {
     return m_size;
 }
 
+const char *bek::string_view::begin() const {
+    return data();
+}
+
+const char *bek::string_view::end() const {
+    return data() + size();
+}
+
+void string_view::remove_prefix(uSize n) {
+    assert(n <= size());
+    m_data += n;
+    m_size -= n;
+}
+
+void string_view::remove_suffix(uSize n) {
+    assert(n <= size());
+    m_size -= n;
 }

@@ -129,6 +129,10 @@ namespace bek {
 
         }
 
+        inline T *begin() { return data(); }
+
+        inline T *end() { return data() + size(); }
+
         virtual ~vector() {
             clear();
             kfree(array);
@@ -137,7 +141,7 @@ namespace bek {
     private:
         size_t m_size{};
         size_t m_capacity{};
-        T* array;
+        T *array;
     };
 }
 

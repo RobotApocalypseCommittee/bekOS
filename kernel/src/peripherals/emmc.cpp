@@ -37,6 +37,8 @@
 #include "peripherals/property_tags.h"
 #include "peripherals/gpio.h"
 #include <utils.h>
+#include <library/utility.h>
+#include <kstring.h>
 #include "printf.h"
 #include "peripherals/gentimer.h"
 
@@ -599,7 +601,7 @@ void SDCard::issue_command_int(u32 cmd_reg, u32 argument, int timeout) {
         last_cmd_success = 0;
         return;
     }
-    u32 blksizecnt = block_size | (blocks_to_transfer << 16);
+    u32 blksizecnt = m_block_size | (blocks_to_transfer << 16);
     mmio_write(EMMC_BASE + EMMC_BLKSIZECNT, blksizecnt);
 
     // Set argument 1 reg
@@ -684,15 +686,11 @@ void SDCard::issue_command_int(u32 cmd_reg, u32 argument, int timeout) {
 
             // Transfer the block
             uSize cur_byte_no = 0;
-            while(cur_byte_no < block_size)
-            {
-                if(is_write)
-                {
+            while (cur_byte_no < m_block_size) {
+                if (is_write) {
                     u32 data = *cur_buf_addr;
                     mmio_write(EMMC_BASE + EMMC_DATA, data);
-                }
-                else
-                {
+                } else {
                     u32 data = mmio_read(EMMC_BASE + EMMC_DATA);
                     *cur_buf_addr = data;
                 }
@@ -1115,7 +1113,7 @@ int SDCard::card_init() {
     this->base_clock = new_base_clock;
     buf = nullptr;
     blocks_to_transfer = 0;
-    block_size = 0;
+    m_block_size = 0;
     card_removal = 0;
 
 #ifdef EMMC_DEBUG
@@ -1450,7 +1448,7 @@ int SDCard::card_init() {
             return -1;
         }
     }
-    block_size = 512;
+    m_block_size = 512;
     u32 controller_block_size = mmio_read(EMMC_BASE + EMMC_BLKSIZECNT);
     controller_block_size &= (~0xfff);
     controller_block_size |= 0x200;
@@ -1458,10 +1456,10 @@ int SDCard::card_init() {
 
     // Get the cards SCR register
     buf = &scr.scr[0];
-    block_size = 8;
+    m_block_size = 8;
     blocks_to_transfer = 1;
     issue_command(SEND_SCR, 0, 500000);
-    block_size = 512;
+    m_block_size = 512;
     if(FAIL)
     {
         printf("SD: error sending SEND_SCR\n");
@@ -1655,40 +1653,23 @@ int SDCard::ensure_data_mode() {
     return 0;
 }
 
-int SDCard::do_data_command(int is_write, void* l_buffer, uSize buf_size, u32 block_no) {
+int SDCard::do_data_command(bool write, uSize index, uSize number) {
     // PLSS table 4.20 - SDSC cards use byte addresses rather than block addresses
-    if(!card_supports_sdhc)
-        block_no *= 512;
+    if (!card_supports_sdhc)
+        index *= 512;
 
-    // This is as per HCSS 3.7.2.1
-    if(buf_size < block_size)
-    {
-        printf("SD: do_data_command() called with buffer size (%i) less than "
-               "block size (%i)\n", buf_size, block_size);
-        return -1;
-    }
-
-    blocks_to_transfer = buf_size / block_size;
-    if(buf_size % block_size)
-    {
-        printf("SD: do_data_command() called with buffer size (%i) not an "
-               "exact multiple of block size (%i)\n", buf_size, block_size);
-        return -1;
-    }
-    buf = l_buffer;
+    buf = temp_block_buffer;
+    blocks_to_transfer = number;
 
     // Decide on the command to use
     int command;
-    if(is_write)
-    {
-        if(blocks_to_transfer > 1)
+    if (write) {
+        if (blocks_to_transfer > 1)
             command = WRITE_MULTIPLE_BLOCK;
         else
             command = WRITE_BLOCK;
-    }
-    else
-    {
-        if(blocks_to_transfer > 1)
+    } else {
+        if (blocks_to_transfer > 1)
             command = READ_MULTIPLE_BLOCK;
         else
             command = READ_SINGLE_BLOCK;
@@ -1699,7 +1680,7 @@ int SDCard::do_data_command(int is_write, void* l_buffer, uSize buf_size, u32 bl
     while(retry_count < max_retries)
     {
 
-        issue_command(command, block_no, 5000000);
+        issue_command(command, index, 5000000);
 
         if(SUCCESS)
             break;
@@ -1726,40 +1707,41 @@ int SDCard::do_data_command(int is_write, void* l_buffer, uSize buf_size, u32 bl
 
 bool SDCard::readBlock(unsigned long index, void *buffer, unsigned long offset, unsigned long count) {
     // Check the status of the card
-    if(ensure_data_mode() != 0)
+    if (ensure_data_mode() != 0)
         return -1;
 
 #ifdef EMMC_DEBUG
     printf("SD: read() card ready, reading from block %u\n", index);
 #endif
 
-    if(do_data_command(0, buffer, len, block_no) < 0)
-        return -1;
+    if (do_data_command(false, index, 1) != 0) return false;
+    memcpy(buffer, temp_block_buffer + offset, count);
 
 #ifdef EMMC_DEBUG
     printf("SD: data read successful\n");
 #endif
-
-    return len;
+    return true;
 }
 
 bool SDCard::writeBlock(unsigned long index, const void *buffer, unsigned long offset, unsigned long count) {
     // Check the status of the card
-    if(ensure_data_mode() != 0)
+    if (ensure_data_mode() != 0)
         return -1;
 
 #ifdef EMMC_DEBUG
     printf("SD: read() card ready, reading from block %u\n", index);
 #endif
+    if (offset != 0 || count != m_block_size) {
+        if (do_data_command(false, index, 1) != 0) return false;
+        memcpy(temp_block_buffer + offset, buffer, count);
+    }
+    if (do_data_command(true, index, 1) != 0) return false;
 
-    if(do_data_command(1, l_buffer, len, block_no) < 0)
-        return -1;
 
 #ifdef EMMC_DEBUG
     printf("SD: data read successful\n");
 #endif
-
-    return len;
+    return true;
 }
 
 bool SDCard::init() {
@@ -1768,4 +1750,8 @@ bool SDCard::init() {
 
 bool SDCard::supports_writes() {
     return true;
+}
+
+unsigned long SDCard::block_size() {
+    return 512;
 }

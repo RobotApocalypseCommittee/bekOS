@@ -23,23 +23,22 @@
 
 #include "device.h"
 
-class partition: public hdevice {
+class Partition : public BlockDevice {
 public:
-    partition(hdevice* source, unsigned long startSector, unsigned long sectorSize, unsigned long partitionSize);
-
-    unsigned int get_sector_size() override;
+    Partition(BlockDevice *source, unsigned long start_index, unsigned long size_n);
 
     bool supports_writes() override;
 
-    int read(unsigned long start, void* buffer, unsigned long length) override;
+    unsigned long block_size() override;
 
-    int write(unsigned long start, void* buffer, unsigned long length) override;
+    bool readBlock(unsigned long index, void *buffer, unsigned long offset, unsigned long count) override;
+
+    bool writeBlock(unsigned long index, const void *buffer, unsigned long offset, unsigned long count) override;
 
 private:
-    hdevice* source;
-    unsigned long start_sector;
-    unsigned long sector_size;
-    unsigned long partition_size;
+    BlockDevice *source;
+    unsigned long start_block;
+    unsigned long partition_size_blocks;
 
 };
 

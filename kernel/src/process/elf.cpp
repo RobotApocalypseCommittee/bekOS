@@ -25,7 +25,7 @@
 
 extern memory_manager memoryManager;
 
-elf_file::elf_file(File* f) : f(f) {}
+elf_file::elf_file(fs::File *f) : f(f) {}
 
 bool elf_file::parse() {
     elf_file_header fileHeader;

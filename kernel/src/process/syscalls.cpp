@@ -26,7 +26,7 @@
 #include <filesystem/mbr.h>
 #include <stdio.h>
 
-extern FATFilesystem* filesystem;
+extern fs::Filesystem *filesystem;
 
 extern "C"
 void syscall_uart_write(char* str) {
@@ -46,19 +46,18 @@ int syscall_get_pid() {
 extern "C"
 int syscall_open(char* path) {
 
-    char* upperPath = path;
+    char *upperPath = path;
     for (int i = 0; i < strlen(path); i++) {
         // if it's a lower case letter, make it upper case, otherwise, who cares
-        if ((int)path[i] > 98 && (int)path[i] < 123) {
-            upperPath[i] = (char)((int)path[i] - 32);
-        }
-        else {
+        if ((int) path[i] > 98 && (int) path[i] < 123) {
+            upperPath[i] = (char) ((int) path[i] - 32);
+        } else {
             upperPath[i] = path[i];
         }
     }
 
-    auto root = fs->getRootInfo();
-    auto fileEntry = fullPathLookup(upperPath, root);
+    auto root = filesystem->getRootInfo();
+    auto fileEntry = fs::fullPathLookup(root, upperPath);
 
     if (fileEntry.empty()) {
         // file doesn't exist
@@ -67,7 +66,7 @@ int syscall_open(char* path) {
 
     if (fileEntry->open) {
         for (size_t i = 0; i < processManager->getCurrentProcess()->openFiles.size(); i++) {
-            if (processManager->getCurrentProcess()->openFiles[i]->getFilesystemEntry() == fileEntry.get()) {
+            if (&processManager->getCurrentProcess()->openFiles[i]->getEntry() == fileEntry.get()) {
                 // file is already opened by this process, so go ahead
                 return i;
             }
@@ -76,7 +75,7 @@ int syscall_open(char* path) {
         return -1;
     }
 
-    auto fp = fs->open(fileEntry);
+    auto fp = filesystem->open(fileEntry);
     for (size_t i = 0; i < processManager->getCurrentProcess()->openFiles.size(); i++) {
         // Find empty spaces
         if (processManager->getCurrentProcess()->openFiles[i] == nullptr) {
@@ -100,24 +99,23 @@ unsigned long syscall_read(unsigned long index, char* buffer, unsigned long leng
     auto fp = processManager->getCurrentProcess()->openFiles[index];
     if (fp == nullptr) return 0;
 
-    auto fentry = fp->getFilesystemEntry();
+    auto &fentry = fp->getEntry();
 
-    if (fentry->size > length) {
+    if (fentry.size > length) {
         fp->read(buffer, length, 0);
         // reading not all of the file, so full length read
         return length;
-    }
-    else {
-        fp->read(buffer, fentry->size, 0);
+    } else {
+        fp->read(buffer, fentry.size, 0);
         // file is shorter than length, so full file read
-        return fentry->size;
+        return fentry.size;
     }
 }
 
 extern "C"
 int syscall_close(unsigned long index) {
 
-    auto root = fs->getRootInfo();
+    auto root = filesystem->getRootInfo();
 
     if (index >= processManager->getCurrentProcess()->openFiles.size()) {
         // file is not open
@@ -125,7 +123,7 @@ int syscall_close(unsigned long index) {
     }
 
     // remove file from process's open files
-    File* fp = processManager->getCurrentProcess()->openFiles[index];
+    fs::File *fp = processManager->getCurrentProcess()->openFiles[index];
     processManager->getCurrentProcess()->openFiles[index] = nullptr;
     fp->close();
     delete fp;

@@ -20,8 +20,6 @@
 #ifndef BEKOS_PROCESS_H
 #define BEKOS_PROCESS_H
 
-#include <hardtypes.h>
-#include <stdint.h>
 #include <library/vector.h>
 #include <filesystem/filesystem.h>
 #include "page_mapping.h"
@@ -72,7 +70,7 @@ struct Process {
     uintptr_t user_stack_top;
     uintptr_t kernel_stack_top;
 
-    bek::vector<File*> openFiles = {};
+    bek::vector<fs::File *> openFiles = {};
 };
 
 class ProcessManager {

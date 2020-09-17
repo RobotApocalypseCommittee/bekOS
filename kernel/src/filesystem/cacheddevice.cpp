@@ -38,7 +38,7 @@ bool CachedDevice::readBlock(unsigned long index, void *buffer, unsigned long of
     auto entry = m_cache.get(index);
     assert(entry->data != nullptr);
     if (!entry->loaded) {
-        if (!m_device.readBlock(index, entry->data)) {
+        if (!m_device.readBlock(index, entry->data, 0, block_size())) {
             return false;
         }
         entry->loaded = true;
@@ -52,7 +52,7 @@ bool CachedDevice::writeBlock(unsigned long index, const void *buffer, unsigned 
     auto entry = m_cache.get(index);
     assert(entry->data != nullptr);
     if ((!entry->loaded) && count != block_size()) {
-        if (!m_device.readBlock(index, entry->data)) {
+        if (!m_device.readBlock(index, entry->data, 0, block_size())) {
             return false;
         }
         entry->loaded = true;

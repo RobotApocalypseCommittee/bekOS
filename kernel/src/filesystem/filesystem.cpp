@@ -65,12 +65,13 @@ bek::vector<fs::EntryRef> fs::Entry::enumerate() {
     assert(false && "Should be implemented");
 }
 
-fs::EntryRef fs::Entry::lookup(const char *name) {
+fs::EntryRef fs::Entry::lookup(bek::string_view name) {
+    (void) name;
     assert(false && "Should be implemented");
 }
 
 
-u64 entry_hash(u64 previous, const char* name) {
+u64 fs::entry_hash(u64 previous, const char *name) {
     u64 hash;
     if (previous == 0) {
         hash = 5381;
@@ -84,22 +85,21 @@ u64 entry_hash(u64 previous, const char* name) {
     return hash;
 }
 
-fs::Filesystem(EntryHashtable* entryCache) : entryCache(entryCache) {}
-
-EntryRef fullPathLookup(char* path, EntryRef root) {
-    char* pathfragment = static_cast<char*>(kmalloc(strlen(path) + 1));
-    char* pathend = path + strlen(path);
-    while (true) {
-        char* pos = strchr(path, '/');
-        if (pos == nullptr) pos = pathend;
-        memcpy(pathfragment, path, pos - path);
-        pathfragment[pos - path] = '\0';
-        path = pos + 1;
-        root = root->lookup(pathfragment);
-        if (root.empty() || path >= pathend) {
-            kfree(pathfragment);
-            return root;
+fs::EntryRef fs::fullPathLookup(fs::EntryRef root, bek::string_view s) {
+    for (uSize i = 0; i < s.size(); i++) {
+        if (s.data()[i] == '/') {
+            auto currentPiece = s.substr(0, i);
+            s.remove_prefix(i + 1);
+            if (root->type == EntryType::DIRECTORY) {
+                root = root->lookup(currentPiece);
+            } else {
+                return {};
+            }
         }
     }
+    return root->type == EntryType::DIRECTORY ? root->lookup(s) : EntryRef{};
 }
 
+
+fs::Filesystem::Filesystem(fs::EntryHashtable &entryCache) : entryCache(entryCache) {
+}

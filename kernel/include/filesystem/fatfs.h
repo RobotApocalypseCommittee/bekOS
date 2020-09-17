@@ -29,7 +29,7 @@ class FATFilesystem;
 
 class FATEntry: public Entry {
 public:
-    explicit FATEntry(const FATEntry&, FATFilesystem&);
+    explicit FATEntry(const RawFATEntry &t_entry, FATFilesystem &t_filesystem, EntryRef t_parent);
 
 protected:
     void commit_changes() override;
@@ -45,9 +45,10 @@ friend class FATFile;
 class FATDirectoryEntry: public FATEntry {
 public:
     using FATEntry::FATEntry;
+
     bek::vector<EntryRef> enumerate() override;
 
-    EntryRef lookup(const char* name) override;
+    EntryRef lookup(bek::string_view name) override;
 };
 class FATFileEntry: public FATEntry {
 public:
@@ -72,23 +73,22 @@ private:
     bek::AcquirableRef<FATFileEntry> fileEntry;
 };
 
+
 class FATFilesystem: public Filesystem {
 public:
     explicit FATFilesystem(BlockDevice& partition, EntryHashtable& entryCache);
 
-    EntryRef getInfo(char* path) override;
-
     EntryRef getRootInfo() override;
 
-    File* open(EntryRef entry) override;
+    File *open(EntryRef entry) override;
 
-    FileAllocationTable& getFAT() const;
+    FileAllocationTable &getFAT();
 
 private:
     FileAllocationTable fat;
     bek::AcquirableRef<FATDirectoryEntry> root_directory;
-
 };
+
 
 }
 #endif //BEKOS_FATFS_H

@@ -19,35 +19,27 @@
 
 #include "filesystem/partition.h"
 
-partition::partition(hdevice* source, unsigned long startSector, unsigned long sectorSize, unsigned long partitionSize)
-        : source(source), start_sector(startSector), sector_size(sectorSize), partition_size(partitionSize) {}
+Partition::Partition(BlockDevice *source, unsigned long start_index, unsigned long size_n) : source(source),
+                                                                                             start_block(start_index),
+                                                                                             partition_size_blocks(
+                                                                                                     size_n) {}
 
-unsigned int partition::get_sector_size() {
-    return sector_size;
-}
-
-bool partition::supports_writes() {
+bool Partition::supports_writes() {
     return source->supports_writes();
 }
 
-int partition::read(unsigned long start, void* buffer, unsigned long length) {
-    // Check alignment and length
-    if (start % sector_size || start > partition_size || length % sector_size || start + length > partition_size) {
-        return -1;
-    }
-    // Lets go
-    unsigned long actual_start = start + (start_sector*sector_size);
-    source->read(actual_start, buffer, length);
-    return 0;
+unsigned long Partition::block_size() {
+    return source->block_size();
 }
 
-int partition::write(unsigned long start, void* buffer, unsigned long length) {
-    // Check alignment and length
-    if (start % sector_size || start > partition_size || length % sector_size || start + length > partition_size) {
-        return -1;
-    }
-    // Lets go
-    unsigned long actual_start = start + (start_sector*sector_size);
-    source->write(actual_start, buffer, length);
-    return 0;
+bool Partition::readBlock(unsigned long index, void *buffer, unsigned long offset, unsigned long count) {
+    if (index >= partition_size_blocks) return false;
+
+    return readBlock(index + start_block, buffer, offset, count);
+}
+
+bool Partition::writeBlock(unsigned long index, const void *buffer, unsigned long offset, unsigned long count) {
+    if (index >= partition_size_blocks) return false;
+
+    return writeBlock(index + start_block, buffer, offset, count);
 }

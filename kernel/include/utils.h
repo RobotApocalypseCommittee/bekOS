@@ -22,7 +22,6 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include "page_mapping.h"
 
 unsigned long phys_to_virt(unsigned long physical_address);
 

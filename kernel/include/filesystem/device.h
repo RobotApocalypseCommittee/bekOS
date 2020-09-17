@@ -30,6 +30,7 @@ public:
 
     virtual bool readBlock(unsigned long index, void* buffer, unsigned long offset, unsigned long count) = 0;
     virtual bool writeBlock(unsigned long index, const void *buffer, unsigned long offset, unsigned long count) = 0;
+
 };
 
 

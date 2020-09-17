@@ -70,7 +70,8 @@ public:
     u64 get_hash();
 
     virtual bek::vector<EntryRef> enumerate();
-    virtual EntryRef lookup(const char *name);
+
+    virtual EntryRef lookup(bek::string_view name);
 
 protected:
     virtual void commit_changes() = 0;
@@ -80,6 +81,7 @@ private:
     unsigned ref_count{0};
     u64 m_hash{0};
 };
+
 
 u64 entry_hash(u64 previous, const char *name);
 
@@ -103,15 +105,14 @@ class Filesystem {
 public:
     explicit Filesystem(EntryHashtable &entryCache);
 
-    virtual EntryRef getInfo(char *path) = 0;
-
     virtual EntryRef getRootInfo() = 0;
 
     virtual File *open(EntryRef entry) = 0;
-private:
+
+protected:
     EntryHashtable &entryCache;
 };
 
-EntryRef fullPathLookup(const bek::string &path, EntryRef root);
+EntryRef fullPathLookup(EntryRef root, bek::string_view s);
 }
 #endif //BEKOS_FILESYSTEM_H

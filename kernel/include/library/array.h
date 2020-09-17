@@ -19,7 +19,7 @@
 
 #ifndef BEKOS_ARRAY_H
 #define BEKOS_ARRAY_H
-#include "hardtypes.h"
+
 #include "library/assert.h"
 
 

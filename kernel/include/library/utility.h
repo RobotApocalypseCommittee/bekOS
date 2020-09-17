@@ -21,9 +21,8 @@
 #define BEKOS_UTILITY_H
 
 #include <type_traits>
-#include <stdint.h>
-#include <hardtypes.h>
 #include "library/liballoc.h"
+#include "types.h"
 
 inline void* operator new(size_t size)
 {

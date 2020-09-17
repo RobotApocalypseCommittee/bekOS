@@ -20,19 +20,20 @@
 #ifndef BEKOS_BLOCKCACHE_H
 #define BEKOS_BLOCKCACHE_H
 
-#include <hardtypes.h>
 #include <library/acquirable_ref.h>
+#include <library/types.h>
+#include <library/lock.h>
 
 class BlockIndexer;
 
-struct CacheEntry: public bek::Acquirable<CacheEntry> {
+struct CacheEntry : public bek::Acquirable<CacheEntry> {
     CacheEntry(BlockIndexer &indexer, u32 index);
 
-    BlockIndexer& indexer;
+    BlockIndexer &indexer;
     u64 index;
 
-    void* data {nullptr};
-    bool dirty {false};
+    void *data{nullptr};
+    bool dirty{false};
     bool loaded{false};
 };
 

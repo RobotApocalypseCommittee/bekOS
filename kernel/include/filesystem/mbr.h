@@ -20,7 +20,7 @@
 #ifndef BEKOS_MBR_H
 #define BEKOS_MBR_H
 
-#include <stddef.h>
+#include "library/types.h"
 #include "partition.h"
 
 
@@ -29,29 +29,14 @@ enum PartitionType: int {
     PART_FAT32 = 0x1,
 };
 
-struct MBR_partition {
-    size_t start;
-    size_t size;
-    PartitionType type;
+struct MBRPartitions {
+    struct {
+        uSize start;
+        uSize size;
+        PartitionType type;
+    } partitions[4];
 };
 
-class master_boot_record {
-public:
-    explicit master_boot_record(void* buf, hdevice* device);
-    // No copying is allowed
-    master_boot_record(const master_boot_record&) = delete;
-    void operator=(const master_boot_record&) = delete;
-
-    MBR_partition* get_partition_info(int id);
-    partition* get_partition(int id);
-
-    virtual ~master_boot_record();
-
-private:
-    hdevice* m_device;
-    MBR_partition partitions[4];
-    partition* d_partitions[4];
-
-};
+MBRPartitions readMBR(BlockDevice &device, uSize block_scale = 1);
 
 #endif //BEKOS_MBR_H

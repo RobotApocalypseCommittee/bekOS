@@ -19,7 +19,6 @@
 #ifndef BEKOS_ELF_H
 #define BEKOS_ELF_H
 
-#include <hardtypes.h>
 #include <filesystem/filesystem.h>
 #include <page_mapping.h>
 #include "process/process.h"
@@ -85,7 +84,7 @@ struct elf_section_header {
 
 class elf_file {
 public:
-    explicit elf_file(File* f);
+    explicit elf_file(fs::File *f);
 
     bool parse();
 
@@ -96,7 +95,7 @@ public:
 
 
 private:
-    File* f;
+    fs::File *f;
     bek::vector<elf_program_header> m_important_headers;
     u64 entry_point;
     u64 lowest_segment = -1;

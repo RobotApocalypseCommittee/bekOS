@@ -36,12 +36,12 @@
 #include "utils.h"
 #include "filesystem/fatfs.h"
 #include "interrupts/int_ctrl.h"
+
 memory_manager memoryManager;
 interrupt_controller interruptController;
-ProcessManager* processManager;
-EntryHashtable entryHashtable;
-Filesystem* filesystem;
-
+ProcessManager *processManager;
+fs::EntryHashtable entryHashtable;
+fs::Filesystem *filesystem;
 
 
 // Needed for printf
@@ -57,7 +57,7 @@ void onTick() {
     processManager->schedule();
 }
 
-void runProcess(File* execFile) {
+void runProcess(fs::File *execFile) {
     auto elfFile = new elf_file(execFile);
     printf("Parse Result: %d", elfFile->parse());
     processManager->fork(elf_loader_fn, reinterpret_cast<u64>(elfFile));
@@ -67,13 +67,13 @@ void runProcess(File* execFile) {
     interruptController.enable(interrupt_controller::SYSTEM_TIMER_1);
     // Every millisecond
     timer.set_interval(1000);
-    while(true) {
+    while (true) {
         bad_udelay(10000000);
         printf("Kernel Noot\n");
     }
 }
 
-void test_filesystem(FATFilesystem* fs, EntryHashtable* hashtable) {
+void test_filesystem(fs::FATFilesystem *fs, fs::EntryHashtable *hashtable) {
     auto root = fs->getRootInfo();
     {
         auto file = root->lookup("HELLO.TXT");
@@ -146,30 +146,23 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
     }
     printf("SD Init Success\n");
 
-    // Read first sector
-    uint32_t first_sector[128];
-    printf("first_sector size: %u\n", sizeof(first_sector));
-
-    my_sd.read(0, first_sector, 512);
-    printf("Did a read...\n");
-    printf("Last 4 bytes: %u\n", first_sector[127]);
     printf("Partitions:\n");
-    master_boot_record masterBootRecord(first_sector, &my_sd);
-    entryHashtable = EntryHashtable();
-    if (masterBootRecord.get_partition_info(0)->type != PART_FAT32) {
+    auto mbr = readMBR(my_sd);
+    entryHashtable = fs::EntryHashtable();
+    if (mbr.partitions[0].type != PART_FAT32) {
         printf("Mysterious Partition Found...\n");
         return;
     }
 
-    partition* part = masterBootRecord.get_partition(0);
+    auto *part = new Partition(&my_sd, mbr.partitions[0].start, mbr.partitions->size);
 
     // Initialise FAT
-    FATFilesystem fs(part, &entryHashtable);
-    fs = &fs;
+    fs::FATFilesystem my_fs(*part, entryHashtable);
+    filesystem = &my_fs;
 
-    auto root = fs->getRootInfo();
+    auto root = my_fs.getRootInfo();
     auto execEntry = root->lookup("EXEC1");
-    auto execFile = fs->open(execEntry);
+    auto *execFile = my_fs.open(execEntry);
     runProcess(execFile);
 
     printf("Done\n");

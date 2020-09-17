@@ -20,9 +20,6 @@
 #ifndef BEKOS_PAGE_MAPPING_H
 #define BEKOS_PAGE_MAPPING_H
 
-#include <stdint.h>
-#include <stddef.h>
-#include "hardtypes.h"
 #include "memory_manager.h"
 #include "library/vector.h"
 

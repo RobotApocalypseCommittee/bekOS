@@ -21,6 +21,7 @@
 #define BEKOS_ACQUIRABLE_REF_H
 
 #include "library/assert.h"
+#include "library/utility.h"
 
 namespace bek {
 

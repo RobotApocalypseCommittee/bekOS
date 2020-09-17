@@ -20,24 +20,28 @@
 #ifndef BEKOS_OPTIONAL_H
 #define BEKOS_OPTIONAL_H
 
+#include "library/assert.h"
+#include "types.h"
+
 namespace bek {
-    template<typename T>
-    class alignas(T) optional {
-    public:
-        optional(): m_valid(false) {};
-        optional(T&& object): m_valid(true) {
-            new (&m_data[0]) T(move(object));
-        }
+template<typename T>
+class alignas(T) optional {
+public:
+    optional() : m_valid(false) {};
 
-        optional(optional&& other): m_valid(other.m_valid) {
-            if (m_valid) {
-                new (&m_data[0]) T(move(other.value()));
-                other.value().~T();
-            }
-            other.m_valid = false;
-        }
+    optional(T &&object) : m_valid(true) {
+        new(&m_data[0]) T(move(object));
+    }
 
-        optional& operator=(optional&& other) {
+    optional(optional &&other) : m_valid(other.m_valid) {
+        if (m_valid) {
+            new(&m_data[0]) T(move(other.value()));
+            other.value().~T();
+        }
+        other.m_valid = false;
+    }
+
+    optional &operator=(optional &&other) {
             if (m_valid) value().~T();
             if (m_valid) {
                 new (&m_data[0]) T(move(other.value()));

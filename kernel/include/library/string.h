@@ -27,23 +27,31 @@ namespace bek {
 class string_view {
 public:
     /// Length of string (not including null terminator)
-    string_view(const char* string, uSize length);
+    string_view(const char *string, uSize length);
+
     /// Must be null-terminated
-    explicit string_view(const char* string);
+    string_view(const char *string);
 
-    string_view(const string_view& v) = default;
+    string_view(const string_view &v) = default;
 
-    string_view& operator=(const string_view& v) = default;
+    string_view &operator=(const string_view &v) = default;
 
-    [[nodiscard]] const char* data() const;
+    [[nodiscard]] const char *data() const;
+
     [[nodiscard]] uSize size() const;
+
     [[nodiscard]] string_view substr(uSize pos, uSize len) const;
 
+    [[nodiscard]] const char *begin() const;
+
+    [[nodiscard]] const char *end() const;
+
     void remove_prefix(uSize n);
+
     void remove_suffix(uSize n);
 
 private:
-    const char* m_data;
+    const char *m_data;
     uSize m_size;
 };
 
@@ -52,22 +60,31 @@ class string {
 public:
 
     string();
-    explicit string(const char* source);
+
+    explicit string(const char *source);
 
     /// length excludes null-terminator
     explicit string(u32 length, char init);
 
     /// Excludes null-terminator
-    inline u32 size() const;
+    u32 size() const {
+        return is_long() ? m_long.length : get_short_length();
+    }
 
-    inline const char* data() const;
+    const char *data() const {
+        return is_long() ? m_long.data : &m_short.in_data[0];
+    };
 
-    string(const string&);
-    string(string&&);
-    string& operator=(string);
+    string(const string &);
+
+    string(string &&);
+
+    string &operator=(string);
+
     ~string();
 
-    friend void swap(string& first, string& second);
+    friend void swap(string &first, string &second);
+
 private:
     struct long_str {
         /// Allocated byte capacity, includes null terminator
@@ -76,7 +93,7 @@ private:
         /// String length, exclude null terminator
         u32 length;
         /// Pointer to data
-        char* data;
+        char *data;
     };
 
     struct short_str {
@@ -91,13 +108,19 @@ private:
         short_str m_short;
     };
 
-    inline bool is_long() const;
+    bool is_long() const {
+        return m_short.length & 0x1;
+    };
 
-    inline void set_short_length(u8 len);
-    inline void set_long_length(u32 length);
-    inline void set_long_capacity(u32 capacity);
-    inline u32  get_long_capacity() const;
-    inline u8   get_short_length() const;
+    void set_short_length(u8 len);
+
+    void set_long_length(u32 length);
+
+    void set_long_capacity(u32 capacity);
+
+    u32 get_long_capacity() const;
+
+    u8 get_short_length() const;
 };
 
 }

@@ -80,13 +80,12 @@
 
 
 #ifndef __ASSEMBLER__
-#include "hardtypes.h"
 
 extern "C"
 void memzero(unsigned long src, unsigned long n);
 
 extern "C"
-void set_usertable(u64 usertable);
+void set_usertable(unsigned long usertable);
 
 
 #endif

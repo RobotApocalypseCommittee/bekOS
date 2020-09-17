@@ -29,7 +29,7 @@ struct SDSCR {
     u32 sd_bus_widths;
     int sd_version;
 };
-class SDCard: public BlockDevice {
+class SDCard : public BlockDevice {
 public:
     bool init();
 
@@ -39,23 +39,40 @@ public:
 
     bool writeBlock(unsigned long index, const void *buffer, unsigned long offset, unsigned long count) override;
 
+    unsigned long block_size() override;
+
 private:
     bool mbox_power_on();
+
     bool mbox_power_off();
+
     bool mbox_power_cycle();
+
     void sd_power_off();
+
     u32 get_base_clock_freq();
+
     u32 get_clock_divider(u32 base, u32 target);
+
     bool switch_clock_rate(u32 base, u32 target);
+
     bool reset_cmd();
+
     bool reset_dat();
+
     void issue_command_int(u32 cmd_reg, u32 argument, int timeout);
+
     void handle_card_interrupt();
+
     void handle_interrupts();
+
     void issue_command(u32 command, u32 argument, int timeout);
+
     int card_init();
+
     int ensure_data_mode();
-    int do_data_command(int is_write, void* l_buffer, uSize buf_size, u32 block_no);
+
+    int do_data_command(bool write, uSize index, uSize number);
 
     u32 card_supports_sdhc;
     u32 card_supports_18v;
@@ -78,16 +95,18 @@ private:
 
     void *buf;
     int blocks_to_transfer;
-    uSize block_size;
+    uSize m_block_size;
     int card_removal;
     u32 base_clock;
 
     static const u32 sd_commands[];
     static const u32 sd_acommands[];
-    static const  char *err_irpts[];
-    static const char* sd_versions[];
+    static const char *err_irpts[];
+    static const char *sd_versions[];
 
     u32 device_id[4];
+
+    u8 temp_block_buffer[512];
 };
 
 #endif //BEKOS_EMMC_H

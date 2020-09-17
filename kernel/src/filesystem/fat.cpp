@@ -50,25 +50,26 @@ struct HardFATEntry {
     uint16_t cluster_low;
     uint32_t size;
 
-    FATEntry toEntry(u32 source_cluster, u32 cluster_index);
+    RawFATEntry toEntry(u32 source_cluster, u32 cluster_index);
+
     EntryType getType();
 
-    explicit HardFATEntry(const FATEntry &e);
+    explicit HardFATEntry(const RawFATEntry &e);
 
 } __attribute__((__packed__));
 
-FATEntry HardFATEntry::toEntry(u32 source_cluster, u32 cluster_index) {
+RawFATEntry HardFATEntry::toEntry(u32 source_cluster, u32 cluster_index) {
     assert(getType() == EntryType::Normal);
     char name83[13];
     fatname_to_fname(&fatname[0], &name83[0]);
-    return FATEntry {
-        .name = bek::string(name83),
-        .size = size,
-        .start_cluster = static_cast<u32>(cluster_low) | (static_cast<u32>(cluster_high) << 16),
-        .source_cluster = source_cluster,
-        .source_cluster_entry = cluster_index,
-        .type = (attrib & (1u << 4)) ? FATEntry::DIRECTORY : FATEntry::FILE,
-        .attributes = attrib
+    return RawFATEntry{
+            .name = bek::string(name83),
+            .size = size,
+            .start_cluster = static_cast<u32>(cluster_low) | (static_cast<u32>(cluster_high) << 16),
+            .source_cluster = source_cluster,
+            .source_cluster_entry = cluster_index,
+            .type = (attrib & (1u << 4)) ? RawFATEntry::DIRECTORY : RawFATEntry::FILE,
+            .attributes = attrib
     };
 }
 
@@ -84,7 +85,8 @@ EntryType HardFATEntry::getType() {
     }
 }
 
-HardFATEntry::HardFATEntry(const FATEntry &e): attrib(e.attributes), cluster_high(e.start_cluster >> 16), cluster_low(e.start_cluster), size(e.size), {
+HardFATEntry::HardFATEntry(const RawFATEntry &e) : attrib(e.attributes), cluster_high(e.start_cluster >> 16),
+                                                   cluster_low(e.start_cluster), size(e.size) {
     assert(e.name.size() <= 12);
     fname_to_fat(e.name.data(), fatname);
 }
@@ -283,14 +285,14 @@ bool FileAllocationTable::extendFile(unsigned int start_cluster, size_t size) {
     return true;
 }
 
-bek::vector<FATEntry> FileAllocationTable::getEntries(unsigned int start_cluster) {
+bek::vector<RawFATEntry> FileAllocationTable::getEntries(unsigned int start_cluster) {
     bek::locker locker(m_lock);
 
     const auto entries_per_block = m_device.block_size() / DIRENTRY_SIZE;
 
     unsigned int current_cluster = start_cluster;
 
-    bek::vector<FATEntry> entries;
+    bek::vector<RawFATEntry> entries;
 
     while (get_cluster_type(current_cluster) == ClusterType::NextPointer) {
 
@@ -320,25 +322,26 @@ bool FileAllocationTable::readSector(unsigned int cluster, unsigned int sector) 
     return m_device.readBlock(m_info.clusters_begin_sector + cluster_index(cluster) * m_info.sectors_per_cluster + sector, m_buffer.data(), 0, m_device.block_size());
 }
 
-bool FileAllocationTable::commitEntry(const FATEntry& entry) {
+bool FileAllocationTable::commitEntry(const RawFATEntry &entry) {
     const auto entries_per_block = m_info.sector_size / DIRENTRY_SIZE;
     HardFATEntry e{entry};
     return m_device.writeBlock(
-            m_info.clusters_begin_sector + entry.source_cluster * m_info.sectors_per_cluster + (entry.source_cluster_entry / entries_per_block),
-            reinterpret_cast<void*>(&e),
+            m_info.clusters_begin_sector + entry.source_cluster * m_info.sectors_per_cluster +
+            (entry.source_cluster_entry / entries_per_block),
+            reinterpret_cast<void *>(&e),
             (entry.source_cluster_entry % entries_per_block) * DIRENTRY_SIZE,
             sizeof(HardFATEntry)
-            );
+    );
 }
 
-FATEntry FileAllocationTable::getRootEntry() {
-    return FATEntry{
+RawFATEntry FileAllocationTable::getRootEntry() {
+    return RawFATEntry{
             .name = bek::string("root"),
             .start_cluster = m_info.root_begin_cluster,
             .source_cluster = 0,
             .source_cluster_entry = 0,
-            .type = FATEntry::DIRECTORY,
-    }
+            .type = RawFATEntry::DIRECTORY,
+    };
 }
 
 

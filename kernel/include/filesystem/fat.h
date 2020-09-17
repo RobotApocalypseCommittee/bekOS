@@ -20,6 +20,7 @@
 #define BEKOS_FAT_H
 
 #include <library/optional.h>
+#include <library/vector.h>
 #include <library/string.h>
 #include <library/lock.h>
 #include "device.h"
@@ -35,8 +36,7 @@ struct FATInfo {
 };
 
 
-
-struct FATEntry {
+struct RawFATEntry {
     bek::string name;
     u32 size;
     u32 start_cluster;
@@ -64,17 +64,17 @@ public:
 
     unsigned int allocateNextCluster(unsigned int current_cluster);
 
-    inline bool readData(void *buf, unsigned int start_cluster, size_t offset, size_t size);
+    bool readData(void *buf, unsigned int start_cluster, size_t offset, size_t size);
 
-    inline bool writeData(void *buf, unsigned int start_cluster, size_t offset, size_t size);
+    bool writeData(void *buf, unsigned int start_cluster, size_t offset, size_t size);
 
     bool extendFile(unsigned int start_cluster, size_t size);
 
-    bek::vector<FATEntry> getEntries(unsigned int start_cluster);
+    bek::vector<RawFATEntry> getEntries(unsigned int start_cluster);
 
-    bool commitEntry(const FATEntry& entry);
+    bool commitEntry(const RawFATEntry &entry);
 
-    FATEntry getRootEntry();
+    RawFATEntry getRootEntry();
 
 private:
 

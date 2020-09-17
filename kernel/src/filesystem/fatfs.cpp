@@ -21,9 +21,10 @@
 #include "filesystem/entrycache.h"
 #include "library/optional.h"
 
-using namespace bek;
+using bek::readLE;
+using namespace fs;
 
-bek::optional<FATInfo> fromBootSector(BlockDevice& device) {
+bek::optional<FATInfo> fromBootSector(BlockDevice &device) {
     assert(device.block_size() >= 512);
     u8 buffer[512];
     device.readBlock(0, &buffer[0], 0, 512);
@@ -41,19 +42,30 @@ bek::optional<FATInfo> fromBootSector(BlockDevice& device) {
     return FATInfo{sector_size, sectors_per_cluster, fat_begin_sector, sectors_per_fat, clusters_begin_sector, root_begin_cluster};
 }
 
-fs::EntryRef fs::FATFilesystem::getRootInfo() {
+EntryRef FATFilesystem::getRootInfo() {
     if (root_directory.empty()) {
         auto entry = fat.getRootEntry();
-        root_directory = bek::AcquirableRef(new fs::FATDirectoryEntry(entry, *this));
-        entryCache->insert(root_directory);
+        root_directory = bek::AcquirableRef(new fs::FATDirectoryEntry(entry, *this, {}));
+        entryCache.insert(root_directory);
     }
     return root_directory;
 }
 
 
-File* FATFilesystem::open(FilesystemEntryRef entry) {
-    auto x = new FATFile(entry);
+FATEntry::FATEntry(const RawFATEntry &t_entry, FATFilesystem &t_filesystem, EntryRef t_parent)
+        : filesystem(t_filesystem), m_root_cluster(t_entry.start_cluster), m_source_cluster(t_entry.source_cluster),
+          m_source_index(t_entry.source_cluster_entry) {
+    size = t_entry.size;
+    parent = std::move(t_parent);
+}
+
+void FATEntry::commit_changes() {
+    // TODO
+}
+
+File *FATFilesystem::open(EntryRef entry) {
     entry->open = true;
+    auto x = new FATFile(entry);
     return x;
 }
 
@@ -61,35 +73,18 @@ FileAllocationTable &FATFilesystem::getFAT() {
     return fat;
 }
 
-FATFilesystem::FATFilesystem(BlockDevice &partition, EntryHashtable &entryCache): Filesystem(&entryCache), fat(fromBootSector(partition).release(), partition) {
+FATFilesystem::FATFilesystem(BlockDevice &partition, EntryHashtable &entryCache) : Filesystem(entryCache),
+                                                                                   fat(fromBootSector(
+                                                                                           partition).release(),
+                                                                                       partition) {
 
 }
 
-bool FATFile::read(void* buf, size_t length, size_t offset) {
-    if (offset + length > fileEntry->size) {
-        return false;
-    }
-    return fileEntry->filesystem.getFAT().readData(buf, fileEntry->m_root_cluster, offset, length);
-}
-
-bool FATFile::write(void* buf, size_t length, size_t offset) {
-    if (offset + length > fileEntry->size) {
-        return false;
-    }
-    return fileEntry->filesystem.getFAT().writeData(buf, fileEntry->m_root_cluster, offset, length);
-}
-
-bool FATFile::close() {
-    fileEntry->open = false;
-    return true;
-}
-
-FATFile::FATFile(bek::AcquirableRef<FATFilesystemFile> fileEntry) : fileEntry(std::move(fileEntry)) {}
 
 bool FATFile::resize(size_t new_length) {
     if (new_length > fileEntry->size) {
         // Do nothing unless extending
-        if (!fileEntry->filesystem.getFAT().extendFile(fileEntry->m_root_cluster, new_length)){
+        if (!fileEntry->filesystem.getFAT().extendFile(fileEntry->m_root_cluster, new_length)) {
             return false;
         }
     }
@@ -98,3 +93,47 @@ bool FATFile::resize(size_t new_length) {
     return true;
 }
 
+bool FATFile::read(void *buf, size_t length, size_t offset) {
+    return fileEntry->filesystem.getFAT().readData(buf, fileEntry->m_root_cluster, offset, length);
+}
+
+bool FATFile::write(void *buf, size_t length, size_t offset) {
+    return fileEntry->filesystem.getFAT().writeData(buf, fileEntry->m_root_cluster, offset, length);
+}
+
+bool FATFile::close() {
+    // Seems dodgy?
+    fileEntry = nullptr;
+    return true;
+}
+
+Entry &FATFile::getEntry() {
+    return *fileEntry;
+}
+
+FATFile::FATFile(bek::AcquirableRef<FATFileEntry> fileEntry) : fileEntry(std::move(fileEntry)) {}
+
+bek::vector<EntryRef> FATDirectoryEntry::enumerate() {
+    bek::vector<EntryRef> result;
+    for (auto &e: filesystem.getFAT().getEntries(m_root_cluster)) {
+        if (e.type == ::RawFATEntry::DIRECTORY) {
+            result.push_back(EntryRef{new FATDirectoryEntry(e, filesystem, this)});
+        } else {
+            result.push_back(EntryRef{new FATFileEntry(e, filesystem, this)});
+        }
+    }
+    return result;
+}
+
+EntryRef FATDirectoryEntry::lookup(bek::string_view name) {
+    for (auto &e: filesystem.getFAT().getEntries(m_root_cluster)) {
+        if (strcmp(name.data(), e.name.data()) == 0) {
+            // Found
+            return EntryRef{
+                    e.type == ::RawFATEntry::DIRECTORY ? static_cast<Entry *>(new FATDirectoryEntry(e, filesystem,
+                                                                                                    this))
+                                                       : static_cast<Entry *>(new FATFileEntry(e, filesystem, this))};
+        }
+    }
+    return {};
+}
