@@ -30,7 +30,7 @@ public:
 
     void set_interval(unsigned long microseconds);
 
-    bcm_interrupt_handler* getHandler();
+    bcm_interrupt_handler getHandler();
 
     void setTickHandler(void (*fn)());
 
@@ -46,16 +46,6 @@ private:
     void (*m_userhandler)();
 
     bool handle_event();
-
-    class int_handler: public bcm_interrupt_handler {
-    public:
-        explicit int_handler(system_timer<n>* mTimer);
-        bool trigger() override;
-    private:
-        system_timer<n>* m_timer;
-    };
-
-    int_handler m_handler;
 };
 
 #endif //BEKOS_SYSTEM_TIMER_H

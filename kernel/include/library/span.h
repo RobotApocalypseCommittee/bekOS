@@ -1,7 +1,7 @@
 /*
  *   bekOS is a basic OS for the Raspberry Pi
  *
- *   Copyright (C) 2020  Bekos Inc Ltd
+ *   Copyright (C) 2020 Joe Bell
  *
  *   This program is free software: you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -16,31 +16,36 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#ifndef BEKOS_SPAN_H
+#define BEKOS_SPAN_H
 
-#ifndef BEKOS_INTERRUPT_CONTROLLER_H
-#define BEKOS_INTERRUPT_CONTROLLER_H
+#include "assert.h"
+#include "types.h"
+#include "vector.h"
 
-#include <library/function.h>
-using bcm_interrupt_handler = bek::function<bool(void)>;
+namespace bek {
 
-class interrupt_controller {
+// An array view with length
+template <typename T>
+class span {
 public:
-    enum interrupt_type {
-        SYSTEM_TIMER_1 = 1,
-        SYSTEM_TIMER_3 = 3,
-        USB            = 9,
-        ARM_TIMER      = 64,
-        NONE           = 255
-    };
-    void enable(interrupt_type t);
-    void disable(interrupt_type t);
+    span(T* array, uSize length) : array(array), length(length) {}
 
-    void register_handler(interrupt_type interruptType, bcm_interrupt_handler handler);
+    explicit span(const vector<T>& v) : array(v.data()), length(v.size()) {}
 
-    bool handle();
+    T& operator[](uSize idx) const {
+        assert(idx < length);
+        return array[idx];
+    }
+
+    T* data() const { return array; }
+
+    uSize size() const { return length; }
 
 private:
-    bcm_interrupt_handler handlers[96] = {};
+    T* array;
+    uSize length;
 };
 
-#endif //BEKOS_INTERRUPT_CONTROLLER_H
+}  // namespace bek
+#endif  // BEKOS_SPAN_H

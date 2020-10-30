@@ -1,0 +1,6 @@
+# Generated from CLion C/C++ Code Style settings
+BasedOnStyle: Google
+IndentWidth: 4
+AlignConsecutiveAssignments: true
+AccessModifierOffset: -4
+ColumnLimit: 100

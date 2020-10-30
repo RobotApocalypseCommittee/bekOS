@@ -67,5 +67,15 @@ bool property_tags::request_tag(uint32_t tag_id, void* tag, int tag_length) {
             return true;
         }
     }
-
+}
+bool set_peripheral_power_state(property_tags& tags, BCMDevices device, bool state, bool wait) {
+    PropertyTagPowerState tag = {.device_id = device,
+                                 .state = static_cast<u32>(state) | static_cast<u32>(wait) << 1};
+    if (!tags.request_tag(PropertyTagPowerState::SetTag, &tag)) {
+        return false;
+    }
+    if (tag.device_id != device || (tag.state & 0b10) || (tag.state & 0b1) != state) {
+        return false;
+    }
+    return true;
 }

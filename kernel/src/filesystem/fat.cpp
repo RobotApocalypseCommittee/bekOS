@@ -177,8 +177,6 @@ FileAllocationTable::FileAllocationTable(FATInfo info, BlockDevice &device): m_b
 }
 
 unsigned int FileAllocationTable::getNextCluster(unsigned int current_cluster) {
-    // Four bytes for each entry
-    unsigned int entries_per_sector = m_device.block_size() / 4;
     u8 buffer[4];
     // Read int
     m_device.readBytes(m_info.fat_begin_sector * m_info.sector_size + current_cluster * 4, buffer, 4);

@@ -20,14 +20,6 @@
 #include <cstdint>
 #include "library/utility.h"
 
-enum class endianness {
-    native = __BYTE_ORDER__,
-    big = __ORDER_BIG_ENDIAN__,
-    little = __ORDER_LITTLE_ENDIAN__
-};
-
-constexpr bool IS_LITTLE_ENDIAN = endianness::native == endianness::little;
-
 template<>
 u64 bek::hash<u64>(u64 x) {
     x ^= x >> 30u;
@@ -38,48 +30,18 @@ u64 bek::hash<u64>(u64 x) {
     return x;
 }
 
-template<>
-u32 bek::readLE<u32>(const u8* data) {
-    if constexpr (IS_LITTLE_ENDIAN) {
-        return *reinterpret_cast<const u32*>(data);
-    } else {
-        return data[0] | data[1] << 8 | data[2] << 16 | data[3] << 24;
-    }
-}
+void *operator new(uSize size) { return PREFIX(malloc)(size); }
 
-template<>
-u16 bek::readLE<u16>(const u8* data) {
-    if constexpr (IS_LITTLE_ENDIAN) {
-        return *reinterpret_cast<const u16*>(data);
-    } else {
-        return data[0] | data[1] << 8;
-    }
-}
+void operator delete(void *ptr) { return PREFIX(free)(ptr); }
 
-template<>
-void bek::writeLE<u32>(u32 value, u8* data) {
-    if constexpr (IS_LITTLE_ENDIAN) {
-        *reinterpret_cast<u32*>(data) = value;
-    } else {
-        *reinterpret_cast<u32*>(data) = swapBytes<u32>(value);
-    }
-}
+void operator delete(void *ptr, uSize) { return PREFIX(free)(ptr); }
 
-template<>
-void bek::writeLE<u16>(u16 value, u8* data) {
-    if constexpr (IS_LITTLE_ENDIAN) {
-        *reinterpret_cast<u16*>(data) = value;
-    } else {
-        *reinterpret_cast<u16*>(data) = swapBytes<u16>(value);
-    }
-}
+void *operator new[](uSize size) { return PREFIX(malloc)(size); }
 
-template<>
-u32 bek::swapBytes<u32>(u32 value) {
-    return __builtin_bswap32(value);
-}
+void operator delete[](void *ptr) { return PREFIX(free)(ptr); }
 
-template<>
-u16 bek::swapBytes<u16>(u16 value) {
-    return __builtin_bswap16(value);
-}
+void operator delete[](void *ptr, size_t) { return PREFIX(free)(ptr); }
+
+void *operator new(size_t, void *ptr) { return ptr; }
+
+void *operator new[](size_t, void *ptr) { return ptr; }

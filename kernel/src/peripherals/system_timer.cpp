@@ -31,8 +31,8 @@
 
 #define TIMER_FREQUENCY 1000000
 
-template<int n>
-system_timer<n>::system_timer(): m_handler(this) {
+template <int n>
+system_timer<n>::system_timer() {
     check_and_clear_interrupt();
 }
 
@@ -65,20 +65,12 @@ bool system_timer<n>::check_and_clear_interrupt() {
     return false;
 }
 
-template<int n>
-system_timer<n>::int_handler::int_handler(system_timer<n>* mTimer):m_timer(mTimer) {}
-
-template<int n>
-bool system_timer<n>::int_handler::trigger() {
-    return m_timer->handle_event();
-}
-
 template<>
 const uintptr_t system_timer<1>::count_reg = TIMER_C1;
 
-template<int n>
-bcm_interrupt_handler* system_timer<n>::getHandler() {
-    return &m_handler;
+template <int n>
+bcm_interrupt_handler system_timer<n>::getHandler() {
+    return [this]() { return handle_event(); };
 }
 
 template<int n>

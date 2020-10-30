@@ -43,7 +43,7 @@ bool CachedDevice::readBlock(unsigned long index, void *buffer, unsigned long of
         }
         entry->loaded = true;
     }
-    if (buffer) memcpy(entry->data + offset, buffer, count);
+    if (buffer) memcpy((char *)entry->data + offset, buffer, count);
     return true;
 }
 
@@ -57,7 +57,7 @@ bool CachedDevice::writeBlock(unsigned long index, const void *buffer, unsigned 
         }
         entry->loaded = true;
     }
-    memcpy(entry->data + offset, buffer, count);
+    memcpy(reinterpret_cast<u8 *>(entry->data) + offset, buffer, count);
     entry->dirty = true;
     return true;
 }

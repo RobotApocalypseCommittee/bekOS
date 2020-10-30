@@ -25,11 +25,6 @@
 const u8 short_max_length = 14;
 using namespace bek;
 
-void bek::swap(string &first, string &second) {
-    /// Assume short occupies same space as long
-    swap(first.m_short, second.m_short);
-}
-
 bek::string::string(const string &s) {
     if (s.is_long()) {
         // Copy most of representation
@@ -76,13 +71,11 @@ bek::string::string(u32 length, char init) {
 }
 
 string &bek::string::operator=(string s) {
-    swap(*this, s);
+    swap(s);
     return *this;
 }
 
-bek::string::string(string &&s) {
-    swap(*this, s);
-}
+bek::string::string(string &&s) { swap(s); }
 
 
 void bek::string::set_short_length(u8 len) {
@@ -95,27 +88,23 @@ void bek::string::set_long_length(u32 length) {
 }
 
 void bek::string::set_long_capacity(u32 capacity) {
-    assert(capacity < ((1 << 31) - 1));
+    assert(capacity < (unsigned(1 << 31) - 1));
     m_long.capacity = (capacity << 1) | 0x1;
 }
 
-u32 bek::string::get_long_capacity() const {
-    return m_long.capacity >> 1;
-}
+u32 bek::string::get_long_capacity() const { return m_long.capacity >> 1; }
 
-u8 bek::string::get_short_length() const {
-    return m_short.length >> 1;
-}
+u8 bek::string::get_short_length() const { return m_short.length >> 1; }
 
 bek::string::string() {}
+
+void string::swap(string &s) { bek::swap(m_short, s.m_short); }
 
 bek::string_view::string_view(const char *string, uSize length) : m_data{string}, m_size{length} {}
 
 bek::string_view::string_view(const char *string) : m_data(string), m_size(strlen(string)) {}
 
-const char *bek::string_view::data() const {
-    return m_data;
-}
+const char *bek::string_view::data() const { return m_data; }
 
 string_view bek::string_view::substr(uSize pos, uSize len) const {
     assert(pos <= size());

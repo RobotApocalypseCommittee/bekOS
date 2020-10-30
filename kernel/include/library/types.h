@@ -34,4 +34,6 @@ using uSize = __SIZE_TYPE__;
 using uPtr = __UINTPTR_TYPE__;
 using iPtr = __INTPTR_TYPE__;
 
-#endif //BEKOS_TYPES_H
+#define ALWAYS_INLINE [[gnu::always_inline]] inline
+
+#endif  // BEKOS_TYPES_H

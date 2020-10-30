@@ -80,10 +80,9 @@ public:
     string(string &&);
 
     string &operator=(string);
+    void swap(string &other);
 
     ~string();
-
-    friend void swap(string &first, string &second);
 
 private:
     struct long_str {
