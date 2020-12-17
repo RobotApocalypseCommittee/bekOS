@@ -19,6 +19,8 @@
 
 #include <printf.h>
 #include <library/assert.h>
+
+#include <utility>
 #include "peripherals/interrupt_controller.h"
 #include "peripherals/peripherals.h"
 
@@ -99,8 +101,8 @@ bool interrupt_controller::handle() {
     // Dispatch
     if (int_type < 96) {
         // Within range...
-        if (handlers[int_type] != nullptr) {
-            return handlers[int_type]->trigger();
+        if (handlers[int_type]) {
+            return handlers[int_type]();
         } else {
             // No registered handler
             return false;
@@ -112,8 +114,8 @@ bool interrupt_controller::handle() {
 }
 
 void interrupt_controller::register_handler(interrupt_controller::interrupt_type interruptType,
-                                            bcm_interrupt_handler* handler) {
+                                            bcm_interrupt_handler handler) {
     assert(interruptType < 96);
-    assert(handlers[interruptType] == nullptr);
-    handlers[interruptType] = handler;
+    assert(!handlers[interruptType]);
+    handlers[interruptType] = std::move(handler);
 }

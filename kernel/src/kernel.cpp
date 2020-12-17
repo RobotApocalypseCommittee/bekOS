@@ -36,13 +36,23 @@
 #include "utils.h"
 #include "filesystem/fatfs.h"
 #include "interrupts/int_ctrl.h"
+#include "usb/DWHCI.h"
+
+extern "C" {
+
+// ABI stuff
+void* __dso_handle;
+
+/// These are no-op for now - I'm assuming destructors don't need to run when system stops
+int __cxa_atexit(void (*destructor) (void *), void *arg, void *dso) {return 0;}
+void __cxa_finalize(void *f) {}
+}
 
 memory_manager memoryManager;
 interrupt_controller interruptController;
 ProcessManager *processManager;
 fs::EntryHashtable entryHashtable;
 fs::Filesystem *filesystem;
-
 
 // Needed for printf
 void _putchar(char character) {
@@ -174,7 +184,4 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
         bad_udelay(2*1000*1000); // Delay 2 seconds
         uart_putc(c);
     }
-
-
-
 }
