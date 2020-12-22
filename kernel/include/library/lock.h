@@ -20,11 +20,13 @@
 #ifndef BEKOS_LOCK_H
 #define BEKOS_LOCK_H
 
+#include "library/types.h"
 #include <atomic>
 
 namespace bek {
 
     class spinlock {
+        using locktype = u32;
     public:
         spinlock() = default;
 

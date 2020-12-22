@@ -19,13 +19,15 @@
 
 #ifndef BEKOS_UTILITY_H
 #define BEKOS_UTILITY_H
-#include <type_traits>
 
 #include "library/liballoc.h"
 #include "types.h"
+#include "kstring.h"
+#include "assert.h"
+#include <type_traits>
 
-void *operator new(size_t, void *ptr);
-void *operator new[](size_t, void *ptr);
+void *operator new(uSize, void *ptr);
+void *operator new[](uSize, void *ptr);
 
 namespace bek {
 
@@ -92,6 +94,29 @@ inline void writeLE<u16>(u16 value, u8 *data) {
     }
 }
 
+
+template<bool B, class T = void>
+struct enable_if {};
+
+template<class T>
+struct enable_if<true, T> { typedef T type; };
+
+
+template<class T, T v>
+struct integral_constant {
+    static constexpr T value = v;
+    using value_type = T;
+    using type = integral_constant; // using injected-class-name
+    constexpr operator value_type() const noexcept { return value; }
+    constexpr value_type operator()() const noexcept { return value; } //since c++14
+};
+
+using false_type = integral_constant<bool, false>;
+using true_type = integral_constant<bool, true>;
+
+template<class T> struct is_lvalue_reference     : false_type {};
+template<class T> struct is_lvalue_reference<T&> : true_type {};
+
 template <class T>
 struct remove_reference {
     typedef T type;
@@ -117,7 +142,7 @@ constexpr T &&forward(typename remove_reference<T>::type &t) noexcept {
 
 template <class T>
 constexpr T &&forward(typename remove_reference<T>::type &&t) noexcept {
-    static_assert(!std::is_lvalue_reference<T>::value, "can not forward an rvalue as an lvalue");
+    static_assert(!is_lvalue_reference<T>::value, "can not forward an rvalue as an lvalue");
     return static_cast<T &&>(t);
 }
 
@@ -135,7 +160,7 @@ template <>
 u64 hash(u64 x);
 
 template <class T>
-void copy(T *dest, const T *src, size_t n) {
+void copy(T *dest, const T *src, uSize n) {
     while (n > 0) {
         n--;
         *(dest++) = *(src++);
@@ -143,7 +168,7 @@ void copy(T *dest, const T *src, size_t n) {
 }
 
 template <class T>
-void copy_backward(T *dest, const T *src, size_t n) {
+void copy_backward(T *dest, const T *src, uSize n) {
     dest += n - 1;
     src += n - 1;
     while (n > 0) {

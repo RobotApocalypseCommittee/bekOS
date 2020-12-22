@@ -20,7 +20,7 @@
 #include <printf.h>
 #include <library/assert.h>
 
-#include <utility>
+#include "library/utility.h"
 #include "peripherals/interrupt_controller.h"
 #include "peripherals/peripherals.h"
 
@@ -117,5 +117,5 @@ void interrupt_controller::register_handler(interrupt_controller::interrupt_type
                                             bcm_interrupt_handler handler) {
     assert(interruptType < 96);
     assert(!handlers[interruptType]);
-    handlers[interruptType] = std::move(handler);
+    handlers[interruptType] = bek::move(handler);
 }

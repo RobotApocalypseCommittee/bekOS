@@ -32,8 +32,8 @@
 #ifndef _PRINTF_H_
 #define _PRINTF_H_
 
-#include <stdarg.h>
-#include <stddef.h>
+#include "library/stdarg.h"
+#include "library/types.h"
 
 
 #ifdef __cplusplus
@@ -84,8 +84,8 @@ int sprintf_(char* buffer, const char* format, ...);
  */
 #define snprintf  snprintf_
 #define vsnprintf vsnprintf_
-int  snprintf_(char* buffer, size_t count, const char* format, ...);
-int vsnprintf_(char* buffer, size_t count, const char* format, va_list va);
+int  snprintf_(char* buffer, uSize count, const char* format, ...);
+int vsnprintf_(char* buffer, uSize count, const char* format, va_list va);
 
 
 /**

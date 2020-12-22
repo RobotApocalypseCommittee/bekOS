@@ -20,13 +20,18 @@
 #ifndef BEKOS_UTILS_H
 #define BEKOS_UTILS_H
 
-#include <stddef.h>
-#include <stdint.h>
-
 unsigned long phys_to_virt(unsigned long physical_address);
 
 unsigned long virt_to_phys(unsigned long virtual_address);
 
 long round_up(long n, long multiple);
+
+inline void read_barrier() {
+    asm volatile ("dsb ld" : : : "memory");
+}
+
+inline void write_barrier() {
+    asm volatile ("dsb st" : : : "memory");
+}
 
 #endif //BEKOS_UTILS_H

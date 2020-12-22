@@ -65,10 +65,10 @@ struct Process {
     ProcessState state;
 
     translation_table translationTable;
-    bek::vector<uintptr_t> userPages;
+    bek::vector<uPtr> userPages;
 
-    uintptr_t user_stack_top;
-    uintptr_t kernel_stack_top;
+    uPtr user_stack_top;
+    uPtr kernel_stack_top;
 
     bek::vector<fs::File *> openFiles = {};
 };

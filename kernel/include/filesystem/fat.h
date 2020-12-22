@@ -64,11 +64,11 @@ public:
 
     unsigned int allocateNextCluster(unsigned int current_cluster);
 
-    bool readData(void *buf, unsigned int start_cluster, size_t offset, size_t size);
+    bool readData(void *buf, unsigned int start_cluster, uSize offset, uSize size);
 
-    bool writeData(void *buf, unsigned int start_cluster, size_t offset, size_t size);
+    bool writeData(void *buf, unsigned int start_cluster, uSize offset, uSize size);
 
-    bool extendFile(unsigned int start_cluster, size_t size);
+    bool extendFile(unsigned int start_cluster, uSize size);
 
     bek::vector<RawFATEntry> getEntries(unsigned int start_cluster);
 
@@ -81,7 +81,7 @@ private:
     /// Must be holding lock
     inline bool readSector(unsigned int cluster, unsigned int sector);
 
-    bool doDataInterchange(u8 *buf, unsigned int start_cluster, size_t offset, size_t size, bool write);
+    bool doDataInterchange(u8 *buf, unsigned int start_cluster, uSize offset, uSize size, bool write);
 
     bek::spinlock m_lock;
     // TODO: hacky?

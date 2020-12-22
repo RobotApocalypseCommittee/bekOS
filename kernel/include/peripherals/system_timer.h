@@ -20,7 +20,6 @@
 #ifndef BEKOS_SYSTEM_TIMER_H
 #define BEKOS_SYSTEM_TIMER_H
 
-#include <stdint.h>
 #include "interrupt_controller.h"
 
 template <int n>
@@ -41,7 +40,7 @@ private:
     unsigned long get_count();
     bool check_and_clear_interrupt();
     unsigned long interval = 0;
-    static const uintptr_t count_reg;
+    static const uPtr count_reg;
 
     void (*m_userhandler)();
 

@@ -44,7 +44,7 @@ void ProcessManager::fork(ProcessFn fn, u64 argument) {
     p->preemptCounter = 0;
     p->state = ProcessState::RUNNING;
     p->processID = -1;
-    for (size_t i = 0; i < m_processes.size(); i++) {
+    for (uSize i = 0; i < m_processes.size(); i++) {
         if (m_processes[i] == nullptr) {
             p->processID = i;
             break;
@@ -101,7 +101,7 @@ bool ProcessManager::schedule() {
         while(1) {
             maxCounter = -1;
             bestProcessID = 0;
-            for (size_t i = 0; i < m_processes.size(); i++) {
+            for (uSize i = 0; i < m_processes.size(); i++) {
                 if (m_processes[i] && m_processes[i]->state == ProcessState::RUNNING &&
                     m_processes[i]->processorTimeCounter > maxCounter) {
                     maxCounter = m_processes[i]->processorTimeCounter;
@@ -114,7 +114,7 @@ bool ProcessManager::schedule() {
                 break;
             } else {
                 // We need to increment ticks of the processes:
-                for (size_t i = 0; i < m_processes.size(); i++) {
+                for (uSize i = 0; i < m_processes.size(); i++) {
                     if (m_processes[i]) {
                         m_processes[i]->processorTimeCounter++;
                     }

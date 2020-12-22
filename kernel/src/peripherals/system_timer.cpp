@@ -66,7 +66,7 @@ bool system_timer<n>::check_and_clear_interrupt() {
 }
 
 template<>
-const uintptr_t system_timer<1>::count_reg = TIMER_C1;
+const uPtr system_timer<1>::count_reg = TIMER_C1;
 
 template <int n>
 bcm_interrupt_handler system_timer<n>::getHandler() {
@@ -92,7 +92,7 @@ void system_timer<n>::setTickHandler(void (* fn)()) {
 }
 
 template<>
-const uintptr_t system_timer<3>::count_reg = TIMER_C3;
+const uPtr system_timer<3>::count_reg = TIMER_C3;
 
 template class system_timer<1>;
 template class system_timer<3>;

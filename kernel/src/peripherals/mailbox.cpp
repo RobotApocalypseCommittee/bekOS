@@ -28,10 +28,10 @@
 
 #define MAILBOX_EMPTY 0x40000000
 #define MAILBOX_FULL 0x80000000
-MailboxChannel::MailboxChannel(const uint32_t &channel) : channel(channel) {}
+MailboxChannel::MailboxChannel(const u32 &channel) : channel(channel) {}
 
-uint32_t MailboxChannel::read() {
-    uint32_t data;
+u32 MailboxChannel::read() {
+    u32 data;
     do {
         while (mmio_read(MAILBOX0_STATUS) & MAILBOX_EMPTY) {
 
@@ -42,7 +42,7 @@ uint32_t MailboxChannel::read() {
     return data & ~0x0F;
 }
 
-void MailboxChannel::write(uint32_t data) {
+void MailboxChannel::write(u32 data) {
     while (mmio_read(MAILBOX1_STATUS) & MAILBOX_FULL) {
 
     }

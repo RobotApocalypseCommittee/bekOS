@@ -59,13 +59,13 @@ class FATFile: public File {
 public:
     explicit FATFile(bek::AcquirableRef<FATFileEntry> fileEntry);
 
-    bool read(void* buf, size_t length, size_t offset) override;
+    bool read(void* buf, uSize length, uSize offset) override;
 
-    bool write(void* buf, size_t length, size_t offset) override;
+    bool write(void* buf, uSize length, uSize offset) override;
 
     bool close() override;
 
-    bool resize(size_t new_length) override;
+    bool resize(uSize new_length) override;
 
     Entry &getEntry() override;
 

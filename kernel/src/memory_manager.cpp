@@ -20,7 +20,7 @@
 #include <library/assert.h>
 #include "memory_manager.h"
 
-uintptr_t memory_manager::reserve_region(int size, int reserver) {
+uPtr memory_manager::reserve_region(int size, int reserver) {
     int i = 0;
     int block_count = 0;
     int block_start = 0;
@@ -49,7 +49,7 @@ uintptr_t memory_manager::reserve_region(int size, int reserver) {
     return block_start * 4096;
 }
 
-bool memory_manager::free_region(uintptr_t location, int size) {
+bool memory_manager::free_region(uPtr location, int size) {
     location = location/4096;
     if (page_list[location] != PAGE_FREE) {
         for (unsigned long i = location; i < (location + size); i++) {
@@ -62,7 +62,7 @@ bool memory_manager::free_region(uintptr_t location, int size) {
     }
 }
 
-bool memory_manager::reserve_pages(uintptr_t location, int size, int reserver) {
+bool memory_manager::reserve_pages(uPtr location, int size, int reserver) {
     location = location/4096;
     for (unsigned long i = location; i < (location+size); i++) {
         page_list[i] = reserver;

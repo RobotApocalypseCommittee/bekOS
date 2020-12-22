@@ -19,12 +19,10 @@
 
 
 #include "peripherals/uart.h"
-#include <stdint.h>
 #include <peripherals/gpio.h>
-#include <stddef.h>
 
 // Loop <delay> times in a way that the compiler won't optimize away
-static inline void delay(int32_t count)
+static inline void delay(i32 count)
 {
     asm volatile("__delay_%=: subs %[count], %[count], #1; bne __delay_%=\n"
     : "=r"(count): [count]"0"(count) : "cc");
@@ -87,6 +85,6 @@ unsigned char uart_getc()
 
 void uart_puts(const char* str)
 {
-    for (size_t i = 0; str[i] != '\0'; i ++)
+    for (uSize i = 0; str[i] != '\0'; i ++)
         uart_putc((unsigned char)str[i]);
 }

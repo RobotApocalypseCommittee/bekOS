@@ -105,7 +105,7 @@ namespace bek {
 
     template<class T>
     template<class U>
-    AcquirableRef<T>::AcquirableRef(const AcquirableRef<U> &other): AcquirableRef(static_cast<T*>(other.m_ref)) {}
+    AcquirableRef<T>::AcquirableRef(const AcquirableRef<U> &other) noexcept: AcquirableRef(static_cast<T*>(other.m_ref)) {}
 
     template<class T>
     AcquirableRef<T> &AcquirableRef<T>::operator=(AcquirableRef other) noexcept {

@@ -60,7 +60,7 @@ bool elf_file::parse() {
 
 bool elf_file::load(Process* process) {
     // Loop through and correctly allocate
-    for (size_t i = 0; i < m_important_headers.size(); i++) {
+    for (uSize i = 0; i < m_important_headers.size(); i++) {
         u64 memorySize = m_important_headers[i].memory_size;
         u64 fileSize = m_important_headers[i].file_size;
 
@@ -69,8 +69,8 @@ bool elf_file::load(Process* process) {
         u64 virtual_offset = m_important_headers[i].virtual_address - virtual_page_start;
         u64 page_no = ((memorySize + virtual_offset) + PAGE_SIZE - 1) / 4096;
 
-        uintptr_t region_phys = memoryManager.reserve_region(page_no, PAGE_KERNEL);
-        for (size_t pn = 0; pn < page_no; pn++) {
+        uPtr region_phys = memoryManager.reserve_region(page_no, PAGE_KERNEL);
+        for (uSize pn = 0; pn < page_no; pn++) {
             process->userPages.push_back(region_phys + pn*PAGE_SIZE);
             process->translationTable.map(virtual_page_start + pn * PAGE_SIZE, region_phys + pn * PAGE_SIZE);
         }
@@ -99,7 +99,7 @@ void elf_loader_fn(u64 elf_object) {
     Process* p = processManager->getCurrentProcess();
     elf->load(p);
     // Allocate some memory for the stack
-    uintptr_t stackpage = memoryManager.reserve_region(1, PAGE_KERNEL);
+    uPtr stackpage = memoryManager.reserve_region(1, PAGE_KERNEL);
     p->userPages.push_back(stackpage);
     p->translationTable.map(elf->decideStackAddress() - PAGE_SIZE, stackpage);
     p->user_stack_top = elf->decideStackAddress();

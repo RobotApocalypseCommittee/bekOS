@@ -56,7 +56,7 @@ FATEntry::FATEntry(const RawFATEntry &t_entry, FATFilesystem &t_filesystem, Entr
         : filesystem(t_filesystem), m_root_cluster(t_entry.start_cluster), m_source_cluster(t_entry.source_cluster),
           m_source_index(t_entry.source_cluster_entry) {
     size = t_entry.size;
-    parent = std::move(t_parent);
+    parent = bek::move(t_parent);
 }
 
 void FATEntry::commit_changes() {
@@ -81,7 +81,7 @@ FATFilesystem::FATFilesystem(BlockDevice &partition, EntryHashtable &entryCache)
 }
 
 
-bool FATFile::resize(size_t new_length) {
+bool FATFile::resize(uSize new_length) {
     if (new_length > fileEntry->size) {
         // Do nothing unless extending
         if (!fileEntry->filesystem.getFAT().extendFile(fileEntry->m_root_cluster, new_length)) {
@@ -93,11 +93,11 @@ bool FATFile::resize(size_t new_length) {
     return true;
 }
 
-bool FATFile::read(void *buf, size_t length, size_t offset) {
+bool FATFile::read(void *buf, uSize length, uSize offset) {
     return fileEntry->filesystem.getFAT().readData(buf, fileEntry->m_root_cluster, offset, length);
 }
 
-bool FATFile::write(void *buf, size_t length, size_t offset) {
+bool FATFile::write(void *buf, uSize length, uSize offset) {
     return fileEntry->filesystem.getFAT().writeData(buf, fileEntry->m_root_cluster, offset, length);
 }
 
@@ -111,7 +111,7 @@ Entry &FATFile::getEntry() {
     return *fileEntry;
 }
 
-FATFile::FATFile(bek::AcquirableRef<FATFileEntry> fileEntry) : fileEntry(std::move(fileEntry)) {}
+FATFile::FATFile(bek::AcquirableRef<FATFileEntry> fileEntry) : fileEntry(bek::move(fileEntry)) {}
 
 bek::vector<EntryRef> FATDirectoryEntry::enumerate() {
     bek::vector<EntryRef> result;

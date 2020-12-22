@@ -33,7 +33,10 @@ using uSize = __SIZE_TYPE__;
 
 using uPtr = __UINTPTR_TYPE__;
 using iPtr = __INTPTR_TYPE__;
+using ptrDiff = iPtr;
 
 #define ALWAYS_INLINE [[gnu::always_inline]] inline
+
+typedef decltype(nullptr) nullptr_t;
 
 #endif  // BEKOS_TYPES_H

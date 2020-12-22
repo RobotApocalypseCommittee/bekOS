@@ -16,7 +16,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include <stdint.h>
 #include <utils.h>
 #include <kstring.h>
 #include <library/assert.h>
@@ -43,12 +42,12 @@ constexpr auto DIRENTRY_SIZE = 32;
 
 struct HardFATEntry {
     char fatname[11];
-    uint8_t attrib;
-    uint64_t pad1;
-    uint16_t cluster_high;
-    uint32_t pad2;
-    uint16_t cluster_low;
-    uint32_t size;
+    u8 attrib;
+    u64 pad1;
+    u16 cluster_high;
+    u32 pad2;
+    u16 cluster_low;
+    u32 size;
 
     RawFATEntry toEntry(u32 source_cluster, u32 cluster_index);
 
@@ -217,16 +216,16 @@ unsigned int FileAllocationTable::allocateNextCluster(unsigned int current_clust
     return 0;
 }
 
-bool FileAllocationTable::readData(void *buf, unsigned int start_cluster, size_t offset, size_t size) {
+bool FileAllocationTable::readData(void *buf, unsigned int start_cluster, uSize offset, uSize size) {
     return doDataInterchange(static_cast<u8 *>(buf), start_cluster, offset, size, false);
 }
 
-bool FileAllocationTable::writeData(void *buf, unsigned int start_cluster, size_t offset, size_t size) {
+bool FileAllocationTable::writeData(void *buf, unsigned int start_cluster, uSize offset, uSize size) {
     return doDataInterchange(static_cast<u8 *>(buf), start_cluster, offset, size, true);
 }
 
 bool
-FileAllocationTable::doDataInterchange(u8 *buf, unsigned int start_cluster, size_t offset, size_t size, bool write) {
+FileAllocationTable::doDataInterchange(u8 *buf, unsigned int start_cluster, uSize offset, uSize size, bool write) {
     // Find start cluster
     const unsigned int cluster_size = m_info.sectors_per_cluster * m_info.sector_size;
     unsigned int cluster_n = offset / cluster_size;
@@ -241,7 +240,7 @@ FileAllocationTable::doDataInterchange(u8 *buf, unsigned int start_cluster, size
         }
     }
 
-    size_t completed_size = 0;
+    uSize completed_size = 0;
     while (completed_size < size) {
         // Read to end of sector
         unsigned int byte_offset = (completed_size == 0) ? first_byte_offset : 0;
@@ -265,10 +264,10 @@ FileAllocationTable::doDataInterchange(u8 *buf, unsigned int start_cluster, size
     return true;
 }
 
-bool FileAllocationTable::extendFile(unsigned int start_cluster, size_t size) {
+bool FileAllocationTable::extendFile(unsigned int start_cluster, uSize size) {
     bek::locker locker(m_lock);
-    size_t bytes_per_cluster = m_info.sector_size * m_info.sectors_per_cluster;
-    size_t current_size = bytes_per_cluster;
+    uSize bytes_per_cluster = m_info.sector_size * m_info.sectors_per_cluster;
+    uSize current_size = bytes_per_cluster;
     unsigned int current_cluster = start_cluster;
     unsigned int last_cluster;
     while (current_size < size) {

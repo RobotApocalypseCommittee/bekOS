@@ -17,8 +17,6 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <stddef.h>
-#include <stdint.h>
 #include <peripherals/gentimer.h>
 #include <peripherals/property_tags.h>
 #include <peripherals/emmc.h>
@@ -28,6 +26,7 @@
 #include <filesystem/entrycache.h>
 #include <peripherals/interrupt_controller.h>
 #include <peripherals/system_timer.h>
+#include <peripherals/framebuffer.h>
 #include <process/process.h>
 #include <process/elf.h>
 #include "peripherals/uart.h"
@@ -126,7 +125,7 @@ void test_filesystem(fs::FATFilesystem *fs, fs::EntryHashtable *hashtable) {
 }
 
 extern "C" /* Use C linkage for kernel_main. */
-void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
+void kernel_main(u32 el, u32 r1, u32 atags)
 {
     // Declare as unused
     (void) el;
@@ -136,6 +135,9 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
     uart_init();
     // Test uart
     uart_puts("Hello, kernel World!\r\n");
+
+    colour black(0);
+    colour white(255, 255, 255, 0);
 
     // Enable page mapping and malloc
     memoryManager = memory_manager();
@@ -147,6 +149,7 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
     set_vector_table();
     enable_interrupts();
 
+    /*
     // Perform SD Card excitements
     SDCard my_sd;
 
@@ -174,8 +177,19 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
     auto execEntry = root->lookup("EXEC1");
     auto *execFile = my_fs.open(execEntry);
     runProcess(execFile);
-
+*/
     printf("Done\n");
+
+    framebuffer_info fb_info = {
+        .width = 640,
+        .height = 480,
+        .depth = 32
+    };
+
+    allocate_framebuffer(fb_info);
+    framebuffer fb(fb_info);
+    fb.clear(black);
+    char_blitter cb(fb, white, black);
 
     unsigned char c;
     // Infini-loop
@@ -183,5 +197,6 @@ void kernel_main(uint32_t el, uint32_t r1, uint32_t atags)
         c = uart_getc();
         bad_udelay(2*1000*1000); // Delay 2 seconds
         uart_putc(c);
+        cb.putChar(c);
     }
 }

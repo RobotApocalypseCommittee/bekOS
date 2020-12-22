@@ -430,7 +430,7 @@ u32 SDCard::get_base_clock_freq() {
     property_tags tags;
     PropertyTagClockRate clockRate;
     clockRate.clock_id = 0x1;
-    if (!tags.request_tag(0x00030002, &clockRate, sizeof(PropertyTagClockRate))) {
+    if (!tags.request_tag(0x00030002, &clockRate)) {
         return 0;
     }
     if (clockRate.clock_id != 0x1) {

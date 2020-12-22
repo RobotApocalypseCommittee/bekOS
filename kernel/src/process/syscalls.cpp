@@ -65,7 +65,7 @@ int syscall_open(char* path) {
     }
 
     if (fileEntry->open) {
-        for (size_t i = 0; i < processManager->getCurrentProcess()->openFiles.size(); i++) {
+        for (uSize i = 0; i < processManager->getCurrentProcess()->openFiles.size(); i++) {
             if (&processManager->getCurrentProcess()->openFiles[i]->getEntry() == fileEntry.get()) {
                 // file is already opened by this process, so go ahead
                 return i;
@@ -76,7 +76,7 @@ int syscall_open(char* path) {
     }
 
     auto fp = filesystem->open(fileEntry);
-    for (size_t i = 0; i < processManager->getCurrentProcess()->openFiles.size(); i++) {
+    for (uSize i = 0; i < processManager->getCurrentProcess()->openFiles.size(); i++) {
         // Find empty spaces
         if (processManager->getCurrentProcess()->openFiles[i] == nullptr) {
             processManager->getCurrentProcess()->openFiles[i] = fp;

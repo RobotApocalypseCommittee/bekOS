@@ -13,7 +13,7 @@
 #ifndef _LIBALLOC_H
 #define _LIBALLOC_H
 
-#include <stddef.h>
+#include "library/types.h"
 
 /** \defgroup ALLOCHOOKS liballoc hooks 
  *
@@ -26,9 +26,9 @@
 
 
 
-// If we are told to not define our own size_t, then we skip the define.
+// If we are told to not define our own uSize, then we skip the define.
 //#define _HAVE_UINTPTR_T
-//typedef	unsigned long	uintptr_t;
+//typedef	unsigned long	uPtr;
 
 //This lets you prefix malloc and friends
 #define PREFIX(func)		k ## func
@@ -63,7 +63,7 @@ extern int liballoc_unlock();
  * \return NULL if the pages were not allocated.
  * \return A pointer to the allocated memory.
  */
-extern void* liballoc_alloc(size_t);
+extern void* liballoc_alloc(uSize);
 
 /** This frees previously allocated memory. The void* parameter passed
  * to the function is the exact same value returned from a previous
@@ -73,14 +73,14 @@ extern void* liballoc_alloc(size_t);
  *
  * \return 0 if the memory was successfully freed.
  */
-extern int liballoc_free(void*,size_t);
+extern int liballoc_free(void*,uSize);
 
 
        
 
-extern void    *PREFIX(malloc)(size_t);				///< The standard function.
-extern void    *PREFIX(realloc)(void *, size_t);		///< The standard function.
-extern void    *PREFIX(calloc)(size_t, size_t);		///< The standard function.
+extern void    *PREFIX(malloc)(uSize);				///< The standard function.
+extern void    *PREFIX(realloc)(void *, uSize);		///< The standard function.
+extern void    *PREFIX(calloc)(uSize, uSize);		///< The standard function.
 extern void     PREFIX(free)(void *);					///< The standard function.
 
 

@@ -17,18 +17,18 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "peripherals/property_tags.h"
+#include "library/utility.h"
 #include <utils.h>
 #include <peripherals/peripherals.h>
-#include <kstring.h>
-#include "peripherals/property_tags.h"
 
 struct PropertyTagsBuffer {
-    uint32_t buffer_size;
-    uint32_t buffer_code;
+    u32 buffer_size;
+    u32 buffer_code;
 #define BUFFER_CODE_REQUEST 0x0
 #define BUFFER_CODE_RESPONSE_SUCCESS 0x80000000
 #define BUFFER_CODE_RESPONSE_FAIL 0x80000001
-    uint8_t Tags[0]; // Pointer cheat
+    u8 Tags[0]; // Pointer cheat
 };
 
 #define TAG_CODE_REQUEST 0
@@ -36,37 +36,28 @@ struct PropertyTagsBuffer {
 property_tags::property_tags(): m_mailbox(8) {
 
 }
+bool property_tags::request_tags(void* tags, u32 tags_size) {
+    // Header + tags + end
+    u32 buffer_size = 8 + tags_size + 4;
+    // Pad - must be 16 byte aligned
+    buffer_size += (buffer_size % 16) ? 16 - (buffer_size % 16) : 0;
 
-bool property_tags::request_tag(uint32_t tag_id, void* tag, int tag_length) {
-
-    // Set tag's own header bits
-    auto header = reinterpret_cast<PropertyTagHeader*>(tag);
-    header->tag_id = tag_id;
-    header->val_buffer_size = tag_length - sizeof(PropertyTagHeader);
-    header->code = TAG_CODE_REQUEST;
-
-    // Now, put it into buffer
-    auto buffer = reinterpret_cast<PropertyTagsBuffer*>(buffer_storage);
+    // Hope kmalloc aligns 16
+    PropertyTagsBuffer* buffer = reinterpret_cast<PropertyTagsBuffer*>(kmalloc(buffer_size));
     buffer->buffer_code = BUFFER_CODE_REQUEST;
-    // Buffer header, single tag, and end code 0x0
-    buffer->buffer_size = (sizeof(PropertyTagsBuffer) + tag_length + sizeof(uint32_t));
-    memcpy(buffer->Tags, tag, tag_length);
-    // end byte
-    buffer->Tags[tag_length] = 0;
-    uint32_t bus_addr = (uint32_t)bus_address((uintptr_t)buffer_storage);
+    buffer->buffer_size = buffer_size;
+    memcpy(&buffer->Tags[0], tags, tags_size);
+    buffer->Tags[tags_size] = 0;
+    // Ready to send
+    u32 bus_addr = (u32)bus_address((uPtr)buffer);
+    write_barrier();
     m_mailbox.write(bus_addr);
-    uint32_t result = m_mailbox.read();
-    if (result != bus_addr) {
-        // TODO: We have a problem
-        return false;
-    } else {
-        if (buffer->buffer_code != BUFFER_CODE_RESPONSE_SUCCESS) {
-            return false;
-        } else {
-            memcpy(tag, buffer->Tags, tag_length);
-            return true;
-        }
-    }
+    u32 result = m_mailbox.read();
+    read_barrier();
+    assert(result == bus_addr);
+    assert(buffer->buffer_code == BUFFER_CODE_RESPONSE_SUCCESS);
+    memcpy(tags, buffer->Tags, tags_size);
+    return true;
 }
 bool set_peripheral_power_state(property_tags& tags, BCMDevices device, bool state, bool wait) {
     PropertyTagPowerState tag = {.device_id = device,

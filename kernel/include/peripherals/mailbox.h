@@ -20,17 +20,17 @@
 #ifndef BEKOS_MAILBOX_H
 #define BEKOS_MAILBOX_H
 
-#include <stdint.h>
+#include "library/types.h"
 
 class MailboxChannel {
 public:
-    explicit MailboxChannel(const uint32_t &channel);
-    uint32_t read();
-    void write(uint32_t data);
+    explicit MailboxChannel(const u32 &channel);
+    u32 read();
+    void write(u32 data);
     void flush();
 
 private:
-    uint32_t channel;
+    u32 channel;
 };
 
 #endif //BEKOS_MAILBOX_H

@@ -17,7 +17,6 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <stddef.h>
 #include <memory_manager.h>
 #include <utils.h>
 
@@ -31,11 +30,11 @@ int liballoc_unlock() { // TODO
     return 0;
 }
 
-void* liballoc_alloc(size_t pages) {
+void* liballoc_alloc(uSize pages) {
     return reinterpret_cast<void*>(phys_to_virt(memoryManager.reserve_region(pages, PAGE_KERNEL)));
 }
 
-int liballoc_free(void* ptr, size_t pages) {
+int liballoc_free(void* ptr, uSize pages) {
     return !memoryManager.free_region(virt_to_phys(reinterpret_cast<unsigned long>(ptr)), pages);
 }
 }

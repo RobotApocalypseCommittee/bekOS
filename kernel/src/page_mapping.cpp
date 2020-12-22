@@ -21,7 +21,7 @@
 #include <utils.h>
 #include "page_mapping.h"
 
-bool translation_table::map(uintptr_t vaddr, uintptr_t raddr) {
+bool translation_table::map(uPtr vaddr, uPtr raddr) {
     // Map lvl3
     ARMv8MMU_L2_Entry_Table* lvl1table = map_table(table0, LEVEL_0_SHIFT, vaddr);
 
@@ -44,7 +44,7 @@ bool translation_table::map(uintptr_t vaddr, uintptr_t raddr) {
     return true;
 }
 
-ARMv8MMU_L2_Entry_Table* translation_table::map_table(ARMv8MMU_L2_Entry_Table* table, unsigned long shift, uintptr_t va) {
+ARMv8MMU_L2_Entry_Table* translation_table::map_table(ARMv8MMU_L2_Entry_Table* table, unsigned long shift, uPtr va) {
     // The index of the table we are checking
     unsigned long table_index = (va >> shift) & (PAGE_ENTRY_COUNT - 1);
     // Check whether this table is already mapped(to another table)
@@ -52,7 +52,7 @@ ARMv8MMU_L2_Entry_Table* translation_table::map_table(ARMv8MMU_L2_Entry_Table* t
         return reinterpret_cast<ARMv8MMU_L2_Entry_Table*>(phys_to_virt(table[table_index].table_page * PAGE_SIZE));
     } else if (table[table_index].descriptor_code == 0b00) {
         // Is invalid(not existing yet)
-        uintptr_t new_page = manager->reserve_region(1, PAGE_KERNEL);
+        uPtr new_page = manager->reserve_region(1, PAGE_KERNEL);
         memzero(phys_to_virt(new_page), PAGE_SIZE);
         pages.push_back(new_page);
         ARMv8MMU_L2_Entry_Table entry;
@@ -71,7 +71,7 @@ ARMv8MMU_L2_Entry_Table* translation_table::map_table(ARMv8MMU_L2_Entry_Table* t
 }
 
 translation_table::~translation_table() {
-    for (size_t i = 0; i < pages.size(); i++) {
+    for (uSize i = 0; i < pages.size(); i++) {
         manager->free_region(pages[i], 1);
     }
 
@@ -79,7 +79,7 @@ translation_table::~translation_table() {
 
 translation_table::translation_table(memory_manager* manager) : manager(manager) {
     // Is invalid(not existing yet)
-    uintptr_t new_page = manager->reserve_region(1, PAGE_KERNEL);
+    uPtr new_page = manager->reserve_region(1, PAGE_KERNEL);
     memzero(phys_to_virt(new_page), PAGE_SIZE);
     pages.push_back(new_page);
     table0 = reinterpret_cast<ARMv8MMU_L2_Entry_Table*>(phys_to_virt(new_page));

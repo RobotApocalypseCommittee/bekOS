@@ -32,9 +32,9 @@ namespace bek {
             array = reinterpret_cast<T*>(kmalloc(m_capacity * sizeof(T)));
         };
 
-        explicit vector(size_t size): m_size(size), m_capacity(size) {
+        explicit vector(uSize size): m_size(size), m_capacity(size) {
             array = reinterpret_cast<T*>(kmalloc(m_capacity * sizeof(T)));
-            for (size_t i = 0; i < size; i++) {
+            for (uSize i = 0; i < size; i++) {
                 new (&array[i]) T();
             }
         }
@@ -43,7 +43,7 @@ namespace bek {
             m_size = v.m_size;
             m_capacity = v.m_capacity;
             array = reinterpret_cast<T*>(kmalloc(m_capacity * sizeof(T)));
-            for (size_t i = 0; i < m_size; i++) {
+            for (uSize i = 0; i < m_size; i++) {
                 new (&array[i]) T(v[i]);
             }
         }
@@ -56,7 +56,7 @@ namespace bek {
             if (this != v) {
                 clear();
                 reserve(v.m_size);
-                for (size_t i = 0; i < m_size; i++) {
+                for (uSize i = 0; i < m_size; i++) {
                     new (&array[i]) T(v[i]);
                 }
                 m_size = v.m_size;
@@ -75,7 +75,7 @@ namespace bek {
             bek::swap(array, other.array);
         }
 
-        void reserve(size_t n) {
+        void reserve(uSize n) {
             while (m_capacity < n) {
                 m_capacity <<= 2u;
             }
@@ -95,11 +95,11 @@ namespace bek {
             m_size++;
         }
 
-        inline T &operator[](size_t n) {
+        inline T &operator[](uSize n) {
             return array[n];
         }
 
-        inline size_t size() {
+        inline uSize size() {
             return m_size;
         }
 
@@ -112,7 +112,7 @@ namespace bek {
                 array = reinterpret_cast<T*>(krealloc(array, m_capacity * sizeof(T)));
             } else {
                 auto new_array = reinterpret_cast<T*>(kmalloc(m_capacity * sizeof(T)));
-                for (size_t i = 0; i < m_size; i++) {
+                for (uSize i = 0; i < m_size; i++) {
                     new (&new_array[i]) T(bek::move(array[i]));
                     array[i].~T();
                 }
@@ -122,7 +122,7 @@ namespace bek {
         }
 
         void clear() {
-            for (size_t i = 0; i < m_size; i++) {
+            for (uSize i = 0; i < m_size; i++) {
                 array[i].~T();
             }
             m_size = 0;
@@ -139,8 +139,8 @@ namespace bek {
         }
 
     private:
-        size_t m_size{};
-        size_t m_capacity{};
+        uSize m_size{};
+        uSize m_capacity{};
         T *array;
     };
 }

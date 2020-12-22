@@ -21,22 +21,22 @@
 #define BEKOS_PROPERTY_TAGS_H
 
 #include <library/types.h>
-#include <stdint.h>
+
 
 #include "mailbox.h"
 
 struct PropertyTagHeader {
-    uint32_t tag_id;
-    uint32_t val_buffer_size;
-    uint32_t code;
+    u32 tag_id;
+    u32 val_buffer_size;
+    u32 code;
     // Here goes data + padding
 } __attribute__((packed));
 
 struct PropertyTagClockRate {
-    PropertyTagHeader header;
-    uint32_t clock_id;
+    PropertyTagHeader header = {0x00030002, 8, 0};
+    u32 clock_id;
     // Response V
-    uint32_t rate;
+    u32 rate;
 } __attribute__((packed));
 
 enum class BCMDevices : u32 {
@@ -55,31 +55,73 @@ struct PropertyTagPowerState {
     static constexpr u32 GetTag = 0x00020001;
     static constexpr u32 SetTag = 0x00028001;
 
-    PropertyTagHeader header;
+    PropertyTagHeader header = {GetTag, 8, 0};
     BCMDevices device_id;
 
     // Get = response, Set = parameter + response
-    uint32_t state;
+    u32 state;
 #define POWER_STATE_ON 0x1
 #define POWER_STATE_OFF 0x0
 #define POWER_STATE_WAIT 0x2
 #define POWER_STATE_NODEVICE 0x2
 } __attribute__((packed));
 
+struct PropertyTagSetFBSize {
+    static constexpr u32 GetPhysTag = 0x00040003;
+    static constexpr u32 SetPhysTag = 0x00048003;
+    static constexpr u32 GetVirtTag = 0x00040004;
+    static constexpr u32 SetVirtTag = 0x00048004;
+
+    PropertyTagSetFBSize(bool set, bool virt, u32 width = 0, u32 height = 0)
+        : header{(virt ? (set ? SetVirtTag : GetVirtTag) : (set ? SetPhysTag : GetPhysTag)), 8, 0},
+          width(width),
+          height(height){};
+
+    PropertyTagHeader header;
+    u32 width;
+    u32 height;
+} __attribute__((packed));
+
+struct PropertyTagSetFBDepth {
+    static constexpr u32 GetTag = 0x00040005;
+    static constexpr u32 SetTag = 0x00048005;
+
+    PropertyTagSetFBDepth(bool set, u32 depth = 0) : header{set ? SetTag : GetTag, 4, 0}, depth(depth) {};
+
+    PropertyTagHeader header = {SetTag, 4, 0};
+    u32 depth;
+} __attribute__((packed));
+
+struct PropertyTagGetFBPitch {
+    static constexpr u32 GetTag = 0x00040008;
+
+    PropertyTagHeader header = {GetTag, 4, 0};
+    u32 pitch = 0;
+} __attribute__((packed));
+
+struct PropertyTagAllocateFB {
+    static constexpr u32 Tag = 0x00040001;
+
+    PropertyTagAllocateFB(u32 align): header{Tag, 8, 0}, base_address(align) {};
+
+    PropertyTagHeader header;
+    u32 base_address; // Align on input
+    u32 allocation_size = 0;
+} __attribute__((packed));
+
 class property_tags {
 public:
     property_tags();
 
-    bool request_tag(uint32_t tag_id, void* tag, int tag_length);
+    bool request_tags(void* tags, u32 tags_size);
 
     template <class T>
     ALWAYS_INLINE bool request_tag(u32 tag_id, T* tag) {
-        return request_tag(tag_id, tag, sizeof(T));
+        tag->header.tag_id = tag_id;
+        return request_tags(tag, sizeof(T));
     }
 
 private:
-    // TODO: THis is static, and too short for some properties - work something out
-    alignas(16) uint32_t buffer_storage[256];
     MailboxChannel m_mailbox;
 };
 

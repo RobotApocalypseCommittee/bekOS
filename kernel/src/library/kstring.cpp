@@ -17,21 +17,21 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <stddef.h>
-#include <limits.h>
 #include "kstring.h"
 
-void* memset(void* ptr, int value, size_t num) {
+#include <limits>
+
+void* memset(void* ptr, int value, uSize num) {
     char* bptr = (char*) ptr;
-    for (size_t i = 0; i < num; i++) {
+    for (uSize i = 0; i < num; i++) {
         bptr[i] = value;
     }
     return ptr;
 }
 
-char* strncpy(char* s1, const char* s2, size_t n) {
+char* strncpy(char* s1, const char* s2, uSize n) {
     char ch;
-    size_t i;
+    uSize i;
     for (i = 0; i < n; i++) {
         *s1++ = ch = *s2++;
         if (!ch) break;
@@ -55,16 +55,16 @@ char* strcpy(char* s1, const char* s2) {
     return s1;
 }
 
-void* memcpy(void* s1, const void* s2, size_t n) {
-    const char* src = s2;
-    char* dest = s1;
-    for (size_t i = 0; i < n; i++) {
+void* memcpy(void* s1, const void* s2, uSize n) {
+    auto* src = reinterpret_cast<const u8*>(s2);
+    auto* dest = reinterpret_cast<u8*>(s1);
+    for (uSize i = 0; i < n; i++) {
         dest[i] = src[i];
     }
     return s1;
 }
 
-char* strncat(char* s1, const char* s2, size_t n) {
+char* strncat(char* s1, const char* s2, uSize n) {
     char* dest = strchr(s1, '\0');
     const char* src = s2;
     char ch;
@@ -75,9 +75,9 @@ char* strncat(char* s1, const char* s2, size_t n) {
     return s1;
 }
 
-int memcmp(const void* s1, const void* s2, size_t n) {
-    const unsigned char* q1 = s1;
-    const unsigned char* q2 = s2;
+int memcmp(const void* s1, const void* s2, uSize n) {
+    auto* q1 = reinterpret_cast<const u8*>(s1);
+    auto* q2 = reinterpret_cast<const u8*>(s2);
     int d = 0;
     while (n--) {
         d = *q1++ - *q2++;
@@ -108,7 +108,7 @@ int strcmp(const char* s1, const char* s2) {
     }
 }
 
-int strncmp(const char* s1, const char* s2, size_t n) {
+int strncmp(const char* s1, const char* s2, uSize n) {
     const unsigned char* q1 = (const unsigned char*) s1;
     const unsigned char* q2 = (const unsigned char*) s2;
     int d = 0;
@@ -129,16 +129,16 @@ int strncmp(const char* s1, const char* s2, size_t n) {
     return d;
 }
 
-void* memchr(const void* s, int c, size_t n) {
+void* memchr(const void* s, int c, uSize n) {
     unsigned char ch = (unsigned char) c;
-    const unsigned char* src = s;
+    auto* src = reinterpret_cast<const u8*>(s);
     while (n--) {
         if (*src == ch) {
             return (void*) src;
         }
         src++;
     }
-    return NULL;
+    return nullptr;
 }
 
 char* strchr(const char* s, int c) {
@@ -158,11 +158,11 @@ char* strrchr(const char* s, int c) {
     if (*s == (char) c) {
         return (char*) s;
     } else {
-        return NULL;
+        return nullptr;
     }
 }
 
-size_t strlen(const char* s) {
+uSize strlen(const char* s) {
     const char* ss = s;
     while (*ss) {
         ss++;
@@ -170,10 +170,10 @@ size_t strlen(const char* s) {
     return ss - s;
 }
 
-size_t mapmatch(const char* searchee, const char* chars, int present) {
+uSize mapmatch(const char* searchee, const char* chars, int present) {
     // Looks for (one of) chars in searchee, stop when either present or not(depending on present)
-    char charsmap[UCHAR_MAX - 1];
-    size_t i = 0;
+    char charsmap[std::numeric_limits<unsigned char>::max() + 1];
+    uSize i = 0;
     memset(charsmap, 0, sizeof(charsmap));
     while (*chars) {
         charsmap[(unsigned char)*chars++] = 1;
@@ -186,32 +186,32 @@ size_t mapmatch(const char* searchee, const char* chars, int present) {
     return i;
 }
 
-size_t strcspn(const char* s1, const char* s2) {
+uSize strcspn(const char* s1, const char* s2) {
     return mapmatch(s1, s2, 0);
 }
 
 char* strpbrk(const char* s1, const char* s2) {
-    size_t loc = mapmatch(s1, s2, 0) + 1;
+    uSize loc = mapmatch(s1, s2, 0) + 1;
     const char* cc = s1 + loc;
     if (*cc) {
         // Not the end - valid
         return (char*)cc;
     } else {
-        return NULL;
+        return nullptr;
     }
 
 }
 
-size_t strspn(const char* s1, const char* s2) {
+uSize strspn(const char* s1, const char* s2) {
     return mapmatch(s1, s2, 1);
 }
 
 char* strstr(const char* s1, const char* s2) {
-    size_t j, k, ell;
-    size_t s1_l = strlen(s1);
-    size_t s2_l = strlen(s2);
+    uSize j, k, ell;
+    uSize s1_l = strlen(s1);
+    uSize s2_l = strlen(s2);
     if (s2_l > s1_l || !s2_l || !s1_l) {
-        return NULL;
+        return nullptr;
     }
     if (s2_l != 1) {
         /* Preprocessing */
@@ -242,7 +242,7 @@ char* strstr(const char* s1, const char* s2) {
             }
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 

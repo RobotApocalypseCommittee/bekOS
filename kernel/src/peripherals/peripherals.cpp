@@ -20,17 +20,20 @@
 #include "peripherals/peripherals.h"
 
 // Memory-Mapped I/O output
-void mmio_write(uint64_t reg, uint32_t data) {
-    // Cast to uintptr_t to silence compiler warning of casting to a pointer
-    *(volatile uint32_t*) (uintptr_t) reg = data;
+void mmio_write(u64 reg, u32 data) {
+    // Cast to uPtr to silence compiler warning of casting to a pointer
+    *(volatile u32*) (uPtr) reg = data;
 }
 
 // Memory-Mapped I/O input
-uint32_t mmio_read(uint64_t reg) {
-    // Cast to uintptr_t to silence compiler warning of casting to a pointer
-    return *(volatile uint32_t*) (uintptr_t) reg;
+u32 mmio_read(u64 reg) {
+    // Cast to uPtr to silence compiler warning of casting to a pointer
+    return *(volatile u32*) (uPtr) reg;
 }
 
-uintptr_t bus_address(uintptr_t mapped_address) {
+uPtr bus_address(uPtr mapped_address) {
     return mapped_address - VA_START;
+}
+uPtr mapped_address(uPtr bus_address) {
+    return bus_address + VA_START;
 }

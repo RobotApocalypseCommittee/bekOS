@@ -88,11 +88,11 @@ u64 entry_hash(u64 previous, const char *name);
 // An open file
 struct File {
 public:
-    virtual bool read(void *buf, size_t length, size_t offset) = 0;
+    virtual bool read(void *buf, uSize length, uSize offset) = 0;
 
-    virtual bool write(void *buf, size_t length, size_t offset) = 0;
+    virtual bool write(void *buf, uSize length, uSize offset) = 0;
 
-    virtual bool resize(size_t new_length) = 0;
+    virtual bool resize(uSize new_length) = 0;
 
     virtual bool close() = 0;
 

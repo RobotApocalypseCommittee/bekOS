@@ -20,14 +20,15 @@
 #ifndef BEKOS_PERIPHERALS_H
 #define BEKOS_PERIPHERALS_H
 
-#include <stdint.h>
+#include "library/types.h"
 
 // Useful info
 #include "memory_locations.h"
 
-void mmio_write(uint64_t reg, uint32_t data);
-uint32_t mmio_read(uint64_t reg);
+void mmio_write(u64 reg, u32 data);
+u32 mmio_read(u64 reg);
 
-uintptr_t bus_address(uintptr_t mapped_address);
+uPtr bus_address(uPtr mapped_address);
+uPtr mapped_address(uPtr bus_address);
 
 #endif //BEKOS_PERIPHERALS_H

@@ -17,15 +17,14 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <cstdint>
 #include "library/utility.h"
 
 template<>
 u64 bek::hash<u64>(u64 x) {
     x ^= x >> 30u;
-    x *= UINT64_C(0xbf58476d1ce4e5b9);
+    x *= 0xbf58476d1ce4e5b9ul;
     x ^= x >> 27u;
-    x *= UINT64_C(0x94d049bb133111eb);
+    x *= 0x94d049bb133111ebul;
     x ^= x >> 31u;
     return x;
 }
@@ -40,8 +39,8 @@ void *operator new[](uSize size) { return PREFIX(malloc)(size); }
 
 void operator delete[](void *ptr) { return PREFIX(free)(ptr); }
 
-void operator delete[](void *ptr, size_t) { return PREFIX(free)(ptr); }
+void operator delete[](void *ptr, uSize) { return PREFIX(free)(ptr); }
 
-void *operator new(size_t, void *ptr) { return ptr; }
+void *operator new(uSize, void *ptr) { return ptr; }
 
-void *operator new[](size_t, void *ptr) { return ptr; }
+void *operator new[](uSize, void *ptr) { return ptr; }
