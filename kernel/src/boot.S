@@ -37,35 +37,33 @@ _start:
     b       1b
 2:  // cpu id == 0
 
-    // Move to EL1 - OS exec level
+	// Disable coprocessor traps
+    mov     x0, #0x33FF
+	msr		CPTR_EL2, x0
+	msr		HSTR_EL2, xzr
+	mov		x0, #3 << 20
+	msr 	CPACR_EL1, x0 // Enable FP and SIMD
+
+	// Set lower levels to 64 bit
+	mov		x0, #(1 << 31)
+	msr		HCR_EL2, x0
+
     // Disable MMU, and set system control
-    ldr	x0, =SCTLR_VALUE_MMU_DISABLED
-	msr	sctlr_el1, x0
-
-	// Disable trapping of accessing in EL3 and EL2.
-    MSR CPTR_EL3, XZR
-    MSR CPTR_EL3, XZR
-    // Disable access trapping in EL1 and EL0.
-    MOV X1, #(0x3 << 20) // FPEN disables trapping to EL1.
-    MSR CPACR_EL1, X1
-    ISB
-
-    // Hypervisor(EL2) state
-	ldr	x0, =HCR_VALUE
-	msr	hcr_el2, x0
+    ldr		x0, =SCTLR_VALUE_MMU_DISABLED
+	msr	    SCTLR_EL1, x0
 
     // EL3 Configuration
-	ldr	x0, =SCR_VALUE
-	msr	scr_el3, x0
+	//ldr	x0, =SCR_VALUE
+	//msr	scr_el3, x0
 
-    // Saved status for EL3 -> El1
-	ldr	x0, =SPSR_VALUE
-	msr	spsr_el3, x0
+    // Saved status for EL3/2 -> El1
+	ldr		x0, =SPSR_VALUE
+	msr		spsr_el2, x0
 
     // Store the address of the next code to run in the link register
     // This register is used when returning from exception
-	adr	x0, master
-	msr	elr_el3, x0
+	adr		x0, master
+	msr		elr_el2, x0
     // Return from 'exception'
 	eret
 master:
@@ -93,11 +91,40 @@ master:
 	ldr	x0, =(MAIR_VALUE)
 	msr	mair_el1, x0
 
+	dsb ish
+	isb
 
-	ldr	x2, =kernel_main
+	ldr	x2, =nootdata
 
 	mov	x0, #SCTLR_MMU_ENABLED
 	msr	sctlr_el1, x0
+	isb
+
+	ldr x0, [x2]
+    	mov x1, #0x1
+    	mov x2, #0x7
+    	lsl x1, x1, 27
+    	lsl x2, x2, 27
+    	ldr w3, [x0, #8]     // Read function mode
+    	bic x3, x3, x2
+    	orr x3, x3, x1
+    	str w3, [x0, #8]    // Write function mode back
+    	mov x1, #0x1
+    	lsl x1, x1, #29
+    flash:
+    	str w1, [x0, #40]	// Hit the clear register
+    	mov x2, #0x800000
+    1:
+    	sub x2, x2, #1
+    	cmp x2, #0
+    	bne 1b
+    	str w1, [x0, #28]	// Hit the set register
+    	mov x2, #0x800000
+    2:
+    	sub x2, x2, #1
+    	cmp x2, #0
+    	bne 2b
+    	b flash
 
 	blr x2
     // stop this core

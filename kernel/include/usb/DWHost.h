@@ -24,16 +24,30 @@
 #include <library/own_ptr.h>
 #include <peripherals/interrupt_controller.h>
 #include "TransactionRequest.h"
+#include "DWRootPort.h"
+#include "usb/DWHCI.h"
+
+enum class PortSpeed {
+    Low,
+    Full,
+    High,
+    Unknown
+};
+
 class DWHost {
 public:
+    DWHost();
     bool init();
-    void rescan_devices();
+    bool rescan_devices();
 
-    bool schedule_transfer(bek::own_ptr<TransferRequest> request);
+    bool schedule_transfer(bek::own_ptr<usb::TransferRequest> request);
+
+    PortSpeed get_port_speed();
+    bool is_device_connected();
+    
 
 
 private:
-
     bool init_core();
     bool init_host();
     bool reset();
@@ -46,6 +60,8 @@ private:
 
     u32 m_channel_count;
 
+    bool m_root_port_initialised = {false};
+    DWRootPort m_root_port;
 };
 
 #endif  // BEKOS_DWHOST_H

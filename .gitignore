@@ -55,4 +55,7 @@ dkms.conf
 .idea/
 b/
 cmake-build*/
+build/
+.vscode
 /toolchain-arm.cmake
+.clangd/

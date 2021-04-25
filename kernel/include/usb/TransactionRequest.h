@@ -20,32 +20,4 @@
 #ifndef BEKOS_TRANSACTIONREQUEST_H
 #define BEKOS_TRANSACTIONREQUEST_H
 
-#include <library/function.h>
-
-#include "Device.h"
-
-struct ControlSetupData {
-    u8 bmRequestType;
-    u8 bRequest;
-    u16 wValue;
-    u16 wIndex;
-    u16 wLength;
-} __attribute((packed));
-static_assert(sizeof(ControlSetupData) == 8, "ControlSetupData packing incorrect.");
-
-enum class TransferType { CONTROL, ISOCHRONOUS, INTERRUPT, BULK };
-enum class TransferDirection { IN, OUT };
-
-struct TransferRequest {
-    Device* device;
-    u8 endpoint;
-    TransferType type;
-    TransferDirection direction;
-    u32 transfer_size;
-    void* buffer;
-    /// Only used for control transfers - including makes things easier
-    ControlSetupData control_data;
-    bek::function<void(void)> completion_callback;
-};
-
 #endif  // BEKOS_TRANSACTIONREQUEST_H

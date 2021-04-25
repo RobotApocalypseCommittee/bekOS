@@ -20,9 +20,10 @@
 
 #include <library/assert.h>
 #include <library/types.h>
-#include <memory_locations.h>
+
 
 #define BIT(nr) (1UL << (nr))
+#define TESTMASK(val, msk) ((val & msk) ? 1 : 0)
 
 template <uPtr P>
 class DWReg {
@@ -51,6 +52,8 @@ const uPtr ARM_USB_HOST_BASE = ARM_USB_BASE + 0x400;
 const uPtr ARM_USB_POWER     = ARM_USB_BASE + 0xE00;
 
 using POWER = DWReg<ARM_USB_POWER>;
+const u32 POWER_SLEEP_CLOCK_GATING = BIT(5);
+const u32 POWER_STOP_PCLK = BIT(0);
 }
 
 namespace DWHCI::CORE {
@@ -128,7 +131,19 @@ using USER_ID         = DWReg<ARM_USB_CORE_BASE + 0x03C>;
 using VENDOR_ID       = DWReg<ARM_USB_CORE_BASE + 0x040>;
 using HW_CFG1         = DWReg<ARM_USB_CORE_BASE + 0x044>;  // RO
 using HW_CFG2         = DWReg<ARM_USB_CORE_BASE + 0x048>;  // RO
-constexpr u32 HW_CFG2_OP_MODE(u32 reg) { return ((reg) >> 0) & 7; }
+
+enum HW_CFG2_OP_MODES {
+    HNP_SRP_CAPABLE,
+    SRP_ONLY_CAPABLE,
+    NO_HNP_SRP_CAPABLE,
+    SRP_CAPABLE_DEVICE,
+    NO_SRP_CAPABLE_DEVICE,
+    SRP_CAPABLE_HOST,
+    NO_SRP_CAPABLE_HOST,
+};
+constexpr HW_CFG2_OP_MODES HW_CFG2_OP_MODE(u32 reg) { return static_cast<HW_CFG2_OP_MODES>(((reg) >> 0) & 7); }
+
+
 
 constexpr u32 HW_CFG2_ARCHITECTURE(u32 reg) { return ((reg) >> 3) & 3; }
 
@@ -189,6 +204,8 @@ const u32 CFG_FSLS_PCLK_SEL__MASK     = (3 << 0);
 const u32 CFG_FSLS_PCLK_SEL_30_60_MHZ = 0;
 const u32 CFG_FSLS_PCLK_SEL_48_MHZ    = 1;
 const u32 CFG_FSLS_PCLK_SEL_6_MHZ     = 2;
+const u32 CFG_FSLS_ONLY = BIT(2);
+const u32 CFG_EN_DMA_DESC = BIT(23);
 using FRM_INTERVAL                    = DWReg<ARM_USB_HOST_BASE + 0x004>;
 using FRM_NUM                         = DWReg<ARM_USB_HOST_BASE + 0x008>;
 
@@ -210,8 +227,11 @@ const u32 PORT_ENABLE              = BIT(2);
 const u32 PORT_ENABLE_CHANGED      = BIT(3);
 const u32 PORT_OVERCURRENT         = BIT(4);
 const u32 PORT_OVERCURRENT_CHANGED = BIT(5);
+const u32 PORT_RESUME = BIT(6);
+const u32 PORT_SUSPEND = BIT(7);
 const u32 PORT_RESET               = BIT(8);
 const u32 PORT_POWER               = BIT(12);
+constexpr u32 PORT_TESTMODE(u32 reg) {return (reg >> 13) & 7; }
 
 constexpr u32 PORT_SPEED(u32 reg) { return (reg >> 17) & 3; }
 

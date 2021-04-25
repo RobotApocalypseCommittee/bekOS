@@ -4,7 +4,10 @@ add_executable(kernel kernel.cpp boot.S mm.S
         filesystem/mbr.cpp filesystem/fat.cpp filesystem/partition.cpp filesystem/filesystem.cpp filesystem/fatfs.cpp filesystem/entrycache.cpp filesystem/blockcache.cpp filesystem/cacheddevice.cpp filesystem/device.cpp
         printf.cpp utils.cpp page_mapping.cpp memory_manager.cpp
         interrupts/int_handle_utils.cpp interrupts/int_handle.S interrupts/int_ctrl.S
-        process/process.cpp process/process_entry.S process/elf.cpp process/syscalls.cpp peripherals/framebuffer.cpp)
+        process/process.cpp process/process_entry.S process/elf.cpp process/syscalls.cpp peripherals/framebuffer.cpp
+        usb/DWHost.cpp usb/DWRootPort.cpp usb/Device.cpp
+        usbborrowed/rpi-usb.cpp)
+
 
 target_include_directories(kernel PRIVATE ../include)
 

@@ -29,6 +29,8 @@ using i16 = __INT16_TYPE__;
 using i32 = __INT32_TYPE__;
 using i64 = __INT64_TYPE__;
 
+using char16 = char16_t;
+
 using uSize = __SIZE_TYPE__;
 
 using uPtr = __UINTPTR_TYPE__;

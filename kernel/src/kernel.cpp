@@ -17,25 +17,27 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <peripherals/gentimer.h>
-#include <peripherals/property_tags.h>
-#include <peripherals/emmc.h>
-#include <memory_manager.h>
-#include <filesystem/mbr.h>
-#include <filesystem/fat.h>
 #include <filesystem/entrycache.h>
-#include <peripherals/interrupt_controller.h>
-#include <peripherals/system_timer.h>
+#include <filesystem/fat.h>
+#include <filesystem/mbr.h>
+#include <memory_manager.h>
+#include <peripherals/emmc.h>
 #include <peripherals/framebuffer.h>
-#include <process/process.h>
+#include <peripherals/gentimer.h>
+#include <peripherals/interrupt_controller.h>
+#include <peripherals/property_tags.h>
+#include <peripherals/system_timer.h>
 #include <process/elf.h>
-#include "peripherals/uart.h"
-#include "page_mapping.h"
-#include "printf.h"
-#include "utils.h"
+#include <process/process.h>
+#include <usbborrowed/rpi-usb.h>
+
 #include "filesystem/fatfs.h"
 #include "interrupts/int_ctrl.h"
+#include "page_mapping.h"
+#include "peripherals/uart.h"
+#include "printf.h"
 #include "usb/DWHCI.h"
+#include "utils.h"
 
 extern "C" {
 
@@ -52,10 +54,14 @@ interrupt_controller interruptController;
 ProcessManager *processManager;
 fs::EntryHashtable entryHashtable;
 fs::Filesystem *filesystem;
+char_blitter* charBlitter;
 
 // Needed for printf
 void _putchar(char character) {
     uart_putc(character);
+    if (charBlitter) {
+        charBlitter->putChar(character);
+    }
 }
 
 void onTick() {
@@ -133,11 +139,23 @@ void kernel_main(u32 el, u32 r1, u32 atags)
     (void) atags;
 
     uart_init();
-    // Test uart
-    uart_puts("Hello, kernel World!\r\n");
 
     colour black(0);
     colour white(255, 255, 255, 0);
+
+    framebuffer_info fb_info = {
+        .width = 640,
+        .height = 480,
+        .depth = 32
+    };
+
+    allocate_framebuffer(fb_info);
+    framebuffer fb(fb_info);
+    fb.clear(white);
+    char_blitter cb(fb, white, black);
+    charBlitter = &cb;
+    // Test uart
+    printf("Hello, kernel World!\r\n");
 
     // Enable page mapping and malloc
     memoryManager = memory_manager();
@@ -148,6 +166,24 @@ void kernel_main(u32 el, u32 r1, u32 atags)
     processManager = new ProcessManager;
     set_vector_table();
     enable_interrupts();
+
+    /* Initialize USB system we will want keyboard and mouse */
+    USB::UsbInitialise();
+
+    /* Display the USB tree */
+    printf("\n");
+    UsbShowTree(USB::UsbGetRootHub(), 1, '+');
+    printf("\n");
+
+    /* Detect the first keyboard on USB bus */
+    uint8_t firstKbd = 0;
+    for (int i = 1; i <= MaximumDevices; i++) {
+        if (USB::IsKeyboard(i)) {
+            firstKbd = i;
+            break;
+        }
+    }
+    if (firstKbd) printf("Keyboard detected\r\n");
 
     /*
     // Perform SD Card excitements
@@ -180,16 +216,7 @@ void kernel_main(u32 el, u32 r1, u32 atags)
 */
     printf("Done\n");
 
-    framebuffer_info fb_info = {
-        .width = 640,
-        .height = 480,
-        .depth = 32
-    };
 
-    allocate_framebuffer(fb_info);
-    framebuffer fb(fb_info);
-    fb.clear(black);
-    char_blitter cb(fb, white, black);
 
     unsigned char c;
     // Infini-loop

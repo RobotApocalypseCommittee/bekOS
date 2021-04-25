@@ -20,8 +20,16 @@
 #ifndef BEKOS_DWROOTPORT_H
 #define BEKOS_DWROOTPORT_H
 
-class DWRootPort {
+class DWHost;
 
+class DWRootPort {
+public:
+    explicit DWRootPort(DWHost* host);
+    bool init();
+    bool rescan_devices();
+
+private:
+    DWHost* m_host;
 };
 
 #endif  // BEKOS_DWROOTPORT_H

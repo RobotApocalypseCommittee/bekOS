@@ -20,9 +20,11 @@
 #ifndef BEKOS_VECTOR_H
 #define BEKOS_VECTOR_H
 
-#include "utils.h"
-#include "library/utility.h"
+#include <initializer_list>
+
 #include "kstring.h"
+#include "library/utility.h"
+#include "utils.h"
 
 namespace bek {
     template<class T>
@@ -50,6 +52,13 @@ namespace bek {
 
         vector(vector<T>&& v) noexcept : vector() {
             swap(v);
+        }
+
+        vector(std::initializer_list<T> list)
+        {
+            reserve(list.size());
+            for (auto& item : list)
+                push_back(item);
         }
 
         vector& operator=(const vector<T> &v) __attribute((deprecated("Do you want to copy vector?"))) {

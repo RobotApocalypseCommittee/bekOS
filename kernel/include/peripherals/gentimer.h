@@ -20,8 +20,13 @@
 #ifndef BEKOS_GENTIMER_H
 #define BEKOS_GENTIMER_H
 
+#include <library/types.h>
+
 unsigned long getClockFrequency();
 unsigned long getClockTicks();
+
+/// Returns difference between times in microseconds
+unsigned long getTimeDifference(u64 tickcount1, u64 tickcount2);
 void bad_udelay(unsigned int microseconds);
 
 #endif //BEKOS_GENTIMER_H

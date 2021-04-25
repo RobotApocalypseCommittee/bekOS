@@ -39,5 +39,13 @@ void bad_udelay(unsigned int microseconds) {
         // Do Nothing
     }
 }
-
-
+unsigned long getTimeDifference(u64 tickcount1, u64 tickcount2) {
+    u64 ticks;
+    if (tickcount1 > tickcount2) {
+        // Ticked over
+        ticks = tickcount2 + ((-1) - tickcount1 + 1);
+    } else {
+        ticks = tickcount2 - tickcount1;
+    }
+    return (ticks * 1000000) / getClockFrequency();
+}

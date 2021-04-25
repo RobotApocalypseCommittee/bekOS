@@ -97,6 +97,7 @@ void char_blitter::putChar(char c) {
     }
 
     if (m_col == n_cols) {
+        m_row++;
         m_col = 0;
     }
     if (m_row == n_rows) {

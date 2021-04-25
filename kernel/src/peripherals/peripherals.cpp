@@ -37,3 +37,4 @@ uPtr bus_address(uPtr mapped_address) {
 uPtr mapped_address(uPtr bus_address) {
     return bus_address + VA_START;
 }
+uPtr gpu_address(uPtr mapped_address) { return bus_address(mapped_address) + 0xC0000000; }

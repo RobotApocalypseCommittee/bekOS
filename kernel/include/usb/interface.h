@@ -17,38 +17,22 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_USB_DEVICE_H
-#define BEKOS_USB_DEVICE_H
+#ifndef BEKOS_INTERFACE_H
+#define BEKOS_INTERFACE_H
 
+#include "Device.h"
 #include "descriptors.h"
-#include "library/vector.h"
-#include "usb/transfers.h"
-
 namespace usb {
 
-/// A Device does a lot of things, and relies a lot on state - careful
-class Device {
-public:
+/// USB Functionality - on object which handles either a whole device or an interface of said device.
+class Functionality {
 
-private:
-    /// Address assigned to device
-    int m_address;
-
-    /// Index assigned by driver
-    int m_id;
-
-    int m_max_packet_size;
-
-    bek::own_ptr<DeviceDescriptor> descriptors;
-
-    enum Status {  // USB 2.0 Spec 9.1
-        Attached,
-        Powered,
-        Default,
-        Address,
-        Configured,
-        Suspended
-    } status;
 };
+
+using DeviceMatchedFunctionality = Functionality* (const DeviceInfo&);
+using InterfaceMatchedFunctionality = Functionality* (const InterfaceInfo&);
+
+
 }
-#endif  // BEKOS_USB_DEVICE_H
+
+#endif  // BEKOS_INTERFACE_H

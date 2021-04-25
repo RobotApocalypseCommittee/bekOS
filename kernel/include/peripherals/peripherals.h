@@ -30,5 +30,6 @@ u32 mmio_read(u64 reg);
 
 uPtr bus_address(uPtr mapped_address);
 uPtr mapped_address(uPtr bus_address);
+uPtr gpu_address(uPtr mapped_address);
 
 #endif //BEKOS_PERIPHERALS_H
