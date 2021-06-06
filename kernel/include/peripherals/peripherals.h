@@ -25,8 +25,15 @@
 // Useful info
 #include "memory_locations.h"
 
-void mmio_write(u64 reg, u32 data);
-u32 mmio_read(u64 reg);
+class mmio_register_device {
+protected:
+    explicit mmio_register_device(uPtr base): peripheral_base(base) {}
+    void write_register(uPtr reg, u32 value);
+    u32 read_register(uPtr reg);
+private:
+    uPtr peripheral_base;
+};
+
 
 uPtr bus_address(uPtr mapped_address);
 uPtr mapped_address(uPtr bus_address);

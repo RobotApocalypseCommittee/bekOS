@@ -20,6 +20,7 @@
 #include "peripherals/framebuffer.h"
 
 #include <peripherals/property_tags.h>
+#include <printf.h>
 
 #include "library/utility.h"
 #include "peripherals/peripherals.h"
@@ -36,22 +37,35 @@ struct framebuffer_allocation_msg {
     PropertyTagGetFBPitch getPitch;
 } __attribute__((packed));
 
+
+
 bool allocate_framebuffer(framebuffer_info& info) {
-    framebuffer_allocation_msg fb_msg{
+    printf("[FB] Allocating framebuffer\n");
+    framebuffer_allocation_msg fb_msg {
         .setPhys    = PropertyTagSetFBSize(true, false, info.width, info.height),
         .setVirt    = PropertyTagSetFBSize(true, true, info.width, info.height),
         .setDepth   = PropertyTagSetFBDepth(true, info.depth),
         .allocateFB = PropertyTagAllocateFB(16),
         .getPitch   = PropertyTagGetFBPitch()};
     property_tags propTags;
-    auto res = propTags.request_tags(&fb_msg, sizeof(framebuffer_allocation_msg));
-    assert(res);
+
+    printf("[FB] Allocation message:\n");
+    hex_dump(&fb_msg, sizeof(framebuffer_allocation_msg));
+
+    printf("[FB] Requesting tag.\n");
+    bool res = propTags.request_tags(&fb_msg, sizeof(framebuffer_allocation_msg));
+    if (!res) {
+        printf("[FB] Framebuffer allocation failed.\n");
+        return false;
+    }
+    printf("[FB] Allocated framebuffer:\n");
     info.width       = fb_msg.setPhys.width;
     info.height      = fb_msg.setPhys.height;
     info.depth       = fb_msg.setDepth.depth;
     info.pitch       = fb_msg.getPitch.pitch;
-    info.buffer      = (void*)mapped_address(fb_msg.allocateFB.base_address);
+    info.buffer      = (void*)mapped_address(fb_msg.allocateFB.base_address & 0x3FFFFFFF);
     info.buffer_size = fb_msg.allocateFB.allocation_size;
+    printf("[FB] Allocated framebuffer: width=%u, height=%u, depth=%u, pitch=%u, addr=%lX, size=%u\n", info.width, info.height, info.depth, info.pitch, info.buffer, info.buffer_size);
     return true;
 }
 

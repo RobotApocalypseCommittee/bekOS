@@ -39,6 +39,16 @@ struct PropertyTagClockRate {
     u32 rate;
 } __attribute__((packed));
 
+struct PropertyTagGetMemory {
+    static constexpr u32 GetArmTag = 0x00010005;
+    static constexpr u32 GetVCTag = 0x00010006;
+
+    explicit PropertyTagGetMemory(bool videocore): header{videocore ? GetVCTag : GetArmTag, 8, 0} {}
+    PropertyTagHeader header;
+    u32 base_addr{};
+    u32 size{};
+}  __attribute__((packed));
+
 enum class BCMDevices : u32 {
     SD     = 0x0,
     UART0  = 0x1,

@@ -20,6 +20,7 @@
 
 #include <library/assert.h>
 #include <library/types.h>
+#include <memory_locations.h>
 
 
 #define BIT(nr) (1UL << (nr))

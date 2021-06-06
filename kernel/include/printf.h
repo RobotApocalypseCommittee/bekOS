@@ -35,6 +35,7 @@
 #include "library/stdarg.h"
 #include "library/types.h"
 
+void hex_dump(const void* data, uSize len);
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,6 +48,8 @@ extern "C" {
  * \param character Character to output
  */
 void _putchar(char character);
+
+
 
 
 /**

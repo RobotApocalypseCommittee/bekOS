@@ -30,6 +30,7 @@
 #define PAGE_ENTRY_COUNT 512
 #define PAGE_SHIFT 12U
 #define PAGE_SIZE (1U << PAGE_SHIFT)
+#define PAGE_MASK (PAGE_SIZE - 1)
 
 // ARM MMU FLAGS AND STUFF
 
@@ -43,12 +44,17 @@
 // The translation levels
 // VA [47:39]
 #define LEVEL_0_SHIFT 39
+#define LEVEL_0_SIZE  (1UL << 39)
 // VA [38:30]
 #define LEVEL_1_SHIFT 30
+#define LEVEL_1_SIZE (1UL << 30)
 // VA [29:21]
 #define LEVEL_2_SHIFT 21
-#define LEVEL_2_SIZE 1 << LEVEL_2_SHIFT
+#define LEVEL_2_SIZE (1UL << 21)
+
 #define LEVEL_3_SHIFT 12
+#define LEVEL_3_SIZE (1UL << 12)
+
 
 // IMPORTANT things
 #define MM_ACCESS			(0x1 << 10)

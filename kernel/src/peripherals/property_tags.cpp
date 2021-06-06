@@ -18,9 +18,12 @@
  */
 
 #include "peripherals/property_tags.h"
-#include "library/utility.h"
-#include <utils.h>
+
 #include <peripherals/peripherals.h>
+#include <printf.h>
+#include <utils.h>
+
+#include "library/utility.h"
 
 struct PropertyTagsBuffer {
     u32 buffer_size;
@@ -36,6 +39,10 @@ struct PropertyTagsBuffer {
 property_tags::property_tags(): m_mailbox(8) {
 
 }
+
+
+void blinkonce();
+
 bool property_tags::request_tags(void* tags, u32 tags_size) {
     // Header + tags + end
     u32 buffer_size = 8 + tags_size + 4;
@@ -44,19 +51,28 @@ bool property_tags::request_tags(void* tags, u32 tags_size) {
 
     // Hope kmalloc aligns 16
     PropertyTagsBuffer* buffer = reinterpret_cast<PropertyTagsBuffer*>(kmalloc(buffer_size));
+    memset(buffer, 0, buffer_size);
+    printf("[PropTag] Buffer address: %lX \n", reinterpret_cast<uPtr>(buffer));
     buffer->buffer_code = BUFFER_CODE_REQUEST;
     buffer->buffer_size = buffer_size;
     memcpy(&buffer->Tags[0], tags, tags_size);
     buffer->Tags[tags_size] = 0;
     // Ready to send
     u32 bus_addr = (u32)bus_address((uPtr)buffer);
+    printf("[PropTag] Ready to send tags:\n");
+    hex_dump(buffer, buffer_size);
     write_barrier();
     m_mailbox.write(bus_addr);
     u32 result = m_mailbox.read();
     read_barrier();
-    assert(result == bus_addr);
-    assert(buffer->buffer_code == BUFFER_CODE_RESPONSE_SUCCESS);
+    if (buffer->buffer_code != BUFFER_CODE_RESPONSE_SUCCESS || result != bus_addr) {
+        printf("[PropTag] Tag submission failure: response code = %X, result = %X\n", buffer->buffer_code, result);
+        kfree(buffer);
+        return false;
+    }
+    printf("[PropTag] Tag submission success\n");
     memcpy(tags, buffer->Tags, tags_size);
+    kfree(buffer);
     return true;
 }
 bool set_peripheral_power_state(property_tags& tags, BCMDevices device, bool state, bool wait) {

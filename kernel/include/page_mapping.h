@@ -22,6 +22,7 @@
 
 #include "memory_manager.h"
 #include "library/vector.h"
+#include "mm/hw_ptr.h"
 
 // Granule size 4KB
 
@@ -54,23 +55,20 @@ struct ARMv8MMU_L2_Entry_Block {
 
 class translation_table {
 public:
-    translation_table(memory_manager* manager);
-
-    translation_table();
-
+    /// This class works in both mapped and unmapped space - cannot contain any permanent pointer.
+    translation_table(hw_ptr<memory_manager> mem_manager);
     ~translation_table();
 
-    bool map(uPtr vaddr, uPtr raddr);
-
-    u64 get_table_address();
-
+    bool map_range(uPtr virtual_address, uPtr bus_address, uSize len);
+    uPtr traverse(uPtr virtual_address) const;
 private:
-    memory_manager* manager;
-    bek::vector<uPtr> pages;
-    ARMv8MMU_L2_Entry_Table *table0;
-    ARMv8MMU_L2_Entry_Table* map_table(ARMv8MMU_L2_Entry_Table* table, unsigned long shift, uPtr va);
-
+    hw_ptr<ARMv8MMU_L2_Entry_Table> level0table;
+    // TODO: Figure out how to keep track of allocated pages for tables
+    hw_ptr<memory_manager> allocator;
 };
+
+
+
 
 
 #endif //BEKOS_PAGE_MAPPING_H

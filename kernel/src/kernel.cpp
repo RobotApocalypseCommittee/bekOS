@@ -56,13 +56,7 @@ fs::EntryHashtable entryHashtable;
 fs::Filesystem *filesystem;
 char_blitter* charBlitter;
 
-// Needed for printf
-void _putchar(char character) {
-    uart_putc(character);
-    if (charBlitter) {
-        charBlitter->putChar(character);
-    }
-}
+
 
 void onTick() {
     processManager->getCurrentProcess()->processorTimeCounter--;

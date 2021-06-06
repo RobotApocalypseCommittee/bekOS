@@ -19,22 +19,31 @@
 
 #include "peripherals/peripherals.h"
 
-// Memory-Mapped I/O output
-void mmio_write(u64 reg, u32 data) {
-    // Cast to uPtr to silence compiler warning of casting to a pointer
-    *(volatile u32*) (uPtr) reg = data;
-}
-
-// Memory-Mapped I/O input
-u32 mmio_read(u64 reg) {
-    // Cast to uPtr to silence compiler warning of casting to a pointer
-    return *(volatile u32*) (uPtr) reg;
-}
+extern bool is_upper_half;
 
 uPtr bus_address(uPtr mapped_address) {
-    return mapped_address - VA_START;
+    if (is_upper_half) {
+        return mapped_address - VA_START;
+    } else {
+        return mapped_address;
+    }
 }
 uPtr mapped_address(uPtr bus_address) {
-    return bus_address + VA_START;
+    if (is_upper_half) {
+        return bus_address + VA_START;
+    } else {
+        return bus_address;
+    }
 }
 uPtr gpu_address(uPtr mapped_address) { return bus_address(mapped_address) + 0xC0000000; }
+
+
+
+void mmio_register_device::write_register(uPtr reg, u32 value) {
+    volatile u32* ptr = reinterpret_cast<volatile u32*>(peripheral_base + reg);
+    *ptr = value;
+}
+u32 mmio_register_device::read_register(uPtr reg) {
+    volatile u32* ptr = reinterpret_cast<volatile u32*>(peripheral_base + reg);
+    return *ptr;
+}

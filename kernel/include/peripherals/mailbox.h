@@ -21,8 +21,9 @@
 #define BEKOS_MAILBOX_H
 
 #include "library/types.h"
+#include "peripherals.h"
 
-class MailboxChannel {
+class MailboxChannel: mmio_register_device {
 public:
     explicit MailboxChannel(const u32 &channel);
     u32 read();

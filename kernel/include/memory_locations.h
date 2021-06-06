@@ -27,14 +27,14 @@
 // We have 1GB memory on Pi
 #define ADDRESSABLE_MEMORY 0x40000000
 #ifndef __ASSEMBLER__
-extern unsigned long __virt_start, __end;
+extern unsigned long __start, __end;
 
-#define KERNEL_START ((unsigned long)&__virt_start - (unsigned long)VA_START)
-#define KERNEL_END ((unsigned long)&__end - (unsigned long)VA_START)
+#define KERNEL_START ((unsigned long)&__start)
+#define KERNEL_END ((unsigned long)&__end)
 #define KERNEL_SIZE (KERNEL_END - KERNEL_START)
 #endif
 
 #define PERIPHERAL_OFFSET 0x3F000000
-#define PERIPHERAL_BASE (VA_START + PERIPHERAL_OFFSET)
+#define PERIPHERAL_BASE (PERIPHERAL_OFFSET)
 
 #endif //BEKOS_MEMORY_LOCATIONS_H

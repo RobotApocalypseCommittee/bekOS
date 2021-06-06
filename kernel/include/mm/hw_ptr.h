@@ -1,7 +1,7 @@
 /*
  *   bekOS is a basic OS for the Raspberry Pi
  *
- *   Copyright (C) 2020  Bekos Inc Ltd
+ *   Copyright (C) 2021  Bekos Inc Ltd
  *
  *   This program is free software: you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -17,25 +17,39 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <memory_manager.h>
+#ifndef BEKOS_HW_PTR_H
+#define BEKOS_HW_PTR_H
+
+#include <library/types.h>
 #include <peripherals/peripherals.h>
-#include <utils.h>
 
-extern "C" {
 
-int liballoc_lock() { // TODO
-    return 0;
-}
+#define INVALID_HW_PTR (-1)
 
-int liballoc_unlock() { // TODO
-    return 0;
-}
+template <typename T>
+class hw_ptr {
+public:
+    hw_ptr() : raw_ptr(INVALID_HW_PTR) {}
+    explicit hw_ptr(uPtr ptr) : raw_ptr(ptr) { assert((ptr & 0xFFFF000000000000) == 0); }
 
-void* liballoc_alloc(uSize pages) {
-    return reinterpret_cast<void*>(mapped_address(memoryManager.reserve_region(pages, PAGE_KERNEL)));
-}
+    uPtr get_raw_ptr() const {
+        return raw_ptr;
+    }
 
-int liballoc_free(void* ptr, uSize pages) {
-    return !memoryManager.free_region(bus_address(reinterpret_cast<unsigned long>(ptr)), pages);
-}
-}
+    uPtr get_mapped_ptr() const {
+        return mapped_address(raw_ptr);
+    }
+
+    T& operator*() {
+        return *(reinterpret_cast<T*>(mapped_address(raw_ptr)));
+    }
+
+    T* operator->() {
+        return reinterpret_cast<T*>(mapped_address(raw_ptr));
+    }
+
+private:
+    uPtr raw_ptr;
+};
+
+#endif  // BEKOS_HW_PTR_H

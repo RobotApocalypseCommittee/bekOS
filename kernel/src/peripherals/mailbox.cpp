@@ -20,39 +20,39 @@
 #include "peripherals/mailbox.h"
 #include "peripherals/peripherals.h"
 
-#define MAILBOX_BASE (PERIPHERAL_BASE + 0x0000B880)
-#define MAILBOX0_READ (MAILBOX_BASE)
-#define MAILBOX0_STATUS (MAILBOX_BASE + 0x18)
-#define MAILBOX1_WRITE (MAILBOX_BASE+0x20)
-#define MAILBOX1_STATUS (MAILBOX_BASE + 0x38)
+#define MAILBOX_BASE (PERIPHERAL_OFFSET + 0x0000B880)
+#define MAILBOX0_READ (0x0)
+#define MAILBOX0_STATUS (0x18)
+#define MAILBOX1_WRITE (0x20)
+#define MAILBOX1_STATUS (0x38)
 
 #define MAILBOX_EMPTY 0x40000000
 #define MAILBOX_FULL 0x80000000
-MailboxChannel::MailboxChannel(const u32 &channel) : channel(channel) {}
+MailboxChannel::MailboxChannel(const u32 &channel) : mmio_register_device(mapped_address(MAILBOX_BASE)), channel(channel) {}
 
 u32 MailboxChannel::read() {
     u32 data;
     do {
-        while (mmio_read(MAILBOX0_STATUS) & MAILBOX_EMPTY) {
+        while (read_register(MAILBOX0_STATUS) & MAILBOX_EMPTY) {
 
         }
-        data = mmio_read(MAILBOX0_READ);
+        data = read_register(MAILBOX0_READ);
     } while ((data & 0x0F) != channel);
 
     return data & ~0x0F;
 }
 
 void MailboxChannel::write(u32 data) {
-    while (mmio_read(MAILBOX1_STATUS) & MAILBOX_FULL) {
+    while (read_register(MAILBOX1_STATUS) & MAILBOX_FULL) {
 
     }
 
-    mmio_write(MAILBOX1_WRITE, data | channel);
+    write_register(MAILBOX1_WRITE, data | channel);
 }
 
 void MailboxChannel::flush() {
-    while (!(mmio_read(MAILBOX0_STATUS) & MAILBOX_EMPTY)) {
-        mmio_read(MAILBOX0_READ);
+    while (!(read_register(MAILBOX0_STATUS) & MAILBOX_EMPTY)) {
+        read_register(MAILBOX0_READ);
         // TODO: Replace
         bad_udelay(20000);
     }

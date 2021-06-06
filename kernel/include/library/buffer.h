@@ -1,7 +1,7 @@
 /*
  *   bekOS is a basic OS for the Raspberry Pi
  *
- *   Copyright (C) 2020  Bekos Inc Ltd
+ *   Copyright (C) 2021  Bekos Inc Ltd
  *
  *   This program is free software: you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -17,25 +17,13 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <memory_manager.h>
-#include <peripherals/peripherals.h>
-#include <utils.h>
+#ifndef BEKOS_LIBRARY_BUFFER_H
+#define BEKOS_LIBRARY_BUFFER_H
 
-extern "C" {
-
-int liballoc_lock() { // TODO
-    return 0;
+#include "library/vector.h"
+namespace bek {
+    using buffer = vector<u8>;
 }
 
-int liballoc_unlock() { // TODO
-    return 0;
-}
+#endif // BEKOS_LIBRARY_BUFFER_H
 
-void* liballoc_alloc(uSize pages) {
-    return reinterpret_cast<void*>(mapped_address(memoryManager.reserve_region(pages, PAGE_KERNEL)));
-}
-
-int liballoc_free(void* ptr, uSize pages) {
-    return !memoryManager.free_region(bus_address(reinterpret_cast<unsigned long>(ptr)), pages);
-}
-}

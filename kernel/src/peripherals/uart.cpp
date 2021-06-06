@@ -19,34 +19,16 @@
 
 
 #include "peripherals/uart.h"
-#include <peripherals/gpio.h>
 
-// Loop <delay> times in a way that the compiler won't optimize away
-static inline void delay(i32 count)
-{
-    asm volatile("__delay_%=: subs %[count], %[count], #1; bne __delay_%=\n"
-    : "=r"(count): [count]"0"(count) : "cc");
-}
-
-void uart_init()
-{
+PL011::PL011(uPtr uart_base, GPIO& gpio): mmio_register_device(uart_base) {
     // Disable UART0.
-    mmio_write(UART0_CR, 0x00000000);
+    write_register(UART0_CR, 0x00000000);
+
     // Setup the GPIO pin 14 && 15.
-
-    // Disable pull up/down for all GPIO pins & delay for 150 cycles.
-    mmio_write(GPPUD, 0x00000000);
-    delay(150);
-
-    // Disable pull up/down for pin 14,15 & delay for 150 cycles.
-    mmio_write(GPPUDCLK0, (1 << 14) | (1 << 15));
-    delay(150);
-
-    // Write 0 to GPPUDCLK0 to make it take effect.
-    mmio_write(GPPUDCLK0, 0x00000000);
+    gpio.set_pullups(Disabled, (1 << 14) | (1 << 15));
 
     // Clear pending interrupts.
-    mmio_write(UART0_ICR, 0x7FF);
+    write_register(UART0_ICR, 0x7FF);
 
     // Set integer & fractional part of baud rate.
     // Divider = UART_CLOCK/(16 * Baud)
@@ -54,37 +36,64 @@ void uart_init()
     // UART_CLOCK = 3000000; Baud = 115200.
 
     // Divider = 3000000 / (16 * 115200) = 1.627 = ~1.
-    mmio_write(UART0_IBRD, 1);
+    write_register(UART0_IBRD, 1);
+
     // Fractional part register = (.627 * 64) + 0.5 = 40.6 = ~40.
-    mmio_write(UART0_FBRD, 40);
+    write_register(UART0_FBRD, 40);
 
     // Enable FIFO & 8 bit data transmission (1 stop bit, no parity).
-    mmio_write(UART0_LCRH, (1 << 4) | (1 << 5) | (1 << 6));
+    write_register(UART0_LCRH, (1 << 4) | (1 << 5) | (1 << 6));
 
     // Mask all interrupts.
-    mmio_write(UART0_IMSC, (1 << 1) | (1 << 4) | (1 << 5) | (1 << 6) |
-                           (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10));
+    write_register(UART0_IMSC, (1 << 1) | (1 << 4) | (1 << 5) | (1 << 6) | (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10));
 
     // Enable UART0, receive & transfer part of UART.
-    mmio_write(UART0_CR, (1 << 0) | (1 << 8) | (1 << 9));
+    write_register(UART0_CR, (1 << 0) | (1 << 8) | (1 << 9));
+}
+void PL011::putc(unsigned char c) {
+    // Wait for UART to be ready
+    while (read_register(UART0_FR) & (1 << 5)) {}
+    write_register(UART0_DR, c);
+}
+unsigned char PL011::getc() {
+    // Wait to receive
+    while (read_register(UART0_FR) & (1 << 4)) {}
+    return static_cast<unsigned char>(read_register(UART0_DR));
+}
+void PL011::puts(const char* str) {
+    for (uSize i = 0; str[i] != '\0'; i++) {
+        putc(str[i]);
+    }
 }
 
-void uart_putc(unsigned char c)
-{
-    // Wait for UART to become ready to transmit.
-    while ( mmio_read(UART0_FR) & (1 << 5) ) { }
-    mmio_write(UART0_DR, c);
+mini_uart::mini_uart(uPtr uart_base, GPIO& gpio): mmio_register_device(uart_base) {
+
+    write_register(AUX_ENABLES, read_register(AUX_ENABLES) | 1);
+    write_register(AUX_MU_CNTL_REG, 0);
+    write_register(AUX_MU_LCR_REG, 3);
+    write_register(AUX_MU_MCR_REG, 0);
+    write_register(AUX_MU_IER_REG, 0);
+    write_register(AUX_MU_IIR_REG, 0xC6);
+    write_register(AUX_MU_BAUD_REG, 270);
+
+    gpio.set_pin_function(Alt5, 14);
+    gpio.set_pin_function(Alt5, 15);
+
+    gpio.set_pullups(Disabled, (1 << 14) | (1 << 15));
+
+    write_register(AUX_MU_CNTL_REG, 3);
+}
+void mini_uart::putc(unsigned char c) {
+    while (!(read_register(AUX_MU_LSR_REG) & 0x20)) {}
+    write_register(AUX_MU_IO_REG, c);
+}
+unsigned char mini_uart::getc() {
+    while (!(read_register(AUX_MU_LSR_REG) & 0x01)) {}
+    return read_register(AUX_MU_IO_REG) & 0xFF;
 }
 
-unsigned char uart_getc()
-{
-    // Wait for UART to have received something.
-    while ( mmio_read(UART0_FR) & (1 << 4) ) { }
-    return (unsigned char)mmio_read(UART0_DR);
-}
-
-void uart_puts(const char* str)
-{
-    for (uSize i = 0; str[i] != '\0'; i ++)
-        uart_putc((unsigned char)str[i]);
+void mini_uart::puts(const char* str) {
+    for (uSize i = 0; str[i] != '\0'; i++) {
+        putc(str[i]);
+    }
 }

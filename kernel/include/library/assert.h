@@ -21,12 +21,12 @@
 #define _assert_h
 
 namespace bek {
-
+[[noreturn]] void assertion_failed(const char* pExpr, const char* pFile, unsigned nLine);
 #ifdef NDEBUG
 #define assert(expr)	((void) 0)
 #else
 
-[[noreturn]] void assertion_failed(const char* pExpr, const char* pFile, unsigned nLine);
+
 
 #define assert(expr)    ( (expr) ? ((void)0) : bek::assertion_failed (#expr, __FILE__, __LINE__))
 #endif

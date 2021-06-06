@@ -70,23 +70,8 @@ ARMv8MMU_L2_Entry_Table* translation_table::map_table(ARMv8MMU_L2_Entry_Table* t
     }
 }
 
-translation_table::~translation_table() {
-    for (uSize i = 0; i < pages.size(); i++) {
-        manager->free_region(pages[i], 1);
-    }
-
-}
-
-translation_table::translation_table(memory_manager* manager) : manager(manager) {
-    // Is invalid(not existing yet)
-    uPtr new_page = manager->reserve_region(1, PAGE_KERNEL);
-    memzero(phys_to_virt(new_page), PAGE_SIZE);
-    pages.push_back(new_page);
-    table0 = reinterpret_cast<ARMv8MMU_L2_Entry_Table*>(phys_to_virt(new_page));
-}
-
-translation_table::translation_table(): translation_table(&memoryManager){}
-
-u64 translation_table::get_table_address() {
-    return virt_to_phys(reinterpret_cast<unsigned long>(table0));
+translation_table::translation_table(hw_ptr<memory_manager> mem_manager): level0table(), allocator(mem_manager) {
+    level0table = hw_ptr<ARMv8MMU_L2_Entry_Table>(allocator->reserve_region(1, PAGE_KERNEL));
+    memset(reinterpret_cast<void*>(level0table.get_mapped_ptr()), 0, PAGE_SIZE);
+    // TODO: Add to list of allocated
 }

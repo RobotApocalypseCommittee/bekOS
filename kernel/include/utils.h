@@ -20,10 +20,6 @@
 #ifndef BEKOS_UTILS_H
 #define BEKOS_UTILS_H
 
-unsigned long phys_to_virt(unsigned long physical_address);
-
-unsigned long virt_to_phys(unsigned long virtual_address);
-
 long round_up(long n, long multiple);
 
 inline void read_barrier() {

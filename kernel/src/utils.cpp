@@ -23,14 +23,6 @@
 
 #include "utils.h"
 
-unsigned long phys_to_virt(unsigned long physical_address) {
-    return physical_address + VA_START;
-}
-
-unsigned long virt_to_phys(unsigned long virtual_address) {
-    return virtual_address - VA_START;
-}
-
 long round_up(long n, long multiple) {
     int remainder = n % multiple;
     if (remainder == 0)
