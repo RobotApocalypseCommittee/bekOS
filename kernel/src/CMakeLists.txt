@@ -11,7 +11,7 @@
 add_executable(kernel boot/boot.S boot/boot.cpp peripherals/peripherals.cpp peripherals/gentimer.cpp peripherals/mailbox.cpp
         peripherals/property_tags.cpp peripherals/framebuffer.cpp peripherals/uart.cpp
         library/liballoc.cpp library/stubs.cpp library/assert.cpp library/kstring.cpp
-        printf.cpp utils.cpp memory_manager.cpp ../include/mm/hw_ptr.h mm/page_table.cpp)
+        printf.cpp utils.cpp memory_manager.cpp ../include/mm/hw_ptr.h mm/page_table.cpp kernel.cpp)
 
 
 target_include_directories(kernel PRIVATE ../include)

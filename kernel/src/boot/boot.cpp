@@ -1,44 +1,5 @@
-
-
-#include <memory_manager.h>
 #include <mm/page_table.h>
-#include <peripherals/framebuffer.h>
 #include <peripherals/gpio.h>
-#include <peripherals/uart.h>
-#include <printf.h>
-#include "adapted_addresses.h"
-
-bool is_upper_half = false;
-char_blitter* charBlitter = nullptr;
-mini_uart* serial = nullptr;
-memory_manager memoryManager;
-int x = 0;
-
-void hex_dump(const void* data, uSize len) {
-    uSize row_count = 0;
-    for (uSize i = 0; i < len; i++) {
-        if (row_count < 15) {
-            printf("%02X ", reinterpret_cast<const unsigned char*>(data)[i]);
-            row_count++;
-        } else {
-            printf("%02X\n", reinterpret_cast<const unsigned char*>(data)[i]);
-            row_count = 0;
-        }
-    }
-    printf("\n");
-}
-
-extern void delay(i32 count);
-
-void blinkonce() {
-    GPIO gpio(mapped_address(GPIO_BASE));
-
-    gpio.set_pin(true, 29);
-    delay(0x800000);
-    gpio.set_pin(false, 29);
-    delay(0x800000);
-
-}
 
 extern unsigned long __page_table_start;
 extern unsigned long __page_table_end;
@@ -47,10 +8,15 @@ extern unsigned long __page_table_end;
 #define PGT_END ((unsigned long)&__page_table_end)
 #define PGT_SIZE (PGT_END - PGT_START)
 
-extern "C" void go_high(u64 addr);
-
-extern "C" /* Use C linkage for kernel_main. */
-void kernel_main(u32 el, u32 r1, u32 atags);
+void blink(int n) {
+    GPIO gpio(GPIO_BASE);
+    for (int i = 0; i < n; i++) {
+        gpio.set_pin(true, 29);
+        delay(0x800000);
+        gpio.set_pin(false, 29);
+        delay(0x800000);
+    }
+}
 
 extern "C"
 void kernel_boot() {
@@ -59,46 +25,29 @@ void kernel_boot() {
 
     GPIO gpio(mapped_address(GPIO_BASE));
     gpio.set_pin_function(Output, 29);
-    mini_uart uart(mapped_address(AUX_BASE), gpio);
-    serial = &uart;
+    gpio.set_pin(false, 29);
 
-    uart.puts("[Boot] UART test - successs\n");
-    printf("[Boot] printf test - success\n");
-    x = 5;
-
-    // Enable page mapping and malloc
-    memoryManager = memory_manager();
-    memoryManager.reserve_pages(0, KERNEL_END/4096, PAGE_KERNEL);
-    printf("[Boot] memory_manager initialised - success\n");
-
-    printf("[Boot] Setting up page tables for identity mapping.\n");
     mem_region page_table_region{.start=PGT_START, .length=PGT_SIZE};
     basic_translation_table table(page_table_region);
 
-    printf("[Boot] Doing map for plain RAM\n");
     auto res = table.map_region(0, 0, PERIPHERAL_OFFSET, AF, 0);
-    if (res) {
-        printf("[Boot] Success\n");
-    } else {
-        printf("[Boot] Failure\n");
+    if (!res) {
+        blink(1);
+        return;
     }
-    printf("[Boot] Doing map for peripherals\n");
     res = table.map_region(PERIPHERAL_OFFSET, PERIPHERAL_OFFSET, ADDRESSABLE_MEMORY - PERIPHERAL_OFFSET, AF, 1);
-    if (res) {
-        printf("[Boot] Success\n");
-    } else {
-        printf("[Boot] Failure\n");
+    if (!res) {
+        blink(2);
+        return;
     }
 
     u64 r, b;
-    printf("[Boot] Enabling mapping for lower half.\n");
     asm volatile ("mrs %0, id_aa64mmfr0_el1" : "=r" (r));
     b=r&0xF;
     if(r&(0xF<<28)/*4k*//*36 bits*/) {
-        printf("ERROR: 4k granule not supported\n");
+        blink(3);
         return;
     }
-    printf("Max phys output size: %lu", b);
 
     // first, set Memory Attributes array
     r=  (0x44 << 0) |    // AttrIdx=0: normal, non cacheable
@@ -143,7 +92,5 @@ void kernel_boot() {
     // When we return, the enable bit will be set.
     asm volatile ("msr sctlr_el1, %0; isb" : : "r" (r));
 
-    uPtr next_addr = VA_START | reinterpret_cast<uPtr>(&kernel_main);
-    go_high(next_addr);
 }
 

@@ -913,3 +913,17 @@ int fctprintf(void (*out)(char character, void* arg), void* arg, const char* for
     va_end(va);
     return ret;
 }
+
+void hex_dump(const void* data, uSize len) {
+    uSize row_count = 0;
+    for (uSize i = 0; i < len; i++) {
+        if (row_count < 15) {
+            printf("%02X ", reinterpret_cast<const unsigned char*>(data)[i]);
+            row_count++;
+        } else {
+            printf("%02X\n", reinterpret_cast<const unsigned char*>(data)[i]);
+            row_count = 0;
+        }
+    }
+    printf("\n");
+}

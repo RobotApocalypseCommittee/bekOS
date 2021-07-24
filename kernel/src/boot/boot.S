@@ -35,36 +35,46 @@ _start:
     b       1b
 2:  // cpu id == 0
 
-	// Disable coprocessor traps
-    mov     x0, #0x33FF
-	msr		CPTR_EL2, x0
-	msr		HSTR_EL2, xzr
-	mov		x0, #3 << 20
-	msr 	CPACR_EL1, x0 // Enable FP and SIMD
+    mrs     x0, CurrentEL
+    and     x0, x0, #12 // clear reserved bits
 
-	// Set lower levels to 64 bit
-	mov		x0, #(1 << 31)
-	msr		HCR_EL2, x0
+    // running at EL3?
+    cmp     x0, #12
+    bne     el2
+    // should never be executed, just for completeness
+    mov     x2, #0x5b1
+    msr     scr_el3, x2
+    mov     x2, #0x3c9
+    msr     spsr_el3, x2
+    adr     x2, el2
+    msr     elr_el3, x2
+    eret
 
-    // Disable MMU, and set system control
-    ldr		x0, =SCTLR_VALUE_MMU_DISABLED
-	msr	    SCTLR_EL1, x0
-
-    // EL3 Configuration
-	//ldr	x0, =SCR_VALUE
-	//msr	scr_el3, x0
-
-    // Saved status for EL3/2 -> El1
-	ldr		x0, =SPSR_VALUE
-	msr		spsr_el2, x0
-
-    // Store the address of the next code to run in the link register
-    // This register is used when returning from exception
-	adr		x0, master
-	msr		elr_el2, x0
-    // Return from 'exception'
-	eret
-master:
+    // running at EL2?
+el2:  cmp     x0, #4
+    beq     el1
+    msr     sp_el1, x1
+    // enable CNTP for EL1
+    mrs     x0, cnthctl_el2
+    orr     x0, x0, #3
+    msr     cnthctl_el2, x0
+    msr     cntvoff_el2, xzr
+    // enable AArch64 in EL1
+    mov     x0, #(1 << 31)      // AArch64
+    orr     x0, x0, #(1 << 1)   // SWIO hardwired on Pi3
+    msr     hcr_el2, x0
+    mrs     x0, hcr_el2
+    // Setup SCTLR access
+    mov     x2, #0x0800
+    movk    x2, #0x30d0, lsl #16
+    msr     sctlr_el1, x2
+    // change execution level to EL1
+    mov     x2, #0x3c4
+    msr     spsr_el2, x2
+    adr     x2, el1
+    msr     elr_el2, x2
+    eret
+el1:
     // Clear bss section to 0, get start and length from linker
     // Load our offset into a register
 
@@ -81,7 +91,8 @@ master:
 
 	bl kernel_boot
 	// x0 is where we branch to
-	mov x1, x0
+	adr     x1, kernel_main
+	orr      x1, x1, #0xFFFF000000000000
 
 	// Now memory is mapped, we can do this properly
 	ldr     x0, =__start

@@ -22,18 +22,10 @@
 extern bool is_upper_half;
 
 uPtr bus_address(uPtr mapped_address) {
-    if (is_upper_half) {
-        return mapped_address - VA_START;
-    } else {
-        return mapped_address;
-    }
+    return mapped_address & (~VA_START);
 }
 uPtr mapped_address(uPtr bus_address) {
-    if (is_upper_half) {
-        return bus_address + VA_START;
-    } else {
-        return bus_address;
-    }
+    return bus_address | VA_START;
 }
 uPtr gpu_address(uPtr mapped_address) { return bus_address(mapped_address) + 0xC0000000; }
 

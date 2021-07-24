@@ -54,10 +54,11 @@ interrupt_controller interruptController;
 ProcessManager *processManager;
 fs::EntryHashtable entryHashtable;
 fs::Filesystem *filesystem;
-char_blitter* charBlitter;
+char_blitter* charBlitter = nullptr;
+mini_uart* serial = nullptr;
 
 
-
+/*
 void onTick() {
     processManager->getCurrentProcess()->processorTimeCounter--;
     if (processManager->getCurrentProcess()->processorTimeCounter > 0) {
@@ -123,6 +124,11 @@ void test_filesystem(fs::FATFilesystem *fs, fs::EntryHashtable *hashtable) {
     hashtable->clean();
     hashtable->clean();
 }
+*/
+void _putchar(char c) {
+    serial->putc(c);
+}
+
 
 extern "C" /* Use C linkage for kernel_main. */
 void kernel_main(u32 el, u32 r1, u32 atags)
@@ -132,7 +138,11 @@ void kernel_main(u32 el, u32 r1, u32 atags)
     (void) r1;
     (void) atags;
 
-    uart_init();
+    GPIO gpio(mapped_address(GPIO_BASE));
+    gpio.set_pin_function(Output, 29);
+    mini_uart uart(mapped_address(AUX_BASE), gpio);
+    serial = &uart;
+    uart.puts("UART TEST SUCCESS");
 
     colour black(0);
     colour white(255, 255, 255, 0);
@@ -154,22 +164,22 @@ void kernel_main(u32 el, u32 r1, u32 atags)
     // Enable page mapping and malloc
     memoryManager = memory_manager();
     memoryManager.reserve_pages(KERNEL_START, KERNEL_SIZE/4096, PAGE_KERNEL);
-
+/*
     // Allow 'error handling'
     interruptController = interrupt_controller();
     processManager = new ProcessManager;
     set_vector_table();
     enable_interrupts();
 
-    /* Initialize USB system we will want keyboard and mouse */
+    // Initialize USB system we will want keyboard and mouse
     USB::UsbInitialise();
 
-    /* Display the USB tree */
+    // Display the USB tree
     printf("\n");
     UsbShowTree(USB::UsbGetRootHub(), 1, '+');
     printf("\n");
 
-    /* Detect the first keyboard on USB bus */
+    // Detect the first keyboard on USB bus
     uint8_t firstKbd = 0;
     for (int i = 1; i <= MaximumDevices; i++) {
         if (USB::IsKeyboard(i)) {
@@ -178,7 +188,7 @@ void kernel_main(u32 el, u32 r1, u32 atags)
         }
     }
     if (firstKbd) printf("Keyboard detected\r\n");
-
+*/
     /*
     // Perform SD Card excitements
     SDCard my_sd;
@@ -215,9 +225,9 @@ void kernel_main(u32 el, u32 r1, u32 atags)
     unsigned char c;
     // Infini-loop
     while(true) {
-        c = uart_getc();
+        c = uart.getc();
         bad_udelay(2*1000*1000); // Delay 2 seconds
-        uart_putc(c);
+        uart.putc(c);
         cb.putChar(c);
     }
 }
