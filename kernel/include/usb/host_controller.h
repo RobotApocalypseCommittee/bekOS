@@ -17,7 +17,17 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_TRANSACTIONREQUEST_H
-#define BEKOS_TRANSACTIONREQUEST_H
+#ifndef BEKOS_HOST_CONTROLLER_H
+#define BEKOS_HOST_CONTROLLER_H
 
-#endif  // BEKOS_TRANSACTIONREQUEST_H
+namespace usb {
+
+class HostController {
+public:
+    bool submit_request(TransferRequest* request);
+
+};
+
+}
+
+#endif  // BEKOS_HOST_CONTROLLER_H

@@ -45,7 +45,7 @@ bool basic_translation_table::map_upper_region(ARMv8MMU_Upper_Entry* table, Tabl
             if (level == L2 && size >= LEVEL_2_SIZE) {
                 // Direct to a block on level 2
                 table[i] = create_upper_block_entry(bus_address, L2, page_flags);
-                printf("[MM] Map 2MB: va=%lX, ba=%lX\n", virtual_address, bus_address);
+                //printf("[MM] Map 2MB: va=%lX, ba=%lX\n", virtual_address, bus_address);
                 virtual_address += LEVEL_2_SIZE;
                 bus_address += LEVEL_2_SIZE;
                 size -= LEVEL_2_SIZE;
@@ -57,7 +57,7 @@ bool basic_translation_table::map_upper_region(ARMv8MMU_Upper_Entry* table, Tabl
             }
         } else if (entryType == Block) {
             // TODO: Being asked to overwrite
-            printf("[MM] Being asked to overwrite? va=%lX, ba=%lX\n", virtual_address, bus_address);
+            //printf("[MM] Being asked to overwrite? va=%lX, ba=%lX\n", virtual_address, bus_address);
             return false;
         } else {
             // Entry type is table -> follow
@@ -82,7 +82,7 @@ bool basic_translation_table::map_lower_region(ARMv8MMU_L3_Entry* table, uPtr& v
     for (unsigned i = start_idx; i < PAGE_ENTRY_COUNT && size > 0; i++) {
         // Map my pages
         table[i] = create_L3_block_entry(bus_address, page_flags);
-        printf("[MM] Map 4KB: va=%lX, ba=%lX\n", virtual_address, bus_address);
+        //printf("[MM] Map 4KB: va=%lX, ba=%lX\n", virtual_address, bus_address);
         bus_address += LEVEL_3_SIZE;
         virtual_address += LEVEL_3_SIZE;
         size -= LEVEL_3_SIZE;

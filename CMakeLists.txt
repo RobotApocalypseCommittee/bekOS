@@ -27,6 +27,9 @@ if (NOT EXISTS "${QEMU_EXECUTABLE}")
 elseif(WINDOWS_QEMU)
     add_custom_target(run ${CMAKE_SOURCE_DIR}/tools/run-qemu.sh "${QEMU_EXECUTABLE}" "$<TARGET_FILE:kernel>" VERBATIM)
     add_dependencies(run kernel)
+
+    add_custom_target(rundbg ${CMAKE_SOURCE_DIR}/tools/run-qemu-debug.sh "${QEMU_EXECUTABLE}" "$<TARGET_FILE:kernel>" VERBATIM)
+    add_dependencies(rundbg kernel)
 endif()
 
 

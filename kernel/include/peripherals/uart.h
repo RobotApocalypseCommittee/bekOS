@@ -73,6 +73,7 @@ public:
     void putc(unsigned char c);
     unsigned char getc();
     void puts(const char* str);
+    void puthex(unsigned long x);
 };
 
 

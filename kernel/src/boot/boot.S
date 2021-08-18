@@ -42,9 +42,9 @@ _start:
     cmp     x0, #12
     bne     el2
     // should never be executed, just for completeness
-    mov     x2, #0x5b1
+    ldr     x2, =SCR_VALUE
     msr     scr_el3, x2
-    mov     x2, #0x3c9
+    ldr     x2, =SPSR_EL3_VALUE
     msr     spsr_el3, x2
     adr     x2, el2
     msr     elr_el3, x2
@@ -59,17 +59,21 @@ el2:  cmp     x0, #4
     orr     x0, x0, #3
     msr     cnthctl_el2, x0
     msr     cntvoff_el2, xzr
+    // disable coprocessor traps
+    mov     x0, #0x33FF
+    msr     cptr_el2, x0
+    msr     hstr_el2, xzr
+    mov     x0, #(3 << 20)
+    msr     cpacr_el1, x0
     // enable AArch64 in EL1
-    mov     x0, #(1 << 31)      // AArch64
-    orr     x0, x0, #(1 << 1)   // SWIO hardwired on Pi3
+    ldr     x0, =HCR_VALUE
     msr     hcr_el2, x0
     mrs     x0, hcr_el2
     // Setup SCTLR access
-    mov     x2, #0x0800
-    movk    x2, #0x30d0, lsl #16
+    ldr     x2, =SCTLR_VALUE_MMU_DISABLED
     msr     sctlr_el1, x2
     // change execution level to EL1
-    mov     x2, #0x3c4
+    ldr     x2, =SPSR_EL2_VALUE
     msr     spsr_el2, x2
     adr     x2, el1
     msr     elr_el2, x2
@@ -91,7 +95,7 @@ el1:
 
 	bl kernel_boot
 	// x0 is where we branch to
-	adr     x1, kernel_main
+	ldr      x1, =kernel_main
 	orr      x1, x1, #0xFFFF000000000000
 
 	// Now memory is mapped, we can do this properly

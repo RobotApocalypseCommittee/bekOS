@@ -17,12 +17,8 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_USB_TRANSFERS_H
-#define BEKOS_USB_TRANSFERS_H
-
-#include "library/function.h"
-#include "library/types.h"
-#include "library/buffer.h"
+#ifndef BEKOS_USB_H
+#define BEKOS_USB_H
 
 namespace usb {
 
@@ -31,15 +27,15 @@ class Device;
 class Endpoint;
 
 enum class TransferType {
-    CONTROL,
-    INTERRUPT,
-    ISOCHRONOUS,
-    BULK
+    Control,
+    Interrupt,
+    Isochronous,
+    Bulk
 };
 
 enum class TransferDirection {
-    IN,
-    OUT
+    In,
+    Out
 };
 
 struct ControlTransferSetup {
@@ -62,7 +58,7 @@ struct TransferRequest {
     Device* device;
     Endpoint* endpoint;
     CompletionCallback callback;
-    bek::buffer buffer; 
+    bek::buffer buffer;
     union {
         ControlTransferSetup control_header;
         PeriodicTransferInfo periodic_info;
@@ -71,4 +67,4 @@ struct TransferRequest {
 
 }
 
-#endif // BEKOS_USB_TRANSFERS_H
+#endif  // BEKOS_USB_H

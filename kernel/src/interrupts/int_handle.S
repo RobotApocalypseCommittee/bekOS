@@ -21,12 +21,13 @@
 
 .section ".text.vec"
 
-.macro complain_unknown_interrupt
-    store_regs
-    // Arguments
-    mrs	x0, esr_el1
-    mrs	x1, elr_el1
-    bl show_unknown_int_complaint
+.macro complain_unknown_interrupt num
+    mov     x0, #\num
+    mrs     x1, esr_el1
+    mrs     x2, elr_el1
+    mrs     x3, spsr_el1
+    mrs     x4, far_el1
+    bl      exc_handler
 1:  wfe
     b 1b
 .endm
@@ -144,34 +145,37 @@ irq_vectors:
     vector_entry el0_32_err
 
 el1_s0_sync:
-    complain_unknown_interrupt
+    complain_unknown_interrupt 0
 el1_s0_irq:
-    complain_unknown_interrupt
+    complain_unknown_interrupt 1
 el1_s0_fiq:
-    complain_unknown_interrupt
+    complain_unknown_interrupt 2
 el1_s0_err:
-    complain_unknown_interrupt
+    complain_unknown_interrupt 3
 el1_s1_sync:
-    complain_unknown_interrupt
+    complain_unknown_interrupt 4
 el1_s1_irq:
-    handle_basic_interrupt
+    complain_unknown_interrupt 5
+    //handle_basic_interrupt
 el1_s1_fiq:
-    complain_unknown_interrupt
+    complain_unknown_interrupt 6
 el1_s1_err:
-    complain_unknown_interrupt
+    complain_unknown_interrupt 7
 el0_64_sync:
-    handle_syscall
+    //handle_syscall
+    complain_unknown_interrupt 8
 el0_64_irq:
-    handle_basic_interrupt
+    //handle_basic_interrupt
+    complain_unknown_interrupt 9
 el0_64_fiq:
-    complain_unknown_interrupt
+    complain_unknown_interrupt 10
 el0_64_err:
-    complain_unknown_interrupt
+    complain_unknown_interrupt 11
 el0_32_sync:
-    complain_unknown_interrupt
+    complain_unknown_interrupt 12
 el0_32_irq:
-    complain_unknown_interrupt
+    complain_unknown_interrupt 13
 el0_32_fiq:
-    complain_unknown_interrupt
+    complain_unknown_interrupt 14
 el0_32_err:
-    complain_unknown_interrupt
+    complain_unknown_interrupt 15

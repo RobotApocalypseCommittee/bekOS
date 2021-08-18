@@ -1,5 +1,6 @@
 #include <mm/page_table.h>
 #include <peripherals/gpio.h>
+#include <peripherals/uart.h>
 
 extern unsigned long __page_table_start;
 extern unsigned long __page_table_end;
@@ -23,11 +24,11 @@ void kernel_boot() {
     /// Warning: Everything done here MUST be lower-address friendly.
     /// No pointers can carry over to the 2nd stage of booting.
 
-    GPIO gpio(mapped_address(GPIO_BASE));
+    GPIO gpio(GPIO_BASE);
     gpio.set_pin_function(Output, 29);
     gpio.set_pin(false, 29);
 
-    mem_region page_table_region{.start=PGT_START, .length=PGT_SIZE};
+    mem_region page_table_region{.start= bus_address(PGT_START), .length=PGT_SIZE};
     basic_translation_table table(page_table_region);
 
     auto res = table.map_region(0, 0, PERIPHERAL_OFFSET, AF, 0);
@@ -79,8 +80,8 @@ void kernel_boot() {
 
     // finally, toggle some bits in system control register to enable page translation
     asm volatile ("dsb ish; isb; mrs %0, sctlr_el1" : "=r" (r));
-    r|=0xC00800;     // set mandatory reserved bits
-    r&=~((1<<25) |   // clear EE, little endian translation tables
+    r |=0xC00800;     // set mandatory reserved bits
+    r &=~((1<<25) |   // clear EE, little endian translation tables
          (1<<24) |   // clear E0E
          (1<<19) |   // clear WXN
          (1<<12) |   // clear I, no instruction cache
@@ -88,9 +89,12 @@ void kernel_boot() {
          (1<<3) |    // clear SA
          (1<<2) |    // clear C, no cache at all
          (1<<1));    // clear A, no aligment check
-
+    r |=  (1<<0);     // set M, enable MMU
     // When we return, the enable bit will be set.
     asm volatile ("msr sctlr_el1, %0; isb" : : "r" (r));
+
+    mini_uart uart(AUX_BASE, gpio);
+    uart.puts("Hello Uart World!");
 
 }
 

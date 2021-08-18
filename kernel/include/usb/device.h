@@ -17,38 +17,39 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_USB_DEVICE_H
-#define BEKOS_USB_DEVICE_H
 
-#include "descriptors.h"
-#include "library/vector.h"
-#include "usb/transfers.h"
+#ifndef BEKOS_DEVICE_H
+#define BEKOS_DEVICE_H
 
 namespace usb {
-
-/// A Device does a lot of things, and relies a lot on state - careful
 class Device {
 public:
-
-private:
-    /// Address assigned to device
-    int m_address;
-
-    /// Index assigned by driver
-    int m_id;
-
-    int m_max_packet_size;
-
-    bek::own_ptr<DeviceDescriptor> descriptors;
-
-    enum Status {  // USB 2.0 Spec 9.1
+    enum DeviceStatus {
         Attached,
         Powered,
         Default,
         Address,
-        Configured,
-        Suspended
-    } status;
+        Configured
+    };
+    DeviceStatus get_status() const;
+    bool is_suspended() const;
+    int get_address() const;
+
+    bool enumerate_device();
+
+    uSize functionality_count() const;
+    Functionality& get_functionality(uSize i) const;
+
+    HostController& get_host_controller() const;
+
+private:
+    HostController* m_controller;
+    DeviceStatus m_status;
+    bool is_suspended;
+    int m_address;
+
 };
 }
-#endif  // BEKOS_USB_DEVICE_H
+
+
+#endif  // BEKOS_DEVICE_H

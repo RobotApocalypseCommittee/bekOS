@@ -127,6 +127,9 @@ void test_filesystem(fs::FATFilesystem *fs, fs::EntryHashtable *hashtable) {
 */
 void _putchar(char c) {
     serial->putc(c);
+    if (charBlitter) {
+        charBlitter->putChar(c);
+    }
 }
 
 
@@ -143,6 +146,9 @@ void kernel_main(u32 el, u32 r1, u32 atags)
     mini_uart uart(mapped_address(AUX_BASE), gpio);
     serial = &uart;
     uart.puts("UART TEST SUCCESS");
+    set_vector_table();
+
+    printf("Hello, kernel World!\r\n");
 
     colour black(0);
     colour white(255, 255, 255, 0);
@@ -152,6 +158,7 @@ void kernel_main(u32 el, u32 r1, u32 atags)
         .height = 480,
         .depth = 32
     };
+
 
     allocate_framebuffer(fb_info);
     framebuffer fb(fb_info);
@@ -163,7 +170,7 @@ void kernel_main(u32 el, u32 r1, u32 atags)
 
     // Enable page mapping and malloc
     memoryManager = memory_manager();
-    memoryManager.reserve_pages(KERNEL_START, KERNEL_SIZE/4096, PAGE_KERNEL);
+    memoryManager.reserve_pages(bus_address(KERNEL_START), KERNEL_SIZE/4096, PAGE_KERNEL);
 /*
     // Allow 'error handling'
     interruptController = interrupt_controller();

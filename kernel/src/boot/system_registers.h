@@ -41,7 +41,8 @@
 // HCR_EL2, Hypervisor Configuration Register (EL2)
 // Aarch64 used in EL1
 #define HCR_RW                  (1 << 31)
-#define HCR_VALUE           HCR_RW
+#define HCR_SWIO                (1 << 1) // Hardwired on Pi3
+#define HCR_VALUE           (HCR_RW | HCR_SWIO)
 
 // SCR_EL3, Secure Configuration Register (EL3)
 
@@ -57,9 +58,11 @@
 // SPSR_EL3, Saved Program Status Register (EL3)
 // Masks the D, I, A and F interrupts
 #define SPSR_MASK_ALL           (7 << 6)
-// Uses EL1 stack pointer, and returns to El1
+// Uses EL2 stack pointer, returning to EL2
+#define SPSR_EL2h           (9 << 0)
 #define SPSR_EL1h           (5 << 0)
-#define SPSR_VALUE          (SPSR_MASK_ALL | SPSR_EL1h)
+#define SPSR_EL3_VALUE          (SPSR_MASK_ALL | SPSR_EL2h)
+#define SPSR_EL2_VALUE          (SPSR_MASK_ALL | SPSR_EL1h)
 
 // TCR register controls the mapping tables
 // Value of 16 -> Max mapping

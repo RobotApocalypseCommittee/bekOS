@@ -36,7 +36,7 @@ enum class PortSpeed {
 
 class DWHost {
 public:
-    DWHost();
+    DWHost(); 
     bool init();
     bool rescan_devices();
 
