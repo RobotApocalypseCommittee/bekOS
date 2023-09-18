@@ -1,29 +1,46 @@
+/*
+ * bekOS is a basic OS for the Raspberry Pi
+ * Copyright (C) 2023 Bekos Contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 //
 // Created by joebe on 16/05/2021.
 //
 #include "mm/page_table.h"
 
 #include <kstring.h>
-#include <library/assert.h>
+#include <library/assertions.h>
 #include <mm.h>
-#include <printf.h>
 
 unsigned shifts[] = {LEVEL_0_SHIFT, LEVEL_1_SHIFT, LEVEL_2_SHIFT, LEVEL_3_SHIFT};
 #define PAGE_ATTRIBUTES ()
 basic_translation_table::basic_translation_table(mem_region usable_memory): region_end(usable_memory.start + usable_memory.length), level0table(reinterpret_cast<ARMv8MMU_Upper_Entry*>(usable_memory.start)), allocated_end(usable_memory.start) {
-    assert(usable_memory.length >= PAGE_SIZE);
+    ASSERT(usable_memory.length >= PAGE_SIZE);
     allocated_end += PAGE_SIZE;
     memset(level0table, 0, PAGE_SIZE);
 }
 
 bool basic_translation_table::map_region(uPtr virtual_address, uPtr bus_address, uSize size,
                                          PageAttributes attributes, u8 memattridx) {
-    assert((size % PAGE_SIZE) == 0);
-    assert((virtual_address % PAGE_SIZE) == 0);
-    assert((bus_address % PAGE_SIZE) == 0);
+    ASSERT((size % PAGE_SIZE) == 0);
+    ASSERT((virtual_address % PAGE_SIZE) == 0);
+    ASSERT((bus_address % PAGE_SIZE) == 0);
     u64 flags = static_cast<u64>(attributes) | (memattridx & 0b111) << 2;
     if (map_upper_region(level0table, L0, virtual_address, bus_address, size, flags)) {
-        assert(size == 0);
+        ASSERT(size == 0);
         return true;
     } else {
         return false;
@@ -33,7 +50,7 @@ bool basic_translation_table::map_region(uPtr virtual_address, uPtr bus_address,
 bool basic_translation_table::map_upper_region(ARMv8MMU_Upper_Entry* table, TableLevel level,
                                                uPtr& virtual_address, uPtr& bus_address,
                                                uSize& size, u64 page_flags) {
-    assert(level != L3); // Upper level
+    ASSERT(level != L3);  // Upper level
     unsigned start_idx = (virtual_address >> shifts[level]) % PAGE_ENTRY_COUNT;
     for (unsigned i = start_idx; i < PAGE_ENTRY_COUNT && size > 0; i++) {
         // Each iteration MUST map one block's worth only.
@@ -92,7 +109,7 @@ bool basic_translation_table::map_lower_region(ARMv8MMU_L3_Entry* table, uPtr& v
 uPtr basic_translation_table::allocate_table() {
     auto page = allocated_end;
     allocated_end += PAGE_SIZE;
-    assert(allocated_end <= region_end);
+    ASSERT(allocated_end <= region_end);
     memset(reinterpret_cast<void*>(page), 0, PAGE_SIZE);
     return page;
 
@@ -132,14 +149,14 @@ ARMv8MMU_Upper_Entry create_upper_block_entry(uPtr bus_address, TableLevel level
         ARMv8MMU_Upper_Entry final;
     } n;
     n.raw = flags;
-    assert(level == L1 || level == L2);
+    ASSERT(level == L1 || level == L2);
     if (level == L1) {
         // Target a GB block
-        assert((bus_address % LEVEL_1_SIZE) == 0);
+        ASSERT((bus_address % LEVEL_1_SIZE) == 0);
         n.entry.address = (bus_address >> 21);
     } else {
         // Target a 2MB block
-        assert((bus_address % LEVEL_2_SIZE) == 0);
+        ASSERT((bus_address % LEVEL_2_SIZE) == 0);
         n.entry.address = bus_address >> 21;
     }
     n.entry.descriptor_code = 0b01;
@@ -154,7 +171,7 @@ ARMv8MMU_Upper_Entry create_upper_table_entry(uPtr next_table_address, TableLeve
     } n;
     // We dont bother with no flags
     n.raw = 0;
-    assert((next_table_address & (PAGE_SIZE - 1)) == 0);
+    ASSERT((next_table_address & (PAGE_SIZE - 1)) == 0);
     n.entry.table_page = next_table_address >> PAGE_SHIFT;
     n.entry.descriptor_code = 0b11;
     return n.final;
