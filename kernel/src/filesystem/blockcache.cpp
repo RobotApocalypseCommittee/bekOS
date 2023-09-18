@@ -1,20 +1,19 @@
 /*
- *   bekOS is a basic OS for the Raspberry Pi
+ * bekOS is a basic OS for the Raspberry Pi
+ * Copyright (C) 2023 Bekos Contributors
  *
- *   Copyright (C) 2020  Bekos Inc Ltd
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include <library/lock.h>
@@ -40,16 +39,15 @@ struct InternalCacheEntry {
 #define LEAF_COUNT  2
 
 struct CacheNode {
-    bek::arr<u32, CHILD_COUNT - 1> indices;
+    bek::array<u32, CHILD_COUNT - 1> indices;
     bool to_leaf;
     u8 child_count;
     CacheNode* parent;
-    bek::arr<void *, CHILD_COUNT> children;
-
+    bek::array<void *, CHILD_COUNT> children;
 };
 
 void addToNode(u32 id, void *ptr, CacheNode *current) {
-    assert(current->child_count < CHILD_COUNT);
+    ASSERT(current->child_count < CHILD_COUNT);
     int index = current->child_count - 1;
     for (int i = 0; i < current->child_count - 1; i++) {
         if (id < current->indices[i]) {
@@ -72,8 +70,8 @@ void addToNode(u32 id, void *ptr, CacheNode *current) {
 
 bek::pair<u32, void*> stealFromNode(int index, CacheNode* node, bool right) {
     // Looking the correct way
-    assert( index != 0 || right);
-    assert( index != node->child_count - 1 || !right);
+    ASSERT(index != 0 || right);
+    ASSERT(index != node->child_count - 1 || !right);
 
     bek::pair<u32, void*> retval{node->indices[right ? index : index - 1], node->children[index]};
     if (index + 1 < node->child_count) {
@@ -172,9 +170,9 @@ CacheEntry::ref BlockIndexer::get(u64 id) {
 }
 
 void BlockIndexer::removeEntry(InternalCacheEntry *entry) {
-    assert(entry);
+    ASSERT(entry);
     auto* parent = entry->parent;
-    assert(parent != nullptr);
+    ASSERT(parent != nullptr);
     // Find
     int index = -1;
     for (int i = 0; i < parent->child_count; i++) {
@@ -183,7 +181,7 @@ void BlockIndexer::removeEntry(InternalCacheEntry *entry) {
             break;
         }
     }
-    assert(index != -1);
+    ASSERT(index != -1);
     // Delete element
     stealFromNode(index, parent, index == 0);
     rebalance(parent);
@@ -215,7 +213,7 @@ void BlockIndexer::rebalance(CacheNode *node) {
                     break;
                 }
             }
-            assert(index != -1);
+            ASSERT(index != -1);
             if (index + 1 < parent->child_count && static_cast<CacheNode*>(parent->children[index + 1])->child_count > CHILD_COUNT_MIN) {
                 // steal from right sibling
                 auto* right_sibling = static_cast<CacheNode*>(parent->children[index + 1]);

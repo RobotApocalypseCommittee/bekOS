@@ -1,28 +1,29 @@
 /*
- *   bekOS is a basic OS for the Raspberry Pi
+ * bekOS is a basic OS for the Raspberry Pi
+ * Copyright (C) 2023 Bekos Contributors
  *
- *   Copyright (C) 2020  Bekos Inc Ltd
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <memory_manager.h>
-#include <utils.h>
-#include <library/assert.h>
-#include <printf.h>
-#include <mm.h>
 #include "process/process.h"
+
+#include <library/assertions.h>
+#include <memory_manager.h>
+#include <mm.h>
+#include <printf.h>
+#include <utils.h>
+
 #include "process/process_entry.h"
 
 extern memory_manager memoryManager;
@@ -84,7 +85,7 @@ ProcessManager::ProcessManager() {
         m_current = p;
         m_processes.push_back(p);
     } else {
-        assert(0);
+        ASSERT(0);
     }
 }
 

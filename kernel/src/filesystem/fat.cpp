@@ -1,25 +1,25 @@
 /*
- *   bekOS is a basic OS for the Raspberry Pi
+ * bekOS is a basic OS for the Raspberry Pi
+ * Copyright (C) 2023 Bekos Contributors
  *
- *   Copyright (C) 2020  Bekos Inc Ltd
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include <utils.h>
-#include <kstring.h>
-#include <library/assert.h>
 #include "filesystem/fat.h"
+
+#include <kstring.h>
+#include <library/assertions.h>
+#include <utils.h>
 
 enum class ClusterType {
     NextPointer,
@@ -58,7 +58,7 @@ struct HardFATEntry {
 } __attribute__((__packed__));
 
 RawFATEntry HardFATEntry::toEntry(u32 source_cluster, u32 cluster_index) {
-    assert(getType() == EntryType::Normal);
+    ASSERT(getType() == EntryType::Normal);
     char name83[13];
     fatname_to_fname(&fatname[0], &name83[0]);
     return RawFATEntry{
@@ -86,7 +86,7 @@ EntryType HardFATEntry::getType() {
 
 HardFATEntry::HardFATEntry(const RawFATEntry &e) : attrib(e.attributes), cluster_high(e.start_cluster >> 16),
                                                    cluster_low(e.start_cluster), size(e.size) {
-    assert(e.name.size() <= 12);
+    ASSERT(e.name.size() <= 12);
     fname_to_fat(e.name.data(), fatname);
 }
 
@@ -172,7 +172,7 @@ bool fatname_to_fname(char* fatname, char* fname) {
 
 FileAllocationTable::FileAllocationTable(FATInfo info, BlockDevice &device): m_buffer(device.block_size()), m_info(info), m_device(device) {
     // TODO: Is this even necessary?
-    assert(info.sector_size == device.block_size());
+    ASSERT(info.sector_size == device.block_size());
 }
 
 unsigned int FileAllocationTable::getNextCluster(unsigned int current_cluster) {
@@ -296,7 +296,7 @@ bek::vector<RawFATEntry> FileAllocationTable::getEntries(unsigned int start_clus
         for (unsigned int sector = 0; sector < m_info.sectors_per_cluster; sector++) {
             if (!readSector(current_cluster, sector)) {
                 // TODO: Error
-                assert(0);
+                ASSERT(0);
             }
 
             auto* raw_entries = reinterpret_cast<HardFATEntry*>(m_buffer.data());

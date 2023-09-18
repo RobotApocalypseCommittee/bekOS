@@ -16,14 +16,22 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "library/utility.h"
+#include "library/assertions.h"
 
-u64 bek::hash(u64 x) {
-    x ^= x >> 30u;
-    x *= 0xbf58476d1ce4e5b9ul;
-    x ^= x >> 27u;
-    x *= 0x94d049bb133111ebul;
-    x ^= x >> 31u;
-    return x;
+#include "library/format.h"
+
+extern bek::OutputStream *debug_stream;
+
+void bek::assertion_failed(const char *pExpr, const char *pFile, unsigned int nLine) {
+    if (debug_stream) {
+        bek::format_to(*debug_stream, "Assertion Failed: {} in {}, line {}."_sv, pExpr, pFile,
+                       nLine);
+    }
+    panic();
 }
-
+void bek::panic(const char *message, const char *file_name, unsigned int line) {
+    if (debug_stream) {
+        bek::format_to(*debug_stream, "Panicked: {} in {}, line {}."_sv, message, file_name, line);
+    }
+    panic();
+}

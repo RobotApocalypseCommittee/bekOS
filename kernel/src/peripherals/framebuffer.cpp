@@ -1,33 +1,35 @@
 /*
- *   bekOS is a basic OS for the Raspberry Pi
+ * bekOS is a basic OS for the Raspberry Pi
+ * Copyright (C) 2023 Bekos Contributors
  *
- *   Copyright (C) 2020  Bekos Inc Ltd
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include "peripherals/framebuffer.h"
 
 #include <peripherals/property_tags.h>
-#include <printf.h>
 
+#include "library/assertions.h"
+#include "library/debug.h"
 #include "library/utility.h"
 #include "peripherals/peripherals.h"
 
 u8 font[] = {
 #include "font.h"
 };
+
+using DBG = DebugScope<"FB", true>;
 
 struct framebuffer_allocation_msg {
     PropertyTagSetFBSize setPhys;
@@ -40,7 +42,7 @@ struct framebuffer_allocation_msg {
 
 
 bool allocate_framebuffer(framebuffer_info& info) {
-    printf("[FB] Allocating framebuffer\n");
+    DBG::dbgln("Allocating framebuffer"_sv);
     framebuffer_allocation_msg fb_msg {
         .setPhys    = PropertyTagSetFBSize(true, false, info.width, info.height),
         .setVirt    = PropertyTagSetFBSize(true, true, info.width, info.height),
@@ -49,23 +51,26 @@ bool allocate_framebuffer(framebuffer_info& info) {
         .getPitch   = PropertyTagGetFBPitch()};
     property_tags propTags;
 
-    printf("[FB] Allocation message:\n");
-    hex_dump(&fb_msg, sizeof(framebuffer_allocation_msg));
+    DBG::dbgln("Allocation message:"_sv);
+    // ASSERT((&fb_msg, sizeof(framebuffer_allocation_msg));
 
-    printf("[FB] Requesting tag.\n");
+    DBG::dbgln("Requesting tag."_sv);
     bool res = propTags.request_tags(&fb_msg, sizeof(framebuffer_allocation_msg));
     if (!res) {
-        printf("[FB] Framebuffer allocation failed.\n");
+        DBG::dbgln("Framebuffer allocation failed."_sv);
         return false;
     }
-    printf("[FB] Allocated framebuffer:\n");
+    DBG::dbgln("Allocated framebuffer:"_sv);
     info.width       = fb_msg.setPhys.width;
     info.height      = fb_msg.setPhys.height;
     info.depth       = fb_msg.setDepth.depth;
     info.pitch       = fb_msg.getPitch.pitch;
     info.buffer      = (void*)mapped_address(fb_msg.allocateFB.base_address & 0x3FFFFFFF);
     info.buffer_size = fb_msg.allocateFB.allocation_size;
-    printf("[FB] Allocated framebuffer: width=%u, height=%u, depth=%u, pitch=%u, addr=%lX, size=%u\n", info.width, info.height, info.depth, info.pitch, info.buffer, info.buffer_size);
+    DBG::dbgln(
+        "Allocated framebuffer: width={}, height={}, depth={}, pitch={}, addr={:XL}, size={}"_sv,
+        info.width, info.height, info.depth, info.pitch, reinterpret_cast<uPtr>(info.buffer),
+        info.buffer_size);
     return true;
 }
 
@@ -93,7 +98,7 @@ char_blitter::char_blitter(framebuffer t_fb, colour fg, colour bg)
     n_rows = m_framebuffer.getHeight() / CHAR_HEIGHT;
 }
 void char_blitter::blitChar(char c) {
-    assert(c >= 32 && c <= 126);
+    VERIFY(c >= 32 && c <= 126);
     c -= 32;
     for (int roffset = 0; roffset < CHAR_HEIGHT; roffset++) {
         for (int coffset = 0; coffset < CHAR_WIDTH; coffset++) {
@@ -120,7 +125,7 @@ void char_blitter::putChar(char c) {
     }
 }
 void char_blitter::seek(u32 row, u32 col) {
-    assert (row < n_rows && col < n_cols);
+    ASSERT(row < n_rows && col < n_cols);
     m_row = row;
     m_col = col;
 }

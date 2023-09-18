@@ -16,14 +16,24 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "library/utility.h"
+//
+// Created by Joe Bell on 22/08/2023.
+//
 
-u64 bek::hash(u64 x) {
-    x ^= x >> 30u;
-    x *= 0xbf58476d1ce4e5b9ul;
-    x ^= x >> 27u;
-    x *= 0x94d049bb133111ebul;
-    x ^= x >> 31u;
-    return x;
-}
+#ifndef BEKOS_FORMAT_CORE_H
+#define BEKOS_FORMAT_CORE_H
 
+#include "library/string.h"
+#include "library/types.h"
+
+namespace bek {
+
+struct OutputStream {
+    virtual void write(bek::str_view str) = 0;
+    virtual void write(char c)            = 0;
+    virtual void reserve(uSize n)         = 0;
+};
+
+}  // namespace bek
+
+#endif  // BEKOS_FORMAT_CORE_H

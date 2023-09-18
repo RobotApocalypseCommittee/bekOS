@@ -1,54 +1,61 @@
 /*
- *   bekOS is a basic OS for the Raspberry Pi
+ * bekOS is a basic OS for the Raspberry Pi
+ * Copyright (C) 2023 Bekos Contributors
  *
- *   Copyright (C) 2020  Bekos Inc Ltd
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #ifndef BEKOS_STRING_H
 #define BEKOS_STRING_H
 
+#include "assertions.h"
 #include "types.h"
 
 namespace bek {
 
-class string_view {
+class str_view {
 public:
-    /// Length of string (not including null terminator)
-    string_view(const char *string, uSize length);
+    /// String may not contain null-chars. Length excludes terminating null-char (if present).
+    constexpr str_view(const char *string, uSize length) : m_data{string}, m_size{length} {}
 
-    /// Must be null-terminated
-    string_view(const char *string);
+    /// Uses `strlen` to determine length, but does not include null-terminator.
+    explicit str_view(char const *string);
 
-    string_view(const string_view &v) = default;
+    str_view(const str_view &v) = default;
 
-    string_view &operator=(const string_view &v) = default;
+    str_view &operator=(const str_view &v) = default;
 
     [[nodiscard]] const char *data() const;
 
     [[nodiscard]] uSize size() const;
 
-    [[nodiscard]] string_view substr(uSize pos, uSize len) const;
+    [[nodiscard]] str_view substr(uSize pos, uSize len) const;
 
     [[nodiscard]] const char *begin() const;
 
     [[nodiscard]] const char *end() const;
 
+    char operator[](uSize i) const {
+        ASSERT(i < m_size);
+        return m_data[i];
+    }
+
     void remove_prefix(uSize n);
 
     void remove_suffix(uSize n);
+
+    bool operator==(const str_view &b) const;
 
 private:
     const char *m_data;
@@ -122,6 +129,7 @@ private:
     u8 get_short_length() const;
 };
 
-}
+}  // namespace bek
+constexpr bek::str_view operator""_sv(const char *str, uSize size) { return {str, size}; }
 
 #endif //BEKOS_STRING_H

@@ -1,97 +1,247 @@
 /*
- *   bekOS is a basic OS for the Raspberry Pi
+ * bekOS is a basic OS for the Raspberry Pi
+ * Copyright (C) 2023 Bekos Contributors
  *
- *   Copyright (C) 2020  Bekos Inc Ltd
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #ifndef BEKOS_FUNCTION_H
 #define BEKOS_FUNCTION_H
 
 #include <library/own_ptr.h>
+#include <library/runtime.h>
+#include <library/traits.h>
 #include <library/utility.h>
+
 namespace bek {
 
+namespace detail {
+
+// Using standard T&& for ints forces passing by ref and moving (no-op) rather than pass by value.
+// Could use more convoluted logic to allow small trivially copyable structs also.
 template <typename T>
+using fast_forward_t = bek::conditional<bek::integral<T>, T, T&&>;
+
+namespace function {
+
+static constexpr uSize STORAGE_SIZE  = 16;
+static constexpr uSize STORAGE_ALIGN = 16;
+
+using Storage = aligned_storage<STORAGE_SIZE, STORAGE_ALIGN>;
+
+template <typename Functor>
+static constexpr bool uses_trivial_small_storage =
+    bek::is_trivially_copyable<Functor> && Storage::can_store<Functor>;
+
+struct abstract_wrapper {
+    virtual abstract_wrapper* clone(Storage& storage)   = 0;
+    virtual abstract_wrapper* move_to(Storage& storage) = 0;
+    virtual ~abstract_wrapper()                         = default;
+};
+
+template <typename Functor>
+struct concrete_wrapper final : abstract_wrapper {
+    static_assert(!uses_trivial_small_storage<Functor>);
+
+    Functor m_functor;
+    concrete_wrapper(Functor&& functor) : m_functor(bek::forward<Functor&&>(functor)) {}
+    concrete_wrapper(const Functor& functor)
+        requires bek::copy_constructible<Functor>
+        : m_functor(functor) {}
+    concrete_wrapper(const concrete_wrapper&)            = delete;
+    concrete_wrapper(concrete_wrapper&&)                 = delete;
+    concrete_wrapper& operator=(const concrete_wrapper&) = delete;
+    concrete_wrapper& operator=(concrete_wrapper&&)      = delete;
+
+    abstract_wrapper* clone(Storage& storage) override {
+        if constexpr (bek::copy_constructible<Functor>) {
+            if constexpr (Storage::can_store<concrete_wrapper>) {
+                return new (storage.data) concrete_wrapper(m_functor);
+            } else {
+                return new concrete_wrapper(m_functor);
+            }
+        } else {
+            bek::panic();
+        }
+    }
+
+    abstract_wrapper* move_to(Storage& storage) override {
+        if constexpr (Storage::can_store<concrete_wrapper>) {
+            return new (storage.data) concrete_wrapper(bek::move(m_functor));
+        } else {
+            // Never called for external storage - just twiddle ptrs.
+            return nullptr;
+        }
+    }
+    ~concrete_wrapper() override = default;
+};
+
+}  // namespace function
+}  // namespace detail
+
+template <typename T, bool Copyable = false, bool Nullable = false>
 class function;
+
+namespace detail {
+template <typename T>
+inline constexpr bool is_bek_function = false;
+
+template <typename T, bool Copyable, bool Nullable>
+inline constexpr bool is_bek_function<bek::function<T, Copyable, Nullable>> = true;
+
+template <typename T>
+concept bek_function = is_bek_function<T>;
+
+}  // namespace detail
 
 /// A function object
 /// Instance can contain function pointer, with optional context
 /// A la callback Object
 /// Optimised, hopefully, although involves branching guaranteed
-template <typename Out, typename... In>
-class function<Out(In...)> {
+template <typename Out, typename... In, bool Copyable, bool Nullable>
+class function<Out(In...), Copyable, Nullable> {
+    using InvokerPtr = Out (*)(void*, detail::fast_forward_t<In>...);
+    static_assert(sizeof(InvokerPtr) == sizeof(void*));
+    static_assert(alignof(InvokerPtr) == alignof(void*));
+    using Storage = detail::function::Storage;
+
 public:
-    function() noexcept = default;
-    function(nullptr_t) noexcept {};  // NOLINT(google-explicit-constructor)
-    function(const function& other)
-        : m_wrapper(other.m_wrapper ? other.m_wrapper->clone() : nullptr) {}
+    using Signature = Out(In...);
+    function()
+        requires(Nullable)
+    = default;
 
-    function(function&& other) noexcept : m_wrapper(move(other.m_wrapper)) {}
+    explicit operator bool() const { return m_invoker != &empty_function; }
 
-    function& operator=(const function& other) {
-        function(other).swap(*this);
-        return *this;
+    /// Construct a function with a given Functor, which must be callable with the appropriate
+    /// arguments, and copy-constructible.
+    template <bek::callable_with_args<Out, In...> Functor>
+        requires(!detail::is_bek_function<remove_cv_reference<Functor>> &&
+                 (copy_constructible<remove_cv_reference<Functor>> || !Copyable))
+    explicit(!detail::function::uses_trivial_small_storage<Functor>) function(
+        Functor&& functor) {  // NOLINT(*-forwarding-reference-overload, *-explicit-constructor)
+        // We're forwarding these references.
+        if constexpr (detail::function::uses_trivial_small_storage<Functor>) {
+            new (m_storage.ptr()) Functor(static_cast<Functor&&>(functor));
+            m_wrapper = nullptr;
+
+            m_invoker = [](void* p_fn, detail::fast_forward_t<In>... in) {
+                auto* fn = reinterpret_cast<Functor*>(p_fn);
+                return (*fn)(forward<In>(in)...);
+            };
+        } else {
+            // We use a wrapper.
+            using wrapper_t = detail::function::concrete_wrapper<Functor>;
+
+            if constexpr (Storage::can_store<wrapper_t>) {
+                m_wrapper = new (m_storage.ptr()) wrapper_t(static_cast<Functor&&>(functor));
+            } else {
+                m_wrapper = new wrapper_t(static_cast<Functor&&>(functor));
+            }
+
+            m_invoker = [](void* p_fn, detail::fast_forward_t<In>... in) {
+                auto& fn = reinterpret_cast<wrapper_t*>(p_fn)->m_functor;
+                return fn(forward<In>(in)...);
+            };
+        }
     }
 
-    function& operator=(function&& other) noexcept {
-        m_wrapper = move(other.m_wrapper);
-        return *this;
-    }
-
-    void swap(function& other) noexcept {
+    template <bool OtherCopyable, bool OtherNullable>
+        requires((Nullable && !Copyable && (!OtherNullable || OtherCopyable)) ||
+                 (!OtherNullable && OtherCopyable && (!Copyable || Nullable)))
+    explicit function(bek::function<Signature, OtherCopyable, OtherNullable>&& other) {
         using bek::swap;
+        swap(m_storage, other.m_storage);
+        swap(m_invoker, other.m_invoker);
         swap(m_wrapper, other.m_wrapper);
     }
 
-    template <typename Fp>
-    using EnableIfCallable = typename std::enable_if<std::is_invocable_r_v<Out, Fp, In...>>::type;
+    function(const function& other)
+        requires Copyable
+        : m_invoker{other.m_invoker}, m_wrapper{nullptr} {
+        if (other.m_wrapper) {
+            m_wrapper = other.m_wrapper->clone(m_storage);
+        } else {
+            m_storage = other.m_storage;
+        }
+    }
 
-    template <typename Callable, class = EnableIfCallable<Callable>>
-    function(Callable t_c) : m_wrapper(new concrete_wrapper<std::decay_t<Callable>>(move(t_c))) {}
+    function(function&& other) noexcept : m_invoker{other.m_invoker} {
+        if (other.m_wrapper) {
+            if (other.is_inline_wrapped()) {
+                m_wrapper = other.m_wrapper->move_to(m_storage);
+            } else {
+                m_wrapper       = other.m_wrapper;
+                other.m_wrapper = nullptr;
+            }
+        } else {
+            // Move is bitwise copy.
+            m_wrapper = nullptr;
+            m_storage = other.m_storage;
+        }
+    }
 
-    explicit operator bool() const noexcept { return !!m_wrapper; }
+    function& operator=(function other) {
+        swap(*this, other);
+        return *this;
+    }
+
+    friend void swap(function& a, function& b) noexcept {
+        using bek::swap;
+        swap(a.m_storage, b.m_storage);
+        swap(a.m_invoker, b.m_invoker);
+        swap(a.m_wrapper, b.m_wrapper);
+    }
+
 
     Out operator()(In... args) {
-        assert(m_wrapper);
-        return m_wrapper->invoke(forward<In>(args)...);
+        return m_invoker((m_wrapper) ? m_wrapper : m_storage.ptr(), bek::forward<In>(args)...);
+    }
+
+    ~function() {
+        if (is_inline_wrapped()) {
+            m_wrapper->~abstract_wrapper();
+        } else {
+            // If null-ptr, does nothing.
+            delete m_wrapper;
+        }
     }
 
 private:
-    class abstract_wrapper {
-    public:
-        virtual own_ptr<abstract_wrapper> clone() = 0;
-        virtual Out invoke(In&&...)               = 0;
-        virtual ~abstract_wrapper()               = default;
-    };
+    [[nodiscard]] constexpr inline bool is_inline_wrapped() const {
+        return m_storage.ptr() == m_wrapper;
+    }
 
-    template <typename Functor>
-    class concrete_wrapper : public abstract_wrapper {
-    private:
-        Functor m_f;
+    static Out empty_function(void*, detail::fast_forward_t<In>...) {
+        PANIC("Called empty bek::function");
+    }
 
-    public:
-        explicit concrete_wrapper(const Functor& t_f) : m_f(t_f) {}
-        explicit concrete_wrapper(Functor&& t_f) : m_f(move(t_f)) {}
-        own_ptr<abstract_wrapper> clone() override { return make_own<concrete_wrapper>(m_f); }
+    // Members
+    Storage m_storage;
 
-        Out invoke(In&&... in) override { return m_f(forward<In>(in)...); }
-        ~concrete_wrapper() override = default;
-    };
-    own_ptr<abstract_wrapper> m_wrapper;
+    /// Type-erasing function to invoke stored functor.
+    InvokerPtr m_invoker{&empty_function};
+
+    /// Points either to m_storage or some external place, or is nullptr (fn ptr) or is 1 (inline
+    /// trivial). Extremely Cursed.
+    detail::function::abstract_wrapper* m_wrapper{nullptr};
 };
+
+static_assert(sizeof(function<void()>) == 32);
+
+template <typename T>
+using copyable_function = function<T, true>;
 
 // Deduction Guides
 
@@ -117,6 +267,39 @@ template <typename Out, typename... In>
 inline void swap(function<Out(In...)>& a, function<Out(In...)>& b) {
     a.swap(b);
 }
+
+/// A fairly unsafe reference to a functor. Efficient if function pointer, dangerous if capturing
+/// lambda.
+template <typename Fn>
+class function_view;
+
+template <typename Out, typename... In>
+class function_view<Out(In...)> {
+    using FunctionPointer = Out (*)(In...);
+
+public:
+    template <typename Fn>
+    explicit function_view(Fn& fn) : m_erased_ptr{&fn} {
+        m_invoker = [](void* ptr, In... args) -> Out {
+            return (*reinterpret_cast<Fn*>(ptr))(args...);
+        };
+    }
+
+    function_view(Out (*f_ptr)(In...)) : m_erased_ptr{f_ptr} {  // NOLINT(*-explicit-constructor)
+        m_invoker = [](void* ptr, In&&... args) -> Out {
+            return (*reinterpret_cast<FunctionPointer>(ptr))(static_cast<decltype(args)>(args)...);
+        };
+    }
+
+    decltype(auto) operator()(In... args) const noexcept {
+        return m_invoker(m_erased_ptr, bek::forward<In>(args)...);
+    }
+
+private:
+    using InvokerPtr = Out (*)(void*, In...);
+    void* m_erased_ptr;
+    InvokerPtr m_invoker;
+};
 
 }  // namespace bek
 #endif  // BEKOS_FUNCTION_H

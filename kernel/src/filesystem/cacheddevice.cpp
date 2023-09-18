@@ -1,20 +1,19 @@
 /*
- *   bekOS is a basic OS for the Raspberry Pi
+ * bekOS is a basic OS for the Raspberry Pi
+ * Copyright (C) 2023 Bekos Contributors
  *
- *   Copyright (C) 2020  Bekos Inc Ltd
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include <kstring.h>
@@ -34,9 +33,9 @@ unsigned long CachedDevice::block_size() {
 }
 
 bool CachedDevice::readBlock(unsigned long index, void *buffer, unsigned long offset, unsigned long count) {
-    assert(offset + count <= block_size());
+    ASSERT(offset + count <= block_size());
     auto entry = m_cache.get(index);
-    assert(entry->data != nullptr);
+    ASSERT(entry->data != nullptr);
     if (!entry->loaded) {
         if (!m_device.readBlock(index, entry->data, 0, block_size())) {
             return false;
@@ -48,9 +47,9 @@ bool CachedDevice::readBlock(unsigned long index, void *buffer, unsigned long of
 }
 
 bool CachedDevice::writeBlock(unsigned long index, const void *buffer, unsigned long offset, unsigned long count) {
-    assert(offset + count <= block_size());
+    ASSERT(offset + count <= block_size());
     auto entry = m_cache.get(index);
-    assert(entry->data != nullptr);
+    ASSERT(entry->data != nullptr);
     if ((!entry->loaded) && count != block_size()) {
         if (!m_device.readBlock(index, entry->data, 0, block_size())) {
             return false;

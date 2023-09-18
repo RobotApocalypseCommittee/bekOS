@@ -1,48 +1,56 @@
 /*
- *   bekOS is a basic OS for the Raspberry Pi
+ * bekOS is a basic OS for the Raspberry Pi
+ * Copyright (C) 2023 Bekos Contributors
  *
- *   Copyright (C) 2020  Bekos Inc Ltd
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #ifndef BEKOS_ARRAY_H
 #define BEKOS_ARRAY_H
 
-#include "library/assert.h"
+#include <initializer_list>
 
+#include "library/assertions.h"
+#include "types.h"
 
 namespace bek {
 
-    template<class T, u64 _size>
-    class arr {
-    public:
-        inline constexpr u64 size() {
-            return _size;
-        }
+template <class T, uSize Size>
+struct array {
+    T _data[Size];
 
-        inline T& operator[](u64 index) {
-            assert(index < size());
-            return _data[index];
-        }
+    [[nodiscard]] constexpr u64 size() const { return Size; }
 
-        inline T* data() {
-            return _data;
-        }
+    constexpr const T& operator[](u64 index) const {
+        ASSERT(index < size());
+        return _data[index];
+    }
 
-    private:
-        T _data[_size];
-    };
-}
-#endif //BEKOS_ARRAY_H
+    constexpr T& operator[](u64 index) {
+        ASSERT(index < size());
+        return _data[index];
+    }
+
+    constexpr const T* data() const { return _data; }
+
+    constexpr const T* begin() const { return data(); }
+
+    constexpr const T* end() const { return data() + size(); }
+};
+
+// Template Deduction Guide: Array Literal
+template <typename T, typename... U>
+array(T, U...) -> array<T, 1 + sizeof...(U)>;
+}  // namespace bek
+#endif  // BEKOS_ARRAY_H

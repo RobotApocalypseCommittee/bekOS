@@ -1,20 +1,19 @@
 /*
- *   bekOS is a basic OS for the Raspberry Pi
+ * bekOS is a basic OS for the Raspberry Pi
+ * Copyright (C) 2023 Bekos Contributors
  *
- *   Copyright (C) 2020  Bekos Inc Ltd
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef BEKOS_OWN_PTR_H
 #define BEKOS_OWN_PTR_H
@@ -33,12 +32,23 @@ public:
     own_ptr(const own_ptr& other) = delete;
     own_ptr(own_ptr&& other) noexcept : m_ptr(other.release()) {}
 
-    template <typename U, class = typename std::enable_if<std::is_convertible_v<T*, U*>>>
+    own_ptr(nullptr_t) noexcept : m_ptr{nullptr} {};
+
+    template <typename U>
+        requires bek::implictly_convertible_to<U*, T*>
     own_ptr(own_ptr<U>&& other) noexcept : m_ptr(other.release()) {}
 
     own_ptr& operator=(const own_ptr&) = delete;
-    own_ptr& operator                  =(own_ptr&& other) noexcept {
+
+    own_ptr& operator=(own_ptr&& other) noexcept {
         swap(other);
+        return *this;
+    }
+
+    template <typename U>
+    own_ptr& operator=(own_ptr<U>&& other) noexcept {
+        own_ptr tmp(bek::move(other));
+        swap(tmp);
         return *this;
     }
 
@@ -54,12 +64,15 @@ public:
         swap(m_ptr, other.m_ptr);
     }
     T& operator*() {
-        assert(m_ptr);
+        ASSERT(m_ptr);
         return *m_ptr;
     }
     T* operator->() {
-        assert(m_ptr);
+        ASSERT(m_ptr);
         return m_ptr;
+    }
+
+    T* get() const { return m_ptr;
     }
 
 private:

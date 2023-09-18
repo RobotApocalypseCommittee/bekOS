@@ -1,84 +1,142 @@
 /*
- *   bekOS is a basic OS for the Raspberry Pi
+ * bekOS is a basic OS for the Raspberry Pi
+ * Copyright (C) 2023 Bekos Contributors
  *
- *   Copyright (C) 2020  Bekos Inc Ltd
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #ifndef BEKOS_OPTIONAL_H
 #define BEKOS_OPTIONAL_H
 
-#include "library/assert.h"
+#include "library/assertions.h"
+#include "mm/kmalloc.h"
 #include "types.h"
+#include "utility.h"
 
 namespace bek {
-template<typename T>
-class alignas(T) optional {
+
+struct in_place_t {
+    inline constexpr explicit in_place_t() = default;
+};
+
+template <typename T>
+class optional {
 public:
-    optional() : m_valid(false) {};
+    constexpr optional() noexcept {}
 
-    optional(T &&object) : m_valid(true) {
-        new(&m_data[0]) T(move(object));
-    }
+    constexpr optional(const optional&) = default;
+    constexpr optional(optional&&)      = default;
 
-    optional(optional &&other) : m_valid(other.m_valid) {
+    constexpr optional(const optional& other)
+        requires(!bek::is_trivially_copy_constructible<T>)
+        : m_valid(other.m_valid) {
         if (m_valid) {
-            new(&m_data[0]) T(move(other.value()));
-            other.value().~T();
+            initialise(*other);
         }
-        other.m_valid = false;
     }
 
-    optional &operator=(optional &&other) {
-            if (m_valid) value().~T();
-            if (m_valid) {
-                new (&m_data[0]) T(move(other.value()));
-                other.value().~T();
+    constexpr optional(optional&& other)
+        requires(!bek::is_trivially_move_constructible<T>)
+        : m_valid(other.m_valid) {
+        if (m_valid) {
+            initialise(move(other));
+        }
+    }
+
+    template <typename First, typename... Rest>
+        requires(!same_as<remove_cv_reference<First>, optional>)
+    constexpr optional(First&& first, Rest&&... rest) : m_valid(true) {
+        initialise(forward<First&&>(first), forward<Rest&&>(rest)...);
+    }
+
+    friend void swap(optional& a, optional& b) {
+        if constexpr (!bek::is_trivially_copyable<T>) {
+            using bek::swap;
+            if (a.m_valid && b.m_valid) {
+                swap(*a, *b);
+            } else if (a.m_valid && !b.m_valid) {
+                b.initialise(bek::move(*a));
+                a.reset();
+            } else if (!a.m_valid && b.m_valid) {
+                a.initialise(bek::move(*b));
+                b.reset();
             }
-            other.m_valid = false;
-            return *this;
+        } else {
+            using bek::swap;
+            swap(a.m_valid, b.m_valid);
+            swap(a.m_value, b.m_value);
         }
+    }
 
-        T& value() {
-            assert(m_valid);
-            return *reinterpret_cast<T*>(&m_data[0]);
-        }
-        const T& value() const {
-            assert(m_valid);
-            return *reinterpret_cast<T*>(&m_data[0]);
-        }
+    optional& operator=(optional other) {
+        swap(*this, other);
+        return *this;
+    }
 
-        T release() {
-            assert(m_valid);
-            T released = value();
-            value().~T();
-            return released;
-        }
+    explicit operator bool() const { return m_valid; }
 
-        bool is_valid() const {
-            return m_valid;
-        }
+    const T& operator*() const& { return m_value; }
+    T& operator*() & { return m_value; }
 
-        ~optional() {
-            if (m_valid) value().~T();
-        }
+    const T&& operator*() const&& { return move(m_value); }
+    T&& operator*() && { return move(m_value); }
 
-    private:
-        alignas(T) u8 m_data[sizeof(T)];
-        bool m_valid;
+    constexpr const T* operator->() const { return &m_value; }
+
+    constexpr T* operator->() { return &m_value; }
+
+    [[nodiscard]] bool is_valid() const { return m_valid; }
+
+    template <typename U>
+    T value_or(U&& alt) const& {
+        return (*this) ? **this : static_cast<T>(forward<U>(alt));
+    }
+
+    template <typename U>
+    T value_or(U&& alt) && {
+        return (*this) ? **this : static_cast<T>(forward<U>(alt));
+    }
+
+    ~optional() = default;
+    ~optional()
+        requires(!bek::is_trivially_destructible<T>)
+    {
+        if (m_valid) m_value.~T();
+    }
+
+private:
+    template <typename... Args>
+    inline constexpr void initialise(Args&&... args) {
+        new (&m_value) T(forward<Args&&>(args)...);
+        m_valid = true;
+    }
+
+    inline constexpr void reset() {
+        if (m_valid) {
+            m_valid = false;
+            m_value.~T();
+        }
+    }
+
+    union {
+        char m_null_state{};
+        T m_value;
     };
-}
+    bool m_valid{};
+};
 
-#endif //BEKOS_OPTIONAL_H
+static_assert(bek::is_trivially_copy_constructible<bek::optional<int>>);
+}  // namespace bek
+
+#endif  // BEKOS_OPTIONAL_H

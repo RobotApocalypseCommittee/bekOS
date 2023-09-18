@@ -1,26 +1,28 @@
 /*
- *   bekOS is a basic OS for the Raspberry Pi
+ * bekOS is a basic OS for the Raspberry Pi
+ * Copyright (C) 2023 Bekos Contributors
  *
- *   Copyright (C) 2020  Bekos Inc Ltd
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <kstring.h>
-#include <library/assert.h>
 #include "library/string.h"
+
+#include <kstring.h>
+#include <library/assertions.h>
+
 #include "library/utility.h"
+#include "mm/kmalloc.h"
 
 const u8 short_max_length = 14;
 using namespace bek;
@@ -30,7 +32,7 @@ bek::string::string(const string &s) {
         // Copy most of representation
         m_long.capacity = s.m_long.capacity;
         m_long.length = s.m_long.length;
-        m_long.data = new char[m_long.capacity];
+        m_long.data     = static_cast<char *>(kmalloc(get_long_capacity()));
         copy(m_long.data, s.m_long.data, m_long.length + 1);
     } else {
         // Simply copy
@@ -39,7 +41,7 @@ bek::string::string(const string &s) {
 }
 
 bek::string::~string() {
-    if (is_long()) delete[] m_long.data;
+    if (is_long()) kfree(m_long.data, get_long_capacity());
 }
 
 bek::string::string(const char *source) {
@@ -48,7 +50,7 @@ bek::string::string(const char *source) {
         // Long string
         set_long_capacity(len + 1);
         set_long_length(len);
-        m_long.data = new char[len + 1];
+        m_long.data = static_cast<char *>(kmalloc(len + 1));
         strcpy(m_long.data, source);
     } else {
         set_short_length(len);
@@ -60,7 +62,7 @@ bek::string::string(u32 length, char init) {
     if (length > short_max_length) {
         set_long_length(length);
         set_long_capacity(length + 1);
-        m_long.data = new char[length + 1];
+        m_long.data = static_cast<char *>(kmalloc(length + 1));
         memset(m_long.data, init, length);
         m_long.data[length] = '\0';
     } else {
@@ -79,7 +81,7 @@ bek::string::string(string &&s) { swap(s); }
 
 
 void bek::string::set_short_length(u8 len) {
-    assert(len <= 14);
+    ASSERT(len <= 14);
     m_short.length = len << 1;
 }
 
@@ -88,7 +90,7 @@ void bek::string::set_long_length(u32 length) {
 }
 
 void bek::string::set_long_capacity(u32 capacity) {
-    assert(capacity < (unsigned(1 << 31) - 1));
+    ASSERT(capacity < (unsigned(1 << 31) - 1));
     m_long.capacity = (capacity << 1) | 0x1;
 }
 
@@ -100,36 +102,39 @@ bek::string::string() {}
 
 void string::swap(string &s) { bek::swap(m_short, s.m_short); }
 
-bek::string_view::string_view(const char *string, uSize length) : m_data{string}, m_size{length} {}
+bek::str_view::str_view(const char *string) : m_data(string), m_size(strlen(string)) {}
 
-bek::string_view::string_view(const char *string) : m_data(string), m_size(strlen(string)) {}
+const char *bek::str_view::data() const { return m_data; }
 
-const char *bek::string_view::data() const { return m_data; }
-
-string_view bek::string_view::substr(uSize pos, uSize len) const {
-    assert(pos <= size());
-    return string_view{m_data + pos, bek::min(len, size() - pos)};
+str_view bek::str_view::substr(uSize pos, uSize len) const {
+    ASSERT(pos <= size());
+    return str_view{m_data + pos, bek::min(len, size() - pos)};
 }
 
-uSize bek::string_view::size() const {
-    return m_size;
+uSize bek::str_view::size() const { return m_size;
 }
 
-const char *bek::string_view::begin() const {
-    return data();
+const char *bek::str_view::begin() const { return data();
 }
 
-const char *bek::string_view::end() const {
-    return data() + size();
+const char *bek::str_view::end() const { return data() + size();
 }
 
-void string_view::remove_prefix(uSize n) {
-    assert(n <= size());
+void str_view::remove_prefix(uSize n) {
+    ASSERT(n <= size());
     m_data += n;
     m_size -= n;
 }
 
-void string_view::remove_suffix(uSize n) {
-    assert(n <= size());
+void str_view::remove_suffix(uSize n) {
+    ASSERT(n <= size());
     m_size -= n;
+}
+bool str_view::operator==(const str_view &b) const {
+    if (size() != b.size()) return false;
+
+    for (uSize i = 0; i < size(); i++) {
+        if (m_data[i] != b.m_data[i]) return false;
+    }
+    return true;
 }
