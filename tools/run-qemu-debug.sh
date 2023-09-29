@@ -1,3 +1,21 @@
+#!/bin/zsh
+#
+# bekOS is a basic OS for the Raspberry Pi
+# Copyright (C) 2023 Bekos Contributors
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+
 echo Starting Qemu
-kern_path=$(wslpath -am "$2")
-"$1" -S -s -M raspi3 -serial null -serial mon:stdio -d guest_errors,unimp -usb -device usb-kbd -device usb-mouse -kernel $kern_path
+"$1" -S -s -M raspi3b -serial null -serial mon:stdio -d guest_errors,unimp -usb -device usb-kbd -device usb-mouse -kernel $2
