@@ -24,70 +24,126 @@
 #include "library/buffer.h"
 #include "library/optional.h"
 #include "memory.h"
+
 namespace mem {
-
-// FIXME: This will need to depend on dma mappings for a specific device!
-bek::optional<DmaPtr> virt_to_dma(void* ptr);
-
 void dma_sync_before_read(const void* ptr, uSize size);
 void dma_sync_after_write(const void* ptr, uSize size);
 
-/// A view onto a contiguous space of dma-able memory. No access is provided to the underlying
-/// memory.
-class dma_view {
-public:
-    dma_view(DmaPtr dmaPtr, uSize i) : m_dma_ptr(dmaPtr), m_size{i} {}
-    [[nodiscard]] DmaPtr dma_ptr() const { return m_dma_ptr; }
+class dma_pool;
 
-    [[nodiscard]] dma_view subdivide(uSize offset, uSize size) const {
-        VERIFY(offset + size <= m_size);
-        return {m_dma_ptr.offset(offset), size};
+class dma_buffer {
+public:
+    constexpr dma_buffer(char* data, uSize size, const DmaPtr& dma_ptr)
+        : m_data(data), m_size(size), m_dma_ptr(dma_ptr) {}
+    constexpr DmaPtr dma_ptr() const { return m_dma_ptr; }
+    constexpr char* data() const { return m_data; }
+    constexpr char* end() const { return m_data + m_size; }
+    constexpr uSize size() const { return m_size; }
+    constexpr bek::buffer view() const { return {m_data, m_size}; }
+
+    constexpr dma_buffer subdivide(uSize offset, uSize size) const {
+        ASSERT(offset + size <= m_size);
+        return {m_data + offset, size, m_dma_ptr.offset(offset)};
     }
 
-    [[nodiscard]] constexpr uSize size() const { return m_size; }
+    template <typename T>
+    T& get_at(uSize offset) const {
+        ASSERT(offset + sizeof(T) <= m_size);
+        return *reinterpret_cast<T*>(data() + offset);
+    }
+
+    constexpr static dma_buffer null_buffer() { return {nullptr, 0, {0}}; }
 
 private:
-    DmaPtr m_dma_ptr;
+    char* m_data;
     uSize m_size;
+    DmaPtr m_dma_ptr;
 };
+
+class own_dma_buffer {
+public:
+    constexpr DmaPtr dma_ptr() const { return m_buffer.dma_ptr(); }
+    constexpr char* data() const { return m_buffer.data(); }
+    constexpr char* end() const { return m_buffer.end(); }
+    constexpr uSize size() const { return m_buffer.size(); }
+    constexpr uSize align() const { return m_align; }
+    constexpr dma_buffer view() const { return m_buffer; }
+    constexpr bek::buffer raw_view() const { return m_buffer.view(); }
+
+    own_dma_buffer(const own_dma_buffer&)            = delete;
+    own_dma_buffer& operator=(const own_dma_buffer&) = delete;
+    own_dma_buffer(own_dma_buffer&& other)
+        : m_buffer(bek::exchange(other.m_buffer, dma_buffer::null_buffer())),
+          m_pool(other.m_pool),
+          m_align(other.m_align) {}
+    own_dma_buffer& operator=(own_dma_buffer&& other);
+
+    void release() { m_buffer = dma_buffer::null_buffer(); }
+
+    ~own_dma_buffer();
+
+    own_dma_buffer(dma_pool& pool, dma_buffer buffer, uSize align)
+        : m_buffer(buffer), m_pool(&pool), m_align(align) {}
+
+private:
+    dma_buffer m_buffer;
+    dma_pool* m_pool;
+    uSize m_align;
+    friend class dma_pool;
+};
+
+class dma_pool {
+public:
+    virtual own_dma_buffer allocate(uSize size, uSize align) = 0;
+    virtual void deallocate(const own_dma_buffer& buffer)    = 0;
+};
+
+inline own_dma_buffer& own_dma_buffer::operator=(own_dma_buffer&& other) {
+    if (&other != this) {
+        m_pool->deallocate(bek::move(*this));
+        m_buffer = bek::exchange(other.m_buffer, dma_buffer::null_buffer());
+        m_align  = other.m_align;
+        m_pool   = other.m_pool;
+    }
+    return *this;
+}
+
+inline own_dma_buffer::~own_dma_buffer() {
+    if (m_buffer.data()) {
+        m_pool->deallocate(*this);
+    }
+}
 
 template <typename T>
 class dma_array {
 public:
-    explicit dma_array(uSize count) : dma_array(count, alignof(T)) {}
+    dma_array(dma_pool& pool, uSize count)
+        : dma_array(pool, count, alignof(T)) {}  // NOLINT(*-pro-type-member-init)
 
-    dma_array(uSize count, uSize align)
-        : m_data(static_cast<T*>(kmalloc(count * sizeof(T), align))),
-          m_count(count),
-          m_align(align) {}
+    dma_array(dma_pool& pool, uSize count, uSize align)
+        : m_buffer(pool.allocate(count * sizeof(T), align)) {}
 
-    dma_array(const dma_array&)            = delete;
-    dma_array& operator=(const dma_array&) = delete;
-    ~dma_array() { kfree(m_data, m_count * sizeof(T), m_align); }
-
-    constexpr const T* data() const { return m_data; }
-    constexpr T* data() { return m_data; }
+    constexpr const T* data() const { return reinterpret_cast<const T*>(m_buffer.data()); }
+    constexpr T* data() { return reinterpret_cast<T*>(m_buffer.data()); }
 
     const T& operator[](uSize idx) const {
-        ASSERT(idx < m_count);
+        ASSERT(idx < size());
         return data()[idx];
     }
 
     T& operator[](uSize idx) {
-        ASSERT(idx < m_count);
+        ASSERT(idx < size());
         return data()[idx];
     }
 
     T* begin() { return data(); }
-    T* end() { return &data()[m_count]; }
+    T* end() { return &data()[size()]; }
 
-    [[nodiscard]] constexpr uSize size() const { return m_count; }
-    [[nodiscard]] constexpr uSize byte_size() const { return m_count * sizeof(T); }
+    [[nodiscard]] constexpr uSize size() const { return m_buffer.size() / sizeof(T); }
+    [[nodiscard]] constexpr uSize byte_size() const { return m_buffer.size(); }
 
-    [[nodiscard]] DmaPtr dma_ptr(uSize idx = 0) const {
-        auto o_ptr = virt_to_dma(&m_data[idx]);
-        VERIFY(o_ptr);
-        return *o_ptr;
+    [[nodiscard]] constexpr DmaPtr dma_ptr(uSize idx = 0) const {
+        return m_buffer.dma_ptr().offset(idx * sizeof(T));
     }
 
     void sync_before_read(uSize specific_index = -1ul) {
@@ -103,75 +159,30 @@ public:
     }
 
 private:
-    T* m_data;
-    uSize m_count;
-    uSize m_align;
+    own_dma_buffer m_buffer;
 };
 
 template <typename T>
 class dma_object {
 public:
-    explicit dma_object() : m_object{static_cast<T*>(kmalloc(sizeof(T), alignof(T)))} {}
-    ~dma_object() { kfree(m_object, sizeof(T), alignof(T)); }
-    dma_object(const dma_object&)            = delete;
-    dma_object& operator=(const dma_object&) = delete;
-    dma_object(dma_object&& other) : m_object{bek::exchange(other.m_object, nullptr)} {}
-    dma_object& operator=(dma_object&& other) {
-        dma_object copy{bek::move(other)};
-        bek::swap(m_object, copy.m_object);
-        return *this;
-    }
+    explicit dma_object(dma_pool& pool) : m_buffer(pool.allocate(sizeof(T), alignof(T))) {}
 
-    const T& operator*() const { return *m_object; }
-    T& operator*() { return *m_object; }
+    const T& operator*() const { return *reinterpret_cast<const T*>(m_buffer.data()); }
+    T& operator*() { return *reinterpret_cast<T*>(m_buffer.data()); }
 
-    const T* operator->() const { return m_object; }
-    T* operator->() { return m_object; }
+    const T* operator->() const { return reinterpret_cast<const T*>(m_buffer.data()); }
+    T* operator->() { return reinterpret_cast<T*>(m_buffer.data()); }
 
-    void sync_before_read() { dma_sync_before_read(m_object, sizeof(T)); }
+    void sync_before_read() { dma_sync_before_read(m_buffer.data(), sizeof(T)); }
 
-    void sync_after_write() {
-        dma_sync_after_write(reinterpret_cast<const u8*>(m_object), sizeof(T));
-    }
+    void sync_after_write() { dma_sync_after_write(m_buffer.data(), sizeof(T)); }
 
-    [[nodiscard]] DmaPtr dma_ptr() const {
-        auto o_ptr = virt_to_dma(m_object);
-        VERIFY(o_ptr);
-        return *o_ptr;
-    }
+    [[nodiscard]] constexpr DmaPtr dma_ptr() const { return m_buffer.dma_ptr(); }
 
-    [[nodiscard]] dma_view get_dma_view() const { return {dma_ptr(), sizeof(T)}; }
+    [[nodiscard]] dma_buffer get_view() const { return m_buffer.view(); }
 
 private:
-    T* m_object;
-};
-
-class dma_buffer {
-public:
-    explicit dma_buffer(uSize n) : buffer(static_cast<char*>(kmalloc(n)), n) {}
-    dma_buffer(const dma_buffer&)            = delete;
-    dma_buffer& operator=(const dma_buffer&) = delete;
-    dma_buffer(dma_buffer&& other) : buffer(bek::exchange(other.buffer, {nullptr, 0})) {}
-    dma_buffer& operator=(dma_buffer&& other) {
-        dma_buffer new_other{bek::move(other)};
-        bek::swap(buffer, new_other.buffer);
-        return *this;
-    }
-
-    const bek::mut_buffer& get() const { return buffer; }
-    bek::mut_buffer& get() { return buffer; }
-    [[nodiscard]] DmaPtr dma_ptr() const {
-        auto p = virt_to_dma(buffer.data());
-        VERIFY(p);
-        return *p;
-    }
-
-    [[nodiscard]] dma_view get_dma_view() const { return {dma_ptr(), buffer.size()}; }
-
-    [[nodiscard]] uSize size() const { return buffer.size(); }
-
-private:
-    bek::mut_buffer buffer;
+    own_dma_buffer m_buffer;
 };
 
 }  // namespace mem

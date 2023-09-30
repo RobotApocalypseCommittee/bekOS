@@ -28,26 +28,26 @@ namespace mem {
 /// Allocator for a contiguous region of pages. Stores allocation data within its own get_region.
 class RegionPageAllocator {
 public:
-    explicit RegionPageAllocator(PhysicalRegion region);
+    explicit RegionPageAllocator(VirtualRegion region);
 
     /// @brief Allocates contiguous get_region of `n_pages` pages.
     /// @returns Physical Pointer to first page, or -1 if failed.
-    bek::optional<PhysicalPtr> allocate_pages(uSize n_pages);
+    bek::optional<VirtualPtr> allocate_pages(uSize n_pages);
 
-    void mark_as_reserved(PhysicalRegion region);
+    void mark_as_reserved(VirtualRegion region);
 
     /// @brief Frees a region allocated. UB if get_region is not valid.
     /// \param region Physical Pointer to first page of get_region.
-    void free_region(PhysicalPtr region);
+    void free_region(VirtualPtr region);
 
-    [[nodiscard]] PhysicalRegion region() const { return m_region; }
+    [[nodiscard]] VirtualRegion region() const { return m_region; }
 
 private:
     void mark_as_reserved(uSize index, uSize n_pages);
     void mark_region_as_free(uSize start_index);
     uSize search_for_free(uSize n_pages);
 
-    PhysicalRegion m_region;
+    VirtualRegion m_region;
 
     bek::mut_buffer m_free_bitmap{nullptr, 0};
     bek::mut_buffer m_continuation_bitmap{nullptr, 0};
@@ -61,22 +61,22 @@ public:
     /// Registers a new region of continuous physical memory.
     /// \param region Region to register; must be page-aligned and may not overlap with any existing
     /// regions.
-    void register_new_region(PhysicalRegion region);
+    void register_new_region(VirtualRegion region);
 
     /// Marks a region (of physical pages) as reserved.
     /// \param region Region to mark as reserved; must be page-aligned, and completely contained
     /// within an existing region. \note Erroneous code could free reserved regions.
-    void mark_as_reserved(PhysicalRegion region);
+    void mark_as_reserved(VirtualRegion region);
 
     /// Tries to allocate a contiguous region of pages `page_number` long.
     /// \param page_number Number of pages to attempt to allocate.
     /// \return Region allocated, if successful. nullopt if not.
-    bek::optional<PhysicalRegion> allocate_region(uSize page_number);
+    bek::optional<VirtualRegion> allocate_region(uSize page_number);
 
     /// Frees a region of contiguous pages starting with start.
     /// \param start Start pointer. Error is start does not refer to the start of a region allocated
     /// by allocate_region.
-    void free_region(PhysicalPtr start);
+    void free_region(VirtualPtr start);
 
     static PageAllocator& the();
 

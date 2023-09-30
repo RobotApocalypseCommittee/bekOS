@@ -24,7 +24,7 @@
 constexpr u8 RESERVED_END     = 0b10;
 constexpr u8 RESERVED_NOT_END = 0b11;
 
-mem::RegionPageAllocator::RegionPageAllocator(PhysicalRegion region) : m_region{region} {
+mem::RegionPageAllocator::RegionPageAllocator(VirtualRegion region) : m_region{region} {
     ASSERT(region.page_aligned());
     // First, we need to work out how large our data area needs to be.
     auto page_number = region.size / PAGE_SIZE;
@@ -33,7 +33,8 @@ mem::RegionPageAllocator::RegionPageAllocator(PhysicalRegion region) : m_region{
     auto pages_needed     = (bytes_per_bitmap * 2 - 1) / PAGE_SIZE + 1;
 
     // TODO: Map into virtual memory. (How do we do this without mem allocation!?)
-    m_free_bitmap = bek::mut_buffer{reinterpret_cast<char*>(region.start.ptr), bytes_per_bitmap};
+    m_free_bitmap =
+        bek::mut_buffer{reinterpret_cast<char*>(region.start.get_bytes()), bytes_per_bitmap};
     m_continuation_bitmap = bek::mut_buffer{m_free_bitmap.end(), bytes_per_bitmap};
 
     mark_as_reserved(0, pages_needed);
@@ -85,7 +86,7 @@ uSize mem::RegionPageAllocator::search_for_free(uSize n_pages) {
     }
     return -1;
 }
-bek::optional<mem::PhysicalPtr> mem::RegionPageAllocator::allocate_pages(uSize n_pages) {
+bek::optional<mem::VirtualPtr> mem::RegionPageAllocator::allocate_pages(uSize n_pages) {
     auto region = search_for_free(n_pages);
     if (region != static_cast<uSize>(-1)) {
         mark_as_reserved(region, n_pages);
@@ -94,18 +95,18 @@ bek::optional<mem::PhysicalPtr> mem::RegionPageAllocator::allocate_pages(uSize n
         return {};
     }
 }
-void mem::RegionPageAllocator::free_region(mem::PhysicalPtr region) {
-    auto index = (region.page_base().get() - m_region.start.get()) / PAGE_SIZE;
+void mem::RegionPageAllocator::free_region(VirtualPtr region) {
+    auto index = (region.page_base() - m_region.start) / PAGE_SIZE;
     mark_region_as_free(index);
 }
-void mem::RegionPageAllocator::mark_as_reserved(mem::PhysicalRegion region) {
-    auto index = (region.start.page_base().get() - m_region.start.get()) / PAGE_SIZE;
+void mem::RegionPageAllocator::mark_as_reserved(VirtualRegion region) {
+    auto index = (region.start.page_base() - m_region.start) / PAGE_SIZE;
     auto len   = region.size / PAGE_SIZE;
     VERIFY(index + len < m_region.size / PAGE_SIZE);
     mark_as_reserved(index, region.size / PAGE_SIZE);
 }
 
-void mem::PageAllocator::register_new_region(mem::PhysicalRegion region) {
+void mem::PageAllocator::register_new_region(VirtualRegion region) {
     for (auto& o_region : m_phys_regions) {
         if (!o_region) {
             o_region = RegionPageAllocator{region};
@@ -116,7 +117,7 @@ void mem::PageAllocator::register_new_region(mem::PhysicalRegion region) {
     }
     PANIC("Registered too many physical regions.");
 }
-void mem::PageAllocator::mark_as_reserved(mem::PhysicalRegion region) {
+void mem::PageAllocator::mark_as_reserved(VirtualRegion region) {
     VERIFY(region.page_aligned());
     for (auto& o_region : m_phys_regions) {
         if (o_region && o_region->region().overlaps(region)) {
@@ -129,7 +130,7 @@ void mem::PageAllocator::mark_as_reserved(mem::PhysicalRegion region) {
 mem::PageAllocator kernel_page_allocator{};
 
 mem::PageAllocator& mem::PageAllocator::the() { return kernel_page_allocator; }
-bek::optional<mem::PhysicalRegion> mem::PageAllocator::allocate_region(uSize page_number) {
+bek::optional<mem::VirtualRegion> mem::PageAllocator::allocate_region(uSize page_number) {
     for (auto& o_region : m_phys_regions) {
         if (!o_region) {
             return {};
@@ -140,7 +141,7 @@ bek::optional<mem::PhysicalRegion> mem::PageAllocator::allocate_region(uSize pag
     }
     return {};
 }
-void mem::PageAllocator::free_region(mem::PhysicalPtr start) {
+void mem::PageAllocator::free_region(VirtualPtr start) {
     for (auto& o_region : m_phys_regions) {
         if (!o_region) {
             return;

@@ -19,15 +19,41 @@
 #ifndef BEKOS_MEMORY_MANAGER_H
 #define BEKOS_MEMORY_MANAGER_H
 
+#include "arch/a64/translation_tables.h"
+#include "areas.h"
+#include "library/format_core.h"
 #include "library/types.h"
+#include "library/vector.h"
 #include "page_allocator.h"
 
 namespace mem {
 
-/// A Region of mapped memory. This object automatically frees
-class MappedRegion {};
+struct AnnotatedRegion {
+    enum class Kind { Memory, Reserved, Unknown };
+    mem::PhysicalRegion region;
+    Kind kind;
+};
 
-class MemoryManager {};
+void bek_basic_format(bek::OutputStream& out, const AnnotatedRegion& region);
+
+bek::vector<AnnotatedRegion> process_memory_regions(
+    const bek::vector<mem::PhysicalRegion>& mem_regions,
+    const bek::vector<mem::PhysicalRegion>& reserved_regions);
+
+class MemoryManager {
+public:
+    DeviceArea map_for_io(PhysicalRegion region);
+
+    static MemoryManager& the();
+    static void initialise(const bek::vector<AnnotatedRegion>& regions, u8* current_embedded_table);
+
+private:
+    explicit MemoryManager(u8* current_embedded_table);
+    VirtualRegion map_normal_memory(PhysicalRegion region);
+
+private:
+    TableManager m_table_manager;
+};
 
 }  // namespace mem
 

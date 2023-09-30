@@ -22,7 +22,6 @@
 
 #include "library/debug.h"
 #include "library/intrusive_list.h"
-#include "mm.h"
 
 constexpr bool is_aligned(uPtr ptr, uSize alignment) { return ptr % alignment == 0; }
 
@@ -147,8 +146,8 @@ struct SlabBlock {
 
 class SlabAllocator {
     static constexpr uSize default_block_size(uSize obj_size) {
-        if (obj_size <= 256) return PAGE_SIZE;
-        return (obj_size / 256) * PAGE_SIZE;
+        if (obj_size <= 256) return 4096;
+        return (obj_size / 256) * 4096;
     }
 
 public:
