@@ -18,9 +18,6 @@
 
 #include "utils.h"
 
-#include <kstring.h>
-#include <memory_locations.h>
-
 #include "library/assertions.h"
 
 long round_up(long n, long multiple) {

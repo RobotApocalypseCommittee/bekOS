@@ -1,28 +1,30 @@
 /*
- *   bekOS is a basic OS for the Raspberry Pi
+ * bekOS is a basic OS for the Raspberry Pi
+ * Copyright (C) 2023 Bekos Contributors
  *
- *   Copyright (C) 2020  Bekos Inc Ltd
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef BEKOS_UART_H
 #define BEKOS_UART_H
 
 #include <library/types.h>
 
-#include "peripherals/peripherals.h"
+#include "device.h"
+#include "device_tree.h"
 #include "gpio.h"
+#include "library/format_core.h"
+#include "peripherals/peripherals.h"
 
 // The base address for UART.
 #define UART0_BASE  (PERIPHERAL_BASE + 0x201000) // for raspi2 & 3, 0x20201000 for raspi1
@@ -47,12 +49,36 @@
 #define UART0_ITOP    (0x88)
 #define UART0_TDR     (0x8C)
 
-class PL011: mmio_register_device {
-    explicit PL011(uPtr uart_base, GPIO& gpio);
-    void putc(unsigned char c);
-    unsigned char getc();
-    void puts(const char* str);
+class UART : public bek::OutputStream, public Device {
+public:
+    Kind kind() const override;
+    void reserve(uSize n) override;
+    void puthex(unsigned long x);
+
+    virtual char getc() = 0;
+
+private:
+    using DeviceType                         = UART;
+    static constexpr Device::Kind DeviceKind = Device::Kind::UART;
 };
+
+class PL011 : mmio_register_device, public UART {
+public:
+    explicit PL011(uPtr uart_base, u32 base_clock, u32 baudrate = 115200, u32 data_bits = 8,
+                   u32 stop_bits = 1);
+    char getc() override;
+    void write(bek::str_view str) override;
+    void write(char c) override;
+
+    static dev_tree::DevStatus probe_devtree(dev_tree::Node& node, dev_tree::device_tree& tree);
+
+private:
+    u32 m_base_clock;
+    u32 m_baudrate;
+    u32 m_data_bits;
+    u32 m_stop_bits;
+};
+
 #define AUX_BASE (PERIPHERAL_BASE + 0x215000)
 #define AUX_ENABLES     (0x04)
 #define AUX_MU_IO_REG   (0x40)
@@ -67,13 +93,12 @@ class PL011: mmio_register_device {
 #define AUX_MU_STAT_REG (0x64)
 #define AUX_MU_BAUD_REG (0x68)
 
-class mini_uart: mmio_register_device {
+class mini_uart : mmio_register_device, public UART {
 public:
     explicit mini_uart(uPtr uart_base, GPIO& gpio);
-    void putc(unsigned char c);
-    unsigned char getc();
-    void puts(const char* str);
-    void puthex(unsigned long x);
+    char getc() override;
+    void write(bek::str_view str) override;
+    void write(char c) override;
 };
 
 
