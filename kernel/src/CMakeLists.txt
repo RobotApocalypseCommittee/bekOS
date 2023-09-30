@@ -1,8 +1,34 @@
-add_executable(kernel boot/boot.S boot/boot.cpp peripherals/peripherals.cpp peripherals/gentimer.cpp peripherals/mailbox.cpp
-        peripherals/property_tags.cpp peripherals/framebuffer.cpp peripherals/uart.cpp
-        library/liballoc.cpp library/stubs.cpp library/assert.cpp library/kstring.cpp
-        interrupts/int_ctrl.S interrupts/int_handle.S interrupts/int_handle_utils.cpp
-        printf.cpp utils.cpp memory_manager.cpp ../include/mm/hw_ptr.h mm/page_table.cpp kernel.cpp ../include/usb/usb.h ../include/usb/device.h ../include/usb/host_controller.h)
+add_executable(kernel arch/a64/boot.S
+        library/kstring.cpp
+        library/string.cpp
+        library/format.cpp
+        library/utility.cpp
+        library/assertions.cpp
+        interrupts/int_ctrl.S
+        interrupts/int_handle.S
+        interrupts/int_handle_utils.cpp
+        peripherals/device_tree.cpp
+        peripherals/arm_gic.cpp
+        peripherals/peripherals.cpp
+        peripherals/gentimer.cpp
+        peripherals/mailbox.cpp
+        peripherals/property_tags.cpp
+        peripherals/framebuffer.cpp
+        peripherals/uart.cpp
+        peripherals/pcie.cpp
+        peripherals/interrupt_controller.cpp
+        mm/page_allocator.cpp
+        mm/memory_manager.cpp
+        mm/kmalloc.cpp
+        usb/xhci_ring.cpp
+        usb/descriptors.cpp
+        usb/usb.cpp
+        usb/hid.cpp
+        usb/xhci.cpp
+        utils.cpp
+        arch/a64/early_boot.cpp
+        arch/a64/translation_tables.cpp
+)
 
 if (BEKOS_SYSTEM_NAME STREQUAL "rpi3")
     target_sources(kernel PRIVATE kernel.cpp boot/boot.cpp)
