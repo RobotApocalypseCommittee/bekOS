@@ -85,9 +85,9 @@ struct buffer {
 
     [[nodiscard]] const char* end() const { return m_data + m_size; }
 
-    [[nodiscard]] uSize size() const { return m_size; }
+    [[nodiscard]] constexpr uSize size() const { return m_size; }
 
-    [[nodiscard]] buffer subdivide(uSize byte_offset, uSize size) const {
+    [[nodiscard]] constexpr buffer subdivide(uSize byte_offset, uSize size) const {
         ASSERT(byte_offset + size <= m_size);
         return {m_data + byte_offset, size};
     }
@@ -120,6 +120,8 @@ struct buffer {
             return x;
         }
     }
+
+    constexpr bool operator==(const buffer&) const = default;
 
 private:
     const char* m_data;

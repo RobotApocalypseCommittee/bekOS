@@ -108,7 +108,6 @@ private:
             filled            = new_filled;
             auto old_capacity = capacity;
             capacity          = new_size;
-            auto old_load     = load;
             load              = 0;
 
             // Transfer

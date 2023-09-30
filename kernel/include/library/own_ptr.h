@@ -67,13 +67,18 @@ public:
         ASSERT(m_ptr);
         return *m_ptr;
     }
+
     T* operator->() {
         ASSERT(m_ptr);
         return m_ptr;
     }
 
-    T* get() const { return m_ptr;
+    T* operator->() const {
+        ASSERT(m_ptr);
+        return m_ptr;
     }
+
+    T* get() const { return m_ptr; }
 
 private:
     T* m_ptr{nullptr};

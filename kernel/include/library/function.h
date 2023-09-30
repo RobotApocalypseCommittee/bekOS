@@ -20,7 +20,6 @@
 #define BEKOS_FUNCTION_H
 
 #include <library/own_ptr.h>
-#include <library/runtime.h>
 #include <library/traits.h>
 #include <library/utility.h>
 

@@ -50,7 +50,7 @@ public:
         requires(!bek::is_trivially_move_constructible<T>)
         : m_valid(other.m_valid) {
         if (m_valid) {
-            initialise(move(other));
+            initialise(move(*other));
         }
     }
 
@@ -86,15 +86,33 @@ public:
 
     explicit operator bool() const { return m_valid; }
 
-    const T& operator*() const& { return m_value; }
-    T& operator*() & { return m_value; }
+    const T& operator*() const& {
+        ASSERT(m_valid);
+        return m_value;
+    }
+    T& operator*() & {
+        ASSERT(m_valid);
+        return m_value;
+    }
 
-    const T&& operator*() const&& { return move(m_value); }
-    T&& operator*() && { return move(m_value); }
+    const T&& operator*() const&& {
+        ASSERT(m_valid);
+        return move(m_value);
+    }
+    T&& operator*() && {
+        ASSERT(m_valid);
+        return move(m_value);
+    }
 
-    constexpr const T* operator->() const { return &m_value; }
+    constexpr const T* operator->() const {
+        ASSERT(m_valid);
+        return &m_value;
+    }
 
-    constexpr T* operator->() { return &m_value; }
+    constexpr T* operator->() {
+        ASSERT(m_valid);
+        return &m_value;
+    }
 
     [[nodiscard]] bool is_valid() const { return m_valid; }
 

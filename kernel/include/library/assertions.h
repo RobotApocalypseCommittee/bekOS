@@ -37,6 +37,8 @@ namespace bek {
 /// Assert will not execute the expression when debug turned off.
 #define ASSERT(expr_) ((void)0)
 
+#define ASSERT_UNREACHABLE() __builtin_unreachable()
+
 #else
 
 #define PANIC(msg_) bek::panic(msg_, __FILE__, __LINE__)
@@ -46,6 +48,8 @@ namespace bek {
 
 /// Assert will not execute the expression when debug turned off.
 #define ASSERT(expr_) ((expr_) ? ((void)0) : bek::assertion_failed(#expr_, __FILE__, __LINE__))
+
+#define ASSERT_UNREACHABLE() bek::panic("Unreachable", __FILE__, __LINE__);
 
 #endif
 

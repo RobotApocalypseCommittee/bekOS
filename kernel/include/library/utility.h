@@ -207,6 +207,11 @@ constexpr T align_up(T a, T alignment) {
     return ceil_div(a, alignment) * alignment;
 }
 
+template <typename T>
+constexpr T align_down(T a, T alignment) {
+    return (a / alignment) * alignment;
+}
+
 template <class T, class U>
 struct pair {
     T first;
