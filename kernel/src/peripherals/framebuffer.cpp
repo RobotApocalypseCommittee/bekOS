@@ -25,7 +25,7 @@
 #include "library/utility.h"
 #include "peripherals/peripherals.h"
 
-u8 font[] = {
+constexpr inline u8 font[] = {
 #include "font.h"
 };
 
