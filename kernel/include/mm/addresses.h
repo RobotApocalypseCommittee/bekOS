@@ -21,10 +21,14 @@
 
 #include <compare>
 
+#include "arch/a64/memory_constants.h"
+#include "library/optional.h"
 #include "library/types.h"
+#include "library/utility.h"
 
 namespace mem {
-constexpr uSize PAGE_SIZE = 4096;
+constexpr inline uPtr PAGE_MASK        = ~(PAGE_SIZE - 1);
+constexpr inline uPtr PAGE_OFFSET_MASK = PAGE_SIZE - 1;
 
 struct PhysicalPtr {
     uPtr ptr;
@@ -60,6 +64,29 @@ struct DmaPtr {
     friend auto operator<=>(DmaPtr, DmaPtr) = default;
 };
 
+struct VirtualPtr {
+    u8* ptr;
+
+    [[nodiscard]] constexpr void* get() const { return ptr; }
+    [[nodiscard]] constexpr u8* get_bytes() const { return ptr; }
+    [[nodiscard]] constexpr VirtualPtr offset(uSize byte_offset) const {
+        return {ptr + byte_offset};
+    }
+
+    [[nodiscard]] constexpr VirtualPtr page_base() const {
+        return {bek::bit_cast<u8*>((bek::bit_cast<uPtr>(ptr) / PAGE_SIZE) * PAGE_SIZE)};
+    }
+
+    [[nodiscard]] constexpr uSize page_offset() const {
+        return bek::bit_cast<uPtr>(ptr) % PAGE_SIZE;
+    }
+
+    friend bool operator==(VirtualPtr, VirtualPtr)  = default;
+    friend bool operator!=(VirtualPtr, VirtualPtr)  = default;
+    friend auto operator<=>(VirtualPtr, VirtualPtr) = default;
+    friend constexpr iPtr operator-(VirtualPtr a, VirtualPtr b) { return (a.ptr - b.ptr); }
+};
+
 struct PhysicalRegion {
     PhysicalPtr start;
     uSize size;
@@ -74,10 +101,60 @@ struct PhysicalRegion {
         return (ptr >= start) && (ptr < start.offset(size));
     }
 
+    [[nodiscard]] constexpr bool contains(PhysicalRegion other) const {
+        return (other.start >= start && (other.end() <= end()));
+    }
+
+    [[nodiscard]] constexpr PhysicalRegion intersection(PhysicalRegion other) const {
+        PhysicalPtr new_start = bek::max(start, other.start);
+        PhysicalPtr new_end   = bek::min(end(), other.end());
+        if (new_end >= new_start) {
+            return {new_start, new_end.ptr - new_start.ptr};
+        } else {
+            return {{0}, 0};
+        }
+    }
+
     [[nodiscard]] constexpr bool page_aligned() const {
         return start.page_offset() == 0 && (size % PAGE_SIZE == 0);
     }
 };
+
+struct VirtualRegion {
+    VirtualPtr start;
+    uSize size;
+
+    [[nodiscard]] constexpr VirtualPtr end() const { return start.offset(size); }
+
+    [[nodiscard]] constexpr bool overlaps(VirtualRegion other) const {
+        return (other.start < end()) && (other.end() > start);
+    }
+
+    [[nodiscard]] constexpr bool contains(VirtualPtr ptr) const {
+        return (ptr >= start) && (ptr < start.offset(size));
+    }
+
+    [[nodiscard]] constexpr bool contains(VirtualRegion other) const {
+        return (other.start >= start && (other.end() <= end()));
+    }
+
+    [[nodiscard]] constexpr VirtualRegion intersection(VirtualRegion other) const {
+        VirtualPtr new_start = bek::max(start, other.start);
+        VirtualPtr new_end   = bek::min(end(), other.end());
+        if (new_end >= new_start) {
+            return {new_start, static_cast<uSize>(new_end.ptr - new_start.ptr)};
+        } else {
+            return {{nullptr}, 0};
+        }
+    }
+
+    [[nodiscard]] constexpr bool page_aligned() const {
+        return start.page_offset() == 0 && (size % PAGE_SIZE == 0);
+    }
+};
+
+bek::optional<PhysicalPtr> kernel_virt_to_phys(void* ptr);
+void* kernel_phys_to_virt(PhysicalPtr ptr);
 
 }  // namespace mem
 

@@ -16,24 +16,28 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_MM_H
-#define BEKOS_MM_H
+#ifndef BEKOS_DEVICE_H
+#define BEKOS_DEVICE_H
 
+#include <library/traits.h>
 
+class Device {
+public:
+    enum class Kind { Clock, UART, PCIeHost, InterruptController };
 
+    virtual Kind kind() const = 0;
 
+    virtual ~Device() = default;
 
+    template <typename T>
+        requires bek::same_as<T, typename T::DeviceType>
+    static T* as(Device* device) {
+        if (device->kind() == T::DeviceKind) {
+            return static_cast<T*>(device);
+        } else {
+            return nullptr;
+        }
+    }
+};
 
-
-#ifndef __ASSEMBLER__
-
-extern "C"
-void memzero(unsigned long src, unsigned long n);
-
-extern "C"
-void set_usertable(unsigned long usertable);
-
-
-#endif
-
-#endif //BEKOS_MM_H
+#endif  // BEKOS_DEVICE_H

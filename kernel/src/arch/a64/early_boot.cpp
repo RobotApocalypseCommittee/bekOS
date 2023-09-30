@@ -16,7 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "arch/a64/boot_info.h"
 #include "arch/a64/translation_tables.h"
 #include "library/types.h"
 #include "peripherals/uart.h"
