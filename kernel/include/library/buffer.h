@@ -27,7 +27,7 @@ namespace bek {
 
 /// Represents contiguous section of mutable bytes.
 struct mut_buffer {
-    mut_buffer(char* data, uSize size) : m_data{data}, m_size{size} {}
+    constexpr mut_buffer(char* data, uSize size) : m_data{data}, m_size{size} {}
 
     [[nodiscard]] char* data() const { return m_data; }
 

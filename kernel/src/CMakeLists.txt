@@ -28,6 +28,12 @@ add_executable(kernel arch/a64/boot.S
         utils.cpp
         arch/a64/early_boot.cpp
         arch/a64/translation_tables.cpp
+        peripherals/qemu.cpp
+        peripherals/virtio.cpp
+        peripherals/virtio/block.cpp
+        mm/dma_utils.cpp
+        filesystem/block_device.cpp
+        filesystem/partition.cpp
 )
 
 if (BEKOS_SYSTEM_NAME STREQUAL "rpi3")

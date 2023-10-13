@@ -1,45 +1,99 @@
 /*
- *   bekOS is a basic OS for the Raspberry Pi
+ * bekOS is a basic OS for the Raspberry Pi
+ * Copyright (C) 2023 Bekos Contributors
  *
- *   Copyright (C) 2020  Bekos Inc Ltd
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include "filesystem/partition.h"
 
-Partition::Partition(BlockDevice *source, unsigned long start_index, unsigned long size_n) : source(source),
-                                                                                             start_block(start_index),
-                                                                                             partition_size_blocks(
-                                                                                                     size_n) {}
+#include "filesystem/mbr.h"
+#include "library/format.h"
 
-bool Partition::supports_writes() {
-    return source->supports_writes();
+using namespace blk;
+
+bek::string create_partition_string(bek::str_view name, u32 index) {
+    return bek::format("{}.{}"_sv, name, index);
 }
 
-unsigned long Partition::block_size() {
-    return source->block_size();
+PartitionProxyDevice::PartitionProxyDevice(BlockDevice& device, u32 index, u32 global_id,
+                                           uSize sec_off, uSize sec_count)
+    : BlockDevice(create_partition_string(device.name(), index), global_id),
+      m_block_device(device),
+      m_sec_off(sec_off),
+      m_sec_count(sec_count) {}
+uSize PartitionProxyDevice::logical_block_size() const {
+    return m_block_device.logical_block_size();
+}
+bool PartitionProxyDevice::is_read_only() const { return m_block_device.is_read_only(); }
+uSize PartitionProxyDevice::capacity() const { return m_sec_count; }
+TransferResult PartitionProxyDevice::schedule_read(uSize sector_index, bek::mut_buffer buffer,
+                                                   TransferCallback cb) {
+    if ((sector_index + (SECTOR_SIZE * buffer.size())) > m_sec_count) {
+        return TransferResult::OutOfBounds;
+    }
+    return m_block_device.schedule_read(sector_index + m_sec_off, buffer, bek::move(cb));
+}
+TransferResult PartitionProxyDevice::schedule_write(uSize sector_index, bek::buffer buffer,
+                                                    TransferCallback cb) {
+    if ((sector_index + (SECTOR_SIZE * buffer.size())) > m_sec_count) {
+        return TransferResult::OutOfBounds;
+    }
+    return m_block_device.schedule_write(sector_index + m_sec_off, buffer, bek::move(cb));
 }
 
-bool Partition::readBlock(unsigned long index, void *buffer, unsigned long offset, unsigned long count) {
-    if (index >= partition_size_blocks) return false;
-
-    return readBlock(index + start_block, buffer, offset, count);
+constexpr inline bek::str_view name_filesystem_kind(PartitionFsKind kind) {
+    switch (kind) {
+        case PartitionFsKind::None:
+            return "none"_sv;
+        case PartitionFsKind::Undetermined:
+            return "undetermined"_sv;
+        case PartitionFsKind::Unrecognised:
+            return "unrecognised"_sv;
+        case PartitionFsKind::Fat:
+            return "FAT"_sv;
+    }
+    ASSERT_UNREACHABLE();
+}
+void blk::bek_basic_format(bek::OutputStream& out, const PartitionInfo& info) {
+    bek::format_to(out, "{} partition, sector {}, size {} sectors."_sv,
+                   name_filesystem_kind(info.kind), info.sector_index, info.size_sectors);
 }
 
-bool Partition::writeBlock(unsigned long index, const void *buffer, unsigned long offset, unsigned long count) {
-    if (index >= partition_size_blocks) return false;
-
-    return writeBlock(index + start_block, buffer, offset, count);
+bool blk::probe_block_device(BlockDevice& device,
+                             bek::function<void(bek::vector<PartitionInfo>)> cb) {
+    // FIXME: Manual Memory Allocation!
+    bek::mut_buffer buffer{(char*)kmalloc(SECTOR_SIZE), SECTOR_SIZE};
+    return device.schedule_read(
+               0, buffer,
+               blk::TransferCallback([cb = bek::move(cb), buffer](blk::TransferResult res) mutable {
+                   bek::vector<PartitionInfo> partitions{};
+                   if (res != TransferResult::Success) {
+                       kfree(buffer.data(), SECTOR_SIZE);
+                       cb(bek::move(partitions));
+                   } else {
+                       for (int i = 0; i < 4; i++) {
+                           auto& mbr_raw = buffer.get_at<RawMbrPartition>(
+                               MBR_OFFSET + i * sizeof(RawMbrPartition));
+                           if (mbr_raw.sector_count) {
+                               partitions.push_back(
+                                   PartitionInfo{mbr_raw.lba_begin, mbr_raw.sector_count,
+                                                 kind_from_code(mbr_raw.type_code)});
+                           }
+                       }
+                       kfree(buffer.data(), SECTOR_SIZE);
+                       cb(bek::move(partitions));
+                   }
+               })) == TransferResult::Success;
 }

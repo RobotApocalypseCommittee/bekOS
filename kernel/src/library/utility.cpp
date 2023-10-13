@@ -26,4 +26,10 @@ u64 bek::hash(u64 x) {
     x ^= x >> 31u;
     return x;
 }
-
+u64 bek::hash(const char *str, uSize len) {
+    u64 h = 37;
+    for (uSize i = 0; i < len; i++) {
+        h = (h * 54059) ^ (str[i] * 76963);
+    }
+    return h;
+}

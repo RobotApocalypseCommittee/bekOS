@@ -73,6 +73,8 @@ public:
     /// length excludes null-terminator
     explicit string(u32 length, char init);
 
+    explicit string(bek::str_view str);
+
     /// Excludes null-terminator
     u32 size() const {
         return is_long() ? m_long.length : get_short_length();
@@ -82,6 +84,8 @@ public:
         return is_long() ? m_long.data : &m_short.in_data[0];
     };
 
+    str_view view() const { return {data(), size()}; }
+
     string(const string &);
 
     string(string &&);
@@ -90,6 +94,8 @@ public:
     void swap(string &other);
 
     ~string();
+
+    friend bool operator==(const string &, const string &);
 
 private:
     struct long_str {
@@ -128,6 +134,9 @@ private:
 
     u8 get_short_length() const;
 };
+
+u64 hash(const bek::str_view &view);
+u64 hash(const bek::string &str);
 
 }  // namespace bek
 constexpr bek::str_view operator""_sv(const char *str, uSize size) { return {str, size}; }

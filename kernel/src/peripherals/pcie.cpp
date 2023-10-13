@@ -418,24 +418,5 @@ mem::PCIeDeviceArea Controller::initialise_bar(Function& function, u8 bar_n) {
 void bek_basic_format(bek::OutputStream& out, const Controller::AllocatedRange& rng) {
     bek::format_to(out, "{} ({}), at {:Xl}"_sv, rng.pcie_address, rng.size, (uPtr)rng.mapped_ptr);
 }
-mem::own_dma_buffer MappedDmaPool::allocate(uSize size, uSize align) {
-    auto allocation = kmalloc(size, align);
-    VERIFY(allocation);
-    auto raw_ptr = mem::kernel_virt_to_phys(allocation);
-    VERIFY(raw_ptr);
-    for (auto& mapping : m_mappings) {
-        mem::PhysicalPtr region_start{mapping.parent_address};
-        if (region_start <= *raw_ptr && *raw_ptr <= region_start.offset(mapping.size)) {
-            // In this region!
-            mem::DmaPtr dma_region_start{mapping.child_address};
-            auto dma_ptr = dma_region_start.offset(raw_ptr->get() - region_start.get());
-            return {*this, {(char*)allocation, size, dma_ptr}, align};
-        }
-    }
-    ASSERT_UNREACHABLE();
-}
-void MappedDmaPool::deallocate(const mem::own_dma_buffer& buffer) {
-    kfree(buffer.data(), buffer.size(), buffer.align());
-}
 
 }  // namespace pcie

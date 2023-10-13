@@ -101,6 +101,31 @@ u8 bek::string::get_short_length() const { return m_short.length >> 1; }
 bek::string::string() {}
 
 void string::swap(string &s) { bek::swap(m_short, s.m_short); }
+string::string(bek::str_view str) {
+    // Without 0-terminator.
+    auto len = str.size();
+    if (len > short_max_length) {
+        // Long string
+        set_long_capacity(len + 1);
+        set_long_length(len);
+        m_long.data = static_cast<char *>(kmalloc(len + 1));
+        memcpy(m_long.data, str.data(), len);
+        m_long.data[len] = '\0';
+    } else {
+        set_short_length(len);
+        memcpy(&m_short.in_data[0], str.data(), len);
+        m_short.in_data[len] = '\0';
+    }
+}
+bool bek::operator==(const string &a, const string &b) {
+    if (a.size() != b.size()) return false;
+    auto a_data = a.data();
+    auto b_data = b.data();
+    for (uSize i = 0; i < a.size(); i++) {
+        if (a_data[i] != b_data[i]) return false;
+    }
+    return true;
+}
 
 bek::str_view::str_view(const char *string) : m_data(string), m_size(strlen(string)) {}
 
@@ -138,3 +163,5 @@ bool str_view::operator==(const str_view &b) const {
     }
     return true;
 }
+u64 bek::hash(const str_view &view) { return bek::hash(view.data(), view.size()); }
+u64 bek::hash(const string &str) { return bek::hash(str.data(), str.size()); }

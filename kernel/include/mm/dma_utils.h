@@ -23,7 +23,9 @@
 #include "kmalloc.h"
 #include "library/buffer.h"
 #include "library/optional.h"
+#include "library/vector.h"
 #include "memory.h"
+#include "peripherals/device_tree.h"
 
 namespace mem {
 void dma_sync_before_read(const void* ptr, uSize size);
@@ -39,7 +41,7 @@ public:
     constexpr char* data() const { return m_data; }
     constexpr char* end() const { return m_data + m_size; }
     constexpr uSize size() const { return m_size; }
-    constexpr bek::buffer view() const { return {m_data, m_size}; }
+    constexpr bek::mut_buffer view() const { return {m_data, m_size}; }
 
     constexpr dma_buffer subdivide(uSize offset, uSize size) const {
         ASSERT(offset + size <= m_size);
@@ -68,7 +70,7 @@ public:
     constexpr uSize size() const { return m_buffer.size(); }
     constexpr uSize align() const { return m_align; }
     constexpr dma_buffer view() const { return m_buffer; }
-    constexpr bek::buffer raw_view() const { return m_buffer.view(); }
+    constexpr bek::mut_buffer raw_view() const { return m_buffer.view(); }
 
     own_dma_buffer(const own_dma_buffer&)            = delete;
     own_dma_buffer& operator=(const own_dma_buffer&) = delete;
@@ -183,6 +185,17 @@ public:
 
 private:
     own_dma_buffer m_buffer;
+};
+
+class MappedDmaPool final : public mem::dma_pool {
+public:
+    explicit MappedDmaPool(bek::vector<dev_tree::range_t> mappings)
+        : m_mappings(bek::move(mappings)) {}
+    mem::own_dma_buffer allocate(uSize size, uSize align) override;
+    void deallocate(const mem::own_dma_buffer& buffer) override;
+
+private:
+    bek::vector<dev_tree::range_t> m_mappings;
 };
 
 }  // namespace mem

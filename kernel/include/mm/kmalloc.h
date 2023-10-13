@@ -20,6 +20,7 @@
 #define BEKOS_KMALLOC_H
 
 #include "library/types.h"
+#include "library/utility.h"
 
 namespace mem {
 
@@ -46,6 +47,8 @@ AllocatedRegion allocate(uSize size, uSize align = KERNEL_ALLOCATOR_DEFAULT_ALIG
 /// \param size Size of allocation. Must be between requested size and size returned by allocate().
 /// \param align Alignment of allocation. Must be same as that provided to allocate().
 void free(void* ptr, uSize size, uSize align = KERNEL_ALLOCATOR_DEFAULT_ALIGNMENT);
+
+bek::pair<uSize, uSize> get_kmalloc_usage();
 }  // namespace mem
 
 namespace std {

@@ -5,3 +5,5 @@ AlignConsecutiveAssignments: true
 AccessModifierOffset: -4
 ColumnLimit: 100
 FixNamespaceComments: true
+PointerAlignment: Left
+ReferenceAlignment: Left

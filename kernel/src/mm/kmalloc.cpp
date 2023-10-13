@@ -273,6 +273,9 @@ void mem::free(void* ptr, uSize size, uSize align) {
         global_kernel_allocator->free(ptr, size, align);
     }
 }
+bek::pair<uSize, uSize> mem::get_kmalloc_usage() {
+    return {global_kernel_allocator->free_bytes(), global_kernel_allocator->total_bytes()};
+}
 
 void* operator new(uSize count) { return mem::allocate(count).pointer; }
 void* operator new[](uSize count) { return mem::allocate(count).pointer; }

@@ -21,6 +21,7 @@
 
 #include "kstring.h"
 #include "mm/kmalloc.h"
+#include "optional.h"
 #include "types.h"
 #include "utility.h"
 namespace bek {
@@ -28,7 +29,7 @@ namespace bek {
 namespace detail {
 template <typename T>
 concept has_bek_hash_overload = requires(const T& t) {
-    { bek::hash(t) } -> same_as<u64>;
+    { hash(t) } -> same_as<u64>;
 };
 }
 
@@ -37,11 +38,17 @@ struct hasher;
 
 template <detail::has_bek_hash_overload T>
 struct hasher<T> {
-    u64 operator()(const T& x) const noexcept { return bek::hash(x); }
+    u64 operator()(const T& x) const noexcept {
+        using namespace bek;
+        return hash(x);
+    }
 };
 
 template <typename Key, typename Val, typename Hasher = bek::hasher<Key>>
 class hashtable {
+private:
+    enum class Fill : u8 { Empty, Deleted, Filled };
+
 public:
     using Pair     = pair<Key, Val>;
     using Iterator = Pair*;
@@ -49,8 +56,10 @@ public:
     explicit hashtable(uSize capacity = 4)
         : buckets{nullptr}, filled{nullptr}, capacity{capacity}, load{0} {
         buckets = reinterpret_cast<Pair*>(kmalloc(capacity * sizeof(Pair)));
-        filled  = reinterpret_cast<bool*>(kmalloc(capacity * sizeof(bool)));
-        memset(filled, 0, capacity * sizeof(bool));
+        filled  = reinterpret_cast<Fill*>(kmalloc(capacity * sizeof(Fill)));
+        for (uSize i = 0; i < capacity; i++) {
+            filled[i] = Fill::Empty;
+        }
     };
 
     pair<Iterator, bool> insert(const Pair& pair)
@@ -71,8 +80,8 @@ public:
     }
 
     Val* find(const Key& key) {
-        auto index = unchecked_lookup(key);
-        if (filled[index]) {
+        auto index = unchecked_lookup(key, false);
+        if (filled[index] == Fill::Filled) {
             return &(buckets[index].second);
         } else {
             return nullptr;
@@ -80,12 +89,26 @@ public:
     }
 
     const Val* find(const Key& key) const {
-        auto index = unchecked_lookup(key);
-        if (filled[index]) {
+        auto index = unchecked_lookup(key, false);
+        if (filled[index] == Fill::Filled) {
             return &(buckets[index].second);
         } else {
             return nullptr;
         }
+    }
+
+    /// Tries to remove item from table, returning it.
+    /// \param key
+    /// \return
+    bek::optional<Val> extract(const Key& key) {
+        auto index = unchecked_lookup(key, false);
+        if (filled[index] != Fill::Filled) return {};
+        // We found something, so have to remove and mark as removed.
+        Val ret = bek::move(buckets[index].second);
+        buckets[index].~Pair();
+        filled[index] = Fill::Deleted;
+        load--;
+        return ret;
     }
 
     const Val& find_unchecked(const Key& key) const { return *find(key); }
@@ -98,7 +121,7 @@ private:
             auto new_size = capacity * expandFactor;
             // Need to expand + rehash
             auto new_buckets = reinterpret_cast<Pair*>(kmalloc(new_size * sizeof(Pair)));
-            auto new_filled  = reinterpret_cast<bool*>(kmalloc(new_size * sizeof(bool)));
+            auto new_filled  = reinterpret_cast<Fill*>(kmalloc(new_size * sizeof(Fill)));
             memset(new_filled, 0, new_size * sizeof(bool));
 
             // Swap
@@ -112,7 +135,7 @@ private:
 
             // Transfer
             for (uSize i = 0; i < old_capacity; i++) {
-                if (old_filled[i]) {
+                if (old_filled[i] == Fill::Filled) {
                     unchecked_set(bek::move(old_buckets[i]), false);
                     old_buckets[i].~Pair();
                 }
@@ -125,9 +148,9 @@ private:
     }
 
     pair<Iterator, bool> unchecked_set(Pair&& pair, bool overwrite) {
-        auto index  = unchecked_lookup(pair.first);
+        auto index  = unchecked_lookup(pair.first, true);
         Iterator it = &buckets[index];
-        if (filled[index]) {
+        if (filled[index] == Fill::Filled) {
             if (overwrite) {
                 *it = bek::move(pair);
                 return {it, true};
@@ -137,24 +160,28 @@ private:
         } else {
             new (it) Pair{bek::move(pair)};
         }
-        load += filled[index] ? 0 : 1;
-        filled[index] = true;
+        load += filled[index] == Fill::Filled ? 0 : 1;
+        filled[index] = Fill::Filled;
         return {it, true};
     }
 
     /// Looks for Key. If found, returns index. If not, returns appropriate insertion point.
-    uSize unchecked_lookup(const Key& key) const {
+    uSize unchecked_lookup(const Key& key, bool inserting) const {
         auto hash   = Hasher{}(key);
         uSize index = hash % capacity;
         for (uSize i = index; i < capacity; i++) {
-            if (!filled[i]) return i;
-            if (key == buckets[i].first) return i;
+            if (filled[i] == Fill::Empty || (filled[i] == Fill::Deleted && inserting) ||
+                (filled[i] == Fill::Filled && key == buckets[i].first)) {
+                return i;
+            }
         }
         for (uSize i = 0; i < index; i++) {
-            if (!filled[i]) return i;
-            if (key == buckets[i].first) return i;
+            if (filled[i] == Fill::Empty || (filled[i] == Fill::Deleted && inserting) ||
+                (filled[i] == Fill::Filled && key == buckets[i].first)) {
+                return i;
+            }
         }
-        ASSERT(0);
+        ASSERT_UNREACHABLE();
     }
 
     static constexpr int expandThreshold = 2;
@@ -163,7 +190,7 @@ private:
     /// Dynamically Allocated array of buckets.
     Pair* buckets;
     /// Dynamically Allocated bitmap of filled flags.
-    bool* filled;
+    Fill* filled;
 
     /// Length of array allocated
     uSize capacity;

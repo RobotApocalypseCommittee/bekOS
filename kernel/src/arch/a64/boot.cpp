@@ -27,6 +27,7 @@
 #include "peripherals/interrupt_controller.h"
 #include "peripherals/pcie.h"
 #include "peripherals/uart.h"
+#include "peripherals/virtio.h"
 
 static constexpr uPtr qemu_pl011_address = VA_START + 0x900'0000;
 static constexpr uPtr qemu_clock_freq    = 0x16e3600;
@@ -46,8 +47,8 @@ dev_tree::DevStatus probe_simple_bus(dev_tree::Node& node, dev_tree::device_tree
 }
 
 constexpr const inline bek::array standard_probes{
-    probe_simple_bus, FixedClock::probe_devtree, PL011::probe_devtree,
-    pcie::Controller::probe_pcie_host, ArmGIC::probe_devtree};
+    probe_simple_bus, FixedClock::probe_devtree, PL011::probe_devtree,  pcie::Controller::probe_pcie_host,
+    ArmGIC::probe_devtree, virtio::MMIOTransport::probe_devtree};
 
 dev_tree::DevStatus probe_node(dev_tree::Node& node, dev_tree::device_tree& tree) {
     for (auto probe_fn : standard_probes) {
@@ -161,15 +162,18 @@ extern "C" [[noreturn]] void kernel_boot(u64 dev_tree_address) {
         }
     }
     if (auto int_parent = dev_tree::get_property_u32(node, "interrupt-parent"_sv)) {
-        auto [intc, state] = dev_tree::get_node_by_phandle(dtb, *int_parent);
+        auto [intc_node, state] = dev_tree::get_node_by_phandle(dtb, *int_parent);
         if (state == dev_tree::DevStatus::Success) {
-            global_intc = Device::as<InterruptController>(intc->attached_device.get());
+            global_intc = Device::as<InterruptController>(intc_node->attached_device.get());
         }
     }
 
+    auto [free_mem, total_mem] = mem::get_kmalloc_usage();
+    DBG::dbgln("Memory: {} of {} bytes used ({}%)."_sv, total_mem - free_mem, total_mem,
+               ((total_mem - free_mem) * 100) / total_mem);
+
     enable_interrupts();
 
-    // enumerate_node(node);
 
     while (true) {
         // enable_interrupts();

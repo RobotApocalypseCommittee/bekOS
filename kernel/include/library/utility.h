@@ -168,6 +168,9 @@ void swap(T &a, T &b) noexcept {
 u64 hash(u64 x);
 
 inline u64 hash(u32 x) { return hash(static_cast<u64>(x)); }
+inline u64 hash(u16 x) { return hash(static_cast<u64>(x)); }
+
+u64 hash(const char *str, uSize len);
 
 template <class T>
 void copy(T *dest, const T *src, uSize n) {

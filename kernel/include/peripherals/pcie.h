@@ -85,21 +85,13 @@ struct Address {
             case 3:
                 return AddressSpaceKind::Mem64Bit;
         }
+        __unreachable();
     }
 };
 
 void bek_basic_format(bek::OutputStream& out, const Address& addr);
 
-class MappedDmaPool final : public mem::dma_pool {
-public:
-    explicit MappedDmaPool(bek::vector<dev_tree::range_t> mappings)
-        : m_mappings(bek::move(mappings)) {}
-    mem::own_dma_buffer allocate(uSize size, uSize align) override;
-    void deallocate(const mem::own_dma_buffer& buffer) override;
 
-private:
-    bek::vector<dev_tree::range_t> m_mappings;
-};
 
 class Controller;
 
@@ -169,7 +161,7 @@ public:
     /// be done (i.e. the interrupt having been intended for another device.
     void register_pin_interrupt_handler(const Function& function, InterruptHandler&& handler);
 
-    MappedDmaPool& dma_pool() { return m_dma_pool; }
+    mem::MappedDmaPool& dma_pool() { return m_dma_pool; }
 
     mem::PCIeDeviceArea initialise_bar(Function& function, u8 bar_n);
 
@@ -200,7 +192,7 @@ private:
     bek::hashtable<u32, bek::vector<IntHandler>> m_handlers{};
     bek::vector<bek::own_ptr<Function>> m_functions;
     bek::vector<IntMapping> m_interrupt_mappings;
-    MappedDmaPool m_dma_pool;
+    mem::MappedDmaPool m_dma_pool;
     InterruptController* m_parent_controller;
     bek::vector<AllocatedRange> m_address_spaces;
 };

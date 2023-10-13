@@ -75,12 +75,13 @@ struct TypeErasedFormatter {
 
 template <typename T>
 void formatter_fn(OutputStream& out, const void* value, bek::str_view fmt_string) {
+    auto& val = *static_cast<const T*>(value);
     if constexpr (has_basic_formatter<T>) {
-        bek_basic_format(out, *static_cast<const T*>(value));
+        bek_basic_format(out, val);
     } else {
         Formatter<T> formatter;
         formatter.parse(fmt_string);
-        formatter.format_to(out, *static_cast<const T*>(value));
+        formatter.format_to(out, val);
     }
 }
 

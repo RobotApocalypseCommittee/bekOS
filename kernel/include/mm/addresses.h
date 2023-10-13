@@ -118,6 +118,12 @@ struct PhysicalRegion {
     [[nodiscard]] constexpr bool page_aligned() const {
         return start.page_offset() == 0 && (size % PAGE_SIZE == 0);
     }
+
+    [[nodiscard]] constexpr PhysicalRegion align_to_page() const {
+        auto end_address   = bek::align_up(end().get(), (uPtr)PAGE_SIZE);
+        auto start_address = bek::align_down(start.get(), (uPtr)PAGE_SIZE);
+        return {{start_address}, end_address - start_address};
+    }
 };
 
 struct VirtualRegion {

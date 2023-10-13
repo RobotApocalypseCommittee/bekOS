@@ -31,6 +31,8 @@ public:
     span(T* array, uSize length) : array(array), length(length) {}
 
     explicit span(const vector<T>& v) : array(v.data()), length(v.size()) {}
+    template <uSize N>
+    span(const T (&arr)[N]) : array(&arr[0]), length(N) {}
 
     T& operator[](uSize idx) const {
         ASSERT(idx < length);
@@ -38,6 +40,8 @@ public:
     }
 
     T* data() const { return array; }
+    T* begin() { return data(); }
+    T* end() { return &data()[size()]; }
 
     uSize size() const { return length; }
 

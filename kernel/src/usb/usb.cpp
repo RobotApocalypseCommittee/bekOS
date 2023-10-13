@@ -26,7 +26,8 @@ using DBG = DebugScope<"USB", true>;
 using namespace usb;
 
 TransferRequest make_descriptor_request(DescriptorBase::DescriptorType type, uSize length,
-                                        TransferRequest::Callback&& cb, Device& dev, u8 index = 0) {
+                                        TransferRequest::Callback&& cb, usb::Device& dev,
+                                        u8 index = 0) {
     return {
         TransferType::Control,
         // Doesn't matter
@@ -36,7 +37,7 @@ TransferRequest make_descriptor_request(DescriptorBase::DescriptorType type, uSi
                     0x06, static_cast<u16>((type << 8) | index), 0, static_cast<u16>(length)}};
 }
 
-void probe_device(Device& device, const Interface& interface) {
+void probe_device(usb::Device& device, const Interface& interface) {
     auto ptr = HidKeyboard::probe_mouse(interface, device);
     if (ptr) {
         DBG::dbgln("Probe keyboard success."_sv);
@@ -45,7 +46,7 @@ void probe_device(Device& device, const Interface& interface) {
     }
 }
 
-void begin_enumeration(Device& device) {
+void begin_enumeration(usb::Device& device) {
     device.schedule_transfer(make_descriptor_request(
         usb::DescriptorBase::Device, sizeof(DeviceDescriptor),
         [&device](bek::optional<mem::own_dma_buffer> buf, TransferRequest::Result res) {

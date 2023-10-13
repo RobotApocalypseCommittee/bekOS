@@ -106,8 +106,10 @@ VirtualRegion MemoryManager::map_normal_memory(PhysicalRegion region) {
 }
 
 DeviceArea MemoryManager::map_for_io(PhysicalRegion region) {
-    auto r = m_table_manager.map_region(VA_IDENT_OFFSET + region.start.get(), region.start.get(),
-                                        region.size, AttributesRWnE, MMIO);
+    auto aligned_region = region.align_to_page();
+    auto r              = m_table_manager.map_region(VA_IDENT_OFFSET + aligned_region.start.get(),
+                                                     aligned_region.start.get(), aligned_region.size,
+                                                     AttributesRWnE, MMIO);
     // TODO: Handle properly?
     VERIFY(r);
     return {region.start.get(), VA_IDENT_OFFSET + region.start.get(), region.size};
