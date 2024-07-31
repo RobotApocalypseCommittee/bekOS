@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,13 +19,13 @@
 #ifndef BEKOS_USB_H
 #define BEKOS_USB_H
 
-#include <library/buffer.h>
 #include <library/optional.h>
-#include <library/types.h>
 
+#include "bek/buffer.h"
+#include "bek/types.h"
+#include "bek/vector.h"
 #include "library/format_core.h"
 #include "library/function.h"
-#include "library/vector.h"
 #include "mm/dma_utils.h"
 
 namespace usb {

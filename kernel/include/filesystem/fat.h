@@ -20,10 +20,10 @@
 #define BEKOS_FAT_H
 
 #include <library/optional.h>
-#include <library/vector.h>
-#include <library/string.h>
 #include <library/lock.h>
 #include "device.h"
+#include "bek/str.h"
+#include "bek/vector.h"
 #include "partition.h"
 
 struct FATInfo {

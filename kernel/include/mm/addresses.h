@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,9 +22,9 @@
 #include <compare>
 
 #include "arch/a64/memory_constants.h"
+#include "bek/types.h"
+#include "bek/utility.h"
 #include "library/optional.h"
-#include "library/types.h"
-#include "library/utility.h"
 
 namespace mem {
 constexpr inline uPtr PAGE_MASK        = ~(PAGE_SIZE - 1);
@@ -72,6 +72,7 @@ struct VirtualPtr {
     [[nodiscard]] constexpr VirtualPtr offset(uSize byte_offset) const {
         return {ptr + byte_offset};
     }
+    [[nodiscard]] uPtr raw() const { return reinterpret_cast<uPtr>(ptr); }
 
     [[nodiscard]] constexpr VirtualPtr page_base() const {
         return {bek::bit_cast<u8*>((bek::bit_cast<uPtr>(ptr) / PAGE_SIZE) * PAGE_SIZE)};

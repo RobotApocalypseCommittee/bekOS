@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 #include "mm/page_allocator.h"
 
-#include "library/assertions.h"
+#include "bek/assertions.h"
 
 /// 00 = free; 11 = reserved, not end; 10 = reserved, end.
 constexpr u8 RESERVED_END     = 0b10;

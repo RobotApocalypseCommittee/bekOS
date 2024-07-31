@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,12 +16,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <library/lock.h>
-#include <kstring.h>
-#include <library/utility.h>
 #include "filesystem/blockcache.h"
-#include "library/array.h"
 
+#include <c_string.h>
+#include <library/lock.h>
+
+#include "bek/utility.h"
+#include "library/array.h"
 
 CacheEntry::CacheEntry(BlockIndexer &indexer, u32 index) : indexer(indexer), index(index) {}
 

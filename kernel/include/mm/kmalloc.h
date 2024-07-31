@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,8 +19,8 @@
 #ifndef BEKOS_KMALLOC_H
 #define BEKOS_KMALLOC_H
 
-#include "library/types.h"
-#include "library/utility.h"
+#include "bek/types.h"
+#include "bek/utility.h"
 
 namespace mem {
 
@@ -31,22 +31,9 @@ struct AllocatedRegion {
     uSize size;
 };
 
-inline constexpr uSize KERNEL_ALLOCATOR_DEFAULT_ALIGNMENT = 16;
-
 void initialise_kmalloc();
 
-/// Allocated region of at least size bytes, of alignment align.
-/// \param size Size of region to request.
-/// \param align Alignment of region; must be a power of two no greater than a page.
-/// \return Allocated region, with a size which may be greater than requested. Region may be freed
-/// by providing originally requested size.
-AllocatedRegion allocate(uSize size, uSize align = KERNEL_ALLOCATOR_DEFAULT_ALIGNMENT);
 
-/// Free a region allocated with allocate().
-/// \param ptr Pointer returned by allocate().
-/// \param size Size of allocation. Must be between requested size and size returned by allocate().
-/// \param align Alignment of allocation. Must be same as that provided to allocate().
-void free(void* ptr, uSize size, uSize align = KERNEL_ALLOCATOR_DEFAULT_ALIGNMENT);
 
 bek::pair<uSize, uSize> get_kmalloc_usage();
 }  // namespace mem

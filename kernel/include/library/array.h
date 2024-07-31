@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,8 +21,9 @@
 
 #include <initializer_list>
 
-#include "library/assertions.h"
-#include "types.h"
+#include "bek/assertions.h"
+#include "bek/span.h"
+#include "bek/types.h"
 
 namespace bek {
 
@@ -43,10 +44,13 @@ struct array {
     }
 
     constexpr const T* data() const { return _data; }
+    constexpr T* data() { return _data; }
 
     constexpr const T* begin() const { return data(); }
 
     constexpr const T* end() const { return data() + size(); }
+
+    constexpr bek::span<T> span() { return {data(), size()}; }
 };
 
 // Template Deduction Guide: Array Literal

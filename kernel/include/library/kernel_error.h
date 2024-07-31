@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,31 +16,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_TYPES_H
-#define BEKOS_TYPES_H
+#ifndef BEKOS_KERNEL_ERROR_H
+#define BEKOS_KERNEL_ERROR_H
 
-using u8  = __UINT8_TYPE__;
-using u16 = __UINT16_TYPE__;
-using u32 = __UINT32_TYPE__;
-using u64 = __UINT64_TYPE__;
-using i8  = __INT8_TYPE__;
-using i16 = __INT16_TYPE__;
-using i32 = __INT32_TYPE__;
-using i64 = __INT64_TYPE__;
+#include "api/error_codes.h"
+#include "bek/expected.h"
 
-using char16 = char16_t;
+template <typename T, typename E = ErrorCode>
+using expected = bek::expected<T, E>;
 
-using uSize = __SIZE_TYPE__;
-
-using uPtr = __UINTPTR_TYPE__;
-using iPtr = __INTPTR_TYPE__;
-using ptrDiff = iPtr;
-
-#define ALWAYS_INLINE [[gnu::always_inline]] inline
-
-typedef decltype(nullptr) nullptr_t;
-
-inline constexpr uSize KiB = 1024;
-inline constexpr uSize MiB = 1024 * KiB;
-
-#endif  // BEKOS_TYPES_H
+#endif  // BEKOS_KERNEL_ERROR_H

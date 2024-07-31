@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #ifndef BEKOS_AREAS_H
 #define BEKOS_AREAS_H
 
-#include <library/types.h>
+#include "bek/types.h"
 
 namespace mem {
 /// Represents a mapping of a contiguous physical space to contiguous virtual space, intended for

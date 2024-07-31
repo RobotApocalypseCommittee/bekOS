@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,13 +19,13 @@
 #ifndef BEKOS_ARM_GIC_H
 #define BEKOS_ARM_GIC_H
 
+#include "bek/buffer.h"
+#include "bek/types.h"
+#include "bek/vector.h"
 #include "device_tree.h"
 #include "interrupt_controller.h"
-#include "library/buffer.h"
 #include "library/function.h"
 #include "library/optional.h"
-#include "library/types.h"
-#include "library/vector.h"
 
 class ArmGIC : public InterruptController {
 public:

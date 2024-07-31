@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,20 +16,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "library/utility.h"
+#ifndef BEKOS_MEMORY_H
+#define BEKOS_MEMORY_H
 
-u64 bek::hash(u64 x) {
-    x ^= x >> 30u;
-    x *= 0xbf58476d1ce4e5b9ul;
-    x ^= x >> 27u;
-    x *= 0x94d049bb133111ebul;
-    x ^= x >> 31u;
-    return x;
+#include "types.h"
+
+namespace bek {
+
+void* memcpy(void* __restrict s1, const void* __restrict s2, uSize n);
+
 }
-u64 bek::hash(const char *str, uSize len) {
-    u64 h = 37;
-    for (uSize i = 0; i < len; i++) {
-        h = (h * 54059) ^ (str[i] * 76963);
-    }
-    return h;
-}
+
+#endif  // BEKOS_MEMORY_H

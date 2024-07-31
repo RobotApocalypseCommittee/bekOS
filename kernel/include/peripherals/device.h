@@ -19,13 +19,22 @@
 #ifndef BEKOS_DEVICE_H
 #define BEKOS_DEVICE_H
 
-#include <library/traits.h>
+#include "bek/traits.h"
+#include "bek/vector.h"
+#include "library/intrusive_shared_ptr.h"
+#include "library/iteration_decision.h"
 
-class Device {
+enum class UserspaceProtocol { None, CharacterStream, Framebuffer };
+
+class Device : public bek::RefCounted<Device> {
 public:
-    enum class Kind { Clock, UART, PCIeHost, InterruptController };
+    enum class Kind { Clock, UART, PCIeHost, InterruptController, Framebuffer, Timer };
 
-    virtual Kind kind() const = 0;
+    [[nodiscard]] virtual Kind kind() const = 0;
+    [[nodiscard]] virtual UserspaceProtocol userspace_protocol() const {
+        return UserspaceProtocol::None;
+    };
+    virtual void on_userspace_message(u32 process_id, bek::mut_buffer message);
 
     virtual ~Device() = default;
 
@@ -38,6 +47,28 @@ public:
             return nullptr;
         }
     }
+};
+void Device::on_userspace_message(u32 process_id, bek::mut_buffer message) { ASSERT_UNREACHABLE(); }
+
+class DeviceRegistry {
+public:
+    static DeviceRegistry& the();
+
+    void register_device(bek::shared_ptr<Device> device);
+
+    template <typename F>
+    void for_each_of_type(F fn, Device::Kind kind) {
+        for (auto& dev : m_devices) {
+            if (kind == dev->kind()) {
+                if (fn(dev) == IterationDecision::Break) {
+                    break;
+                }
+            }
+        }
+    }
+
+private:
+    bek::vector<bek::shared_ptr<Device>> m_devices;
 };
 
 #endif  // BEKOS_DEVICE_H

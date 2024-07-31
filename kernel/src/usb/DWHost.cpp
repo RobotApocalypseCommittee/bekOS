@@ -1,20 +1,19 @@
 /*
- *   bekOS is a basic OS for the Raspberry Pi
+ * bekOS is a basic OS for the Raspberry Pi
+ * Copyright (C) 2024 Bekos Contributors
  *
- *   Copyright (C) 2020  Bekos Inc Ltd
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include "usb/DWHost.h"
@@ -126,7 +125,7 @@ bool DWHost::init_core() {
 
     auto hw_config2 = CORE::HW_CFG2::get();
     // Check we use internal DMA
-    assert(CORE::HW_CFG2_ARCHITECTURE(hw_config2) == 2);
+    ASSERT(CORE::HW_CFG2_ARCHITECTURE(hw_config2) == 2);
 
     usb_config = CORE::USB_CFG::get();
     if (CORE::HW_CFG2_HS_PHY_TYPE(hw_config2) == CORE::HW_CFG2_HS_PHY_TYPE_ULPI &&
@@ -140,7 +139,7 @@ bool DWHost::init_core() {
     CORE::USB_CFG::set(usb_config);
 
     m_channel_count = CORE::HW_CFG2_NUM_HOST_CHANNELS(hw_config2);
-    assert(4 <= m_channel_count && m_channel_count < CORE::MAX_HOST_CHANNELS);
+    ASSERT(4 <= m_channel_count && m_channel_count < CORE::MAX_HOST_CHANNELS);
 
     auto ahb_config = CORE::AHB_CFG::get();
     ahb_config |= CORE::AHB_CFG_DMAENABLE;

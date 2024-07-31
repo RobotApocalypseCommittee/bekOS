@@ -19,6 +19,7 @@
 #include "filesystem/partition.h"
 
 #include "filesystem/mbr.h"
+#include "library/byte_format.h"
 #include "library/format.h"
 
 using namespace blk;

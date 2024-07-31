@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,15 +16,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_VECTOR_H
-#define BEKOS_VECTOR_H
+#ifndef BEK_VECTOR_H
+#define BEK_VECTOR_H
 
-#include <initializer_list>
-
-#include "kstring.h"
-#include "library/utility.h"
-#include "mm/kmalloc.h"
-#include "utils.h"
+#include "allocations.h"
+#include "buffer.h"
+#include "initializer_list.h"
+#include "utility.h"
 
 namespace bek {
 template <class T>
@@ -51,7 +49,7 @@ public:
     vector(const vector<T>& v) __attribute((deprecated("Do you want to copy vector?"))) {
         m_size     = v.m_size;
         m_capacity = v.m_capacity;
-        array      = reinterpret_cast<T*>(kmalloc(m_capacity * sizeof(T)));
+        array      = reinterpret_cast<T*>(mem::allocate(m_capacity * sizeof(T)).pointer);
         for (uSize i = 0; i < m_size; i++) {
             new (&array[i]) T(v[i]);
         }
@@ -107,6 +105,22 @@ public:
         m_size++;
     }
 
+    void insert(uSize i, const T& item) { insert(i, T{item}); }
+
+    void insert(uSize i, T&& item) {
+        VERIFY(i < size());
+        if (m_capacity == m_size) {
+            expand_storage(m_capacity * 2);
+        }
+        auto size_to_copy = m_size - i;
+        for (uSize idx = m_size - 1; i <= idx; idx--) {
+            new (&array[idx + 1]) T(bek::move(array[idx]));
+            array[idx].~T();
+        }
+        new (&array[i]) T(bek::move(item));
+        m_size++;
+    }
+
     const T& operator[](uSize n) const { return array[n]; }
 
     T& operator[](uSize n) { return array[n]; }
@@ -138,18 +152,26 @@ public:
         mem::free(array, m_capacity * sizeof(T));
     }
 
+    constexpr bek::mut_buffer buffer() {
+        return {reinterpret_cast<char*>(data()), m_size * sizeof(T)};
+    }
+
+    constexpr bek::buffer buffer() const {
+        return {reinterpret_cast<char*>(data()), m_size * sizeof(T)};
+    }
+
 private:
     void expand_storage(uSize new_capacity) {
-        auto* new_array = reinterpret_cast<T*>(kmalloc(new_capacity * sizeof(T)));
+        auto* new_array = reinterpret_cast<T*>(mem::allocate(new_capacity * sizeof(T)).pointer);
         if constexpr (bek::is_trivially_copyable<T>) {
-            memcpy(new_array, array, m_size * sizeof(T));
+            bek::memcopy(new_array, array, m_size * sizeof(T));
         } else {
             for (uSize i = 0; i < m_size; i++) {
                 new (&new_array[i]) T(bek::move(array[i]));
                 array[i].~T();
             }
         }
-        kfree(array, m_capacity * sizeof(T));
+        mem::free(array, m_capacity * sizeof(T));
         array      = new_array;
         m_capacity = new_capacity;
     }
@@ -160,4 +182,4 @@ private:
 };
 }  // namespace bek
 
-#endif  // BEKOS_VECTOR_H
+#endif  // BEK_VECTOR_H

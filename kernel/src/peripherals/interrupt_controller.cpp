@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,9 +18,8 @@
 
 #include "peripherals/interrupt_controller.h"
 
-#include <library/assertions.h>
-
-#include "library/utility.h"
+#include "bek/assertions.h"
+#include "bek/utility.h"
 #include "peripherals/peripherals.h"
 
 #define INTCTL_BASE (PERIPHERAL_BASE + 0xB000)
@@ -119,3 +118,4 @@ void LegacyInterruptController::register_handler(
     handlers[interruptType] = bek::move(handler);
 }
 Device::Kind InterruptController::kind() const { return Device::Kind::InterruptController; }
+bool InterruptController::is_userspace_accessible() const { return false; }

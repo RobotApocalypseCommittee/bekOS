@@ -18,8 +18,9 @@
 
 #include "filesystem/filesystem.h"
 
-#include <utility>
-#include "printf.h"
+#include "bek/utility.h"
+#include "filesystem/path.h"
+#include "library/debug.h"
 
 void fs::Entry::acquire() {
     // TODO: Safety

@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,12 +18,12 @@
 
 #include "peripherals/device_tree.h"
 
-#include "kstring.h"
+#include "bek/span.h"
+#include "bek/types.h"
+#include "bek/vector.h"
+#include "c_string.h"
 #include "library/debug.h"
 #include "library/format.h"
-#include "library/span.h"
-#include "library/types.h"
-#include "library/vector.h"
 
 using namespace dev_tree;
 #define EX_BYTE_32(x, n) static_cast<u32>(reinterpret_cast<u8*>(&x)[n])

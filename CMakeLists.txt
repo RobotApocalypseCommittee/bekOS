@@ -16,6 +16,7 @@ find_program(QEMU_EXECUTABLE qemu-system-aarch64 REQUIRED)
 
 set(BEKOS_SYSTEM_NAME "virt" CACHE STRING "Name of system: either rpi3 or virt.")
 
+add_subdirectory(bek)
 add_subdirectory(kernel/src)
 add_subdirectory(userspace)
 

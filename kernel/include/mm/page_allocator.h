@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,9 +20,9 @@
 #define BEKOS_PAGE_ALLOCATOR_H
 
 #include "addresses.h"
-#include "library/buffer.h"
+#include "bek/buffer.h"
+#include "bek/types.h"
 #include "library/optional.h"
-#include "library/types.h"
 namespace mem {
 
 /// Allocator for a contiguous region of pages. Stores allocation data within its own get_region.

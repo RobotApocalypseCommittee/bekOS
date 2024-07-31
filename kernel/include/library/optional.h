@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,10 +19,10 @@
 #ifndef BEKOS_OPTIONAL_H
 #define BEKOS_OPTIONAL_H
 
-#include "library/assertions.h"
+#include "bek/assertions.h"
+#include "bek/types.h"
+#include "bek/utility.h"
 #include "mm/kmalloc.h"
-#include "types.h"
-#include "utility.h"
 
 namespace bek {
 
@@ -30,10 +30,14 @@ struct in_place_t {
     inline constexpr explicit in_place_t() = default;
 };
 
+struct nullopt_t {};
+inline constexpr nullopt_t nullopt = {};
+
 template <typename T>
 class optional {
 public:
     constexpr optional() noexcept {}
+    constexpr optional(bek::nullopt_t) noexcept {}  // NOLINT(*-explicit-constructor)
 
     constexpr optional(const optional&) = default;
     constexpr optional(optional&&)      = default;
@@ -131,6 +135,14 @@ public:
         requires(!bek::is_trivially_destructible<T>)
     {
         if (m_valid) m_value.~T();
+    }
+
+    friend bool operator==(const optional& a, const optional& b) {
+        if (a.m_valid && b.m_valid) {
+            return *a == *b;
+        } else {
+            return a.m_valid == b.m_valid;
+        }
     }
 
 private:

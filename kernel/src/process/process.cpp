@@ -18,75 +18,30 @@
 
 #include "process/process.h"
 
-#include <library/assertions.h>
-#include <memory_manager.h>
-#include <mm.h>
-#include <printf.h>
-#include <utils.h>
-
+#include "bek/assertions.h"
+#include "filesystem/path.h"
+#include "interrupts/int_ctrl.h"
+#include "library/debug.h"
+#include "library/user_buffer.h"
+#include "mm.h"
+#include "mm/page_allocator.h"
 #include "process/process_entry.h"
 
-extern memory_manager memoryManager;
+using DBG = DebugScope<"Process", true>;
 
-Process* ProcessManager::getCurrentProcess() {
-    return m_current;
-}
+constexpr inline uSize KERNEL_STACK_PAGES = 2;
 
-void ProcessManager::fork(ProcessFn fn, u64 argument) {
-    // Don't schedule while adding a process
-    disablePreempt();
-    // In pages
-    auto* p = new Process();
-    // Create stack
-    p->kernel_stack_top = phys_to_virt(memoryManager.reserve_region(KERNEL_STACK_SIZE/PAGE_SIZE, PAGE_KERNEL)) + KERNEL_STACK_SIZE;
-    p->processorTimeCounter = 1;
-
-    // Nothing prevents it from being switched away from, even from the beginning
-    p->preemptCounter = 0;
-    p->state = ProcessState::RUNNING;
-    p->processID = -1;
-    for (uSize i = 0; i < m_processes.size(); i++) {
-        if (m_processes[i] == nullptr) {
-            p->processID = i;
-            break;
-        }
-    }
-    if (p->processID == -1) {
-        p->processID = m_processes.size();
-        m_processes.push_back(p);
-    }
-    // The code which will run the function fn
-    p->savedRegs.pc = reinterpret_cast<u64>(process_begin);
-    // The function, and its argument
-    p->savedRegs.x19 = reinterpret_cast<u64>(fn);
-    p->savedRegs.x20 = argument;
-    // Stack moves downwards
-    p->savedRegs.sp = p->kernel_stack_top;
-    // Done
-    enablePreempt();
-}
+Process& ProcessManager::current_process() { return *m_current; }
 
 void ProcessManager::disablePreempt() {
+    // Don't want process changing halfway through!
+    InterruptDisabler disabler;
     m_current->preemptCounter++;
 }
 
 void ProcessManager::enablePreempt() {
+    InterruptDisabler disabler;
     m_current->preemptCounter--;
-}
-
-ProcessManager::ProcessManager() {
-    // This is initialised in the 'init' process - add this to the list
-    auto* p = new Process;
-    if (p != nullptr) {
-        p->preemptCounter = 0;
-        p->processID = 0;
-        p->state = ProcessState::RUNNING;
-        p->processorTimeCounter = 1;
-        m_current = p;
-        m_processes.push_back(p);
-    } else {
-        ASSERT(0);
-    }
 }
 
 bool ProcessManager::schedule() {
@@ -99,11 +54,11 @@ bool ProcessManager::schedule() {
         disablePreempt();
         int maxCounter;
         int bestProcessID;
-        while(1) {
+        while (true) {
             maxCounter = -1;
             bestProcessID = 0;
             for (uSize i = 0; i < m_processes.size(); i++) {
-                if (m_processes[i] && m_processes[i]->state == ProcessState::RUNNING &&
+                if (m_processes[i] && m_processes[i]->state == ProcessState::Running &&
                     m_processes[i]->processorTimeCounter > maxCounter) {
                     maxCounter = m_processes[i]->processorTimeCounter;
                     bestProcessID = i;
@@ -123,8 +78,8 @@ bool ProcessManager::schedule() {
             }
         }
         // We have chosen the next process
-        //printf("Switch: %d\n", bestProcessID);
-        switchContext(m_processes[bestProcessID]);
+        DBG::dbgln("Switch to: {} ({})."_sv, m_processes[bestProcessID]->name(), bestProcessID);
+        switchContext(*m_processes[bestProcessID]);
         enablePreempt();
         return true;
     } else {
@@ -132,16 +87,87 @@ bool ProcessManager::schedule() {
     }
 }
 
-void ProcessManager::switchContext(Process* process) {
-    if (process == m_current) {
+void ProcessManager::switchContext(Process& process) {
+    InterruptDisabler disabler;
+    if (&process == m_current) {
         // Do nothing
         return;
     }
-    SavedRegs* previousRegisters = &m_current->savedRegs;
-    m_current = process;
+    SavedRegs* previousRegisters = &m_current->saved_regs;
+    m_current                    = &process;
 
     // Switch userspace mem-mapping
-    set_usertable(m_current->translationTable.get_table_address());
+    set_usertable(m_current->m_userspace_state->address_space_manager.raw_root_ptr());
     // Perform the switch - who knows when this function will return?
-    do_context_switch(previousRegisters, &m_current->savedRegs);
+    do_context_switch(previousRegisters, &m_current->saved_regs);
+}
+
+ProcessManager* g_process_manager{nullptr};
+
+ProcessManager& ProcessManager::the() {
+    VERIFY(g_process_manager);
+    return *g_process_manager;
+}
+Process& ProcessManager::create_kernel_process(bek::string name, void (*init_fn)(void*),
+                                               void* data) {
+    disablePreempt();
+    int pid = m_processes.size();
+    for (uSize i = 0; i < m_processes.size(); i++) {
+        if (!m_processes[i]) {
+            pid = i;
+            break;
+        }
+    }
+    auto process = Process::create_kernel_process(pid, bek::move(name), init_fn, data);
+    if (pid == m_processes.size()) {
+        m_processes.push_back(bek::move(process));
+    } else {
+        bek::swap(m_processes[pid], process);
+    }
+    enablePreempt();
+    return *m_processes[pid];
+}
+
+bek::own_ptr<Process> Process::create_kernel_process(int pid, bek::string name,
+                                                     void (*init_fn)(void*), void* data) {
+    auto kernel_stack = mem::PageAllocator::the().allocate_region(KERNEL_STACK_PAGES);
+    if (!kernel_stack) return nullptr;
+    auto ptr = bek::own_ptr{new Process(pid, bek::move(name), {})};
+    if (!ptr) return ptr;
+    ptr->kernel_stack   = *kernel_stack;
+    ptr->state          = ProcessState::Running;
+    ptr->saved_regs.sp  = kernel_stack->end().raw();
+    ptr->saved_regs.pc  = reinterpret_cast<u64>(process_begin);
+    ptr->saved_regs.x19 = reinterpret_cast<u64>(init_fn);
+    ptr->saved_regs.x20 = reinterpret_cast<u64>(data);
+    return ptr;
+}
+Process::Process(int pid, bek::string name, bek::optional<SpaceManager> userspace_manager)
+    : m_name{bek::move(name)}, m_pid{pid}, m_userspace_manager(bek::move(userspace_manager)) {}
+void Process::quit_process(int exit_code) {
+    // TODO: Exit Status
+    DBG::dbgln("Process {} ({}) quit with code {}."_sv, name(), pid(), exit_code);
+    state = ProcessState::AwaitingDeath;
+    ProcessManager::the().schedule();
+    // TODO: WHat to do if failes.
+}
+
+expected<UserBuffer> Process::create_user_buffer(uPtr ptr, uSize size, bool for_writing) {
+    if (!m_userspace_state->address_space_manager.check_region(
+            ptr, size, for_writing ? MemoryOperation::Write : MemoryOperation::Read)) {
+        return EFAULT;
+    }
+    return UserBuffer(ptr, size);
+}
+expected<bek::shared_ptr<EntityHandle>> Process::get_open_entity(int entity_id) {
+    // TODO: Lock
+    if (entity_id < 0) return EBADF;
+    if (m_userspace_state->open_entities.size() <= static_cast<uSize>(entity_id)) {
+        return EBADF;
+    }
+    auto entity_ptr = m_userspace_state->open_entities[entity_id];
+    if (!entity_ptr) {
+        return EBADF;
+    }
+    return entity_ptr;
 }

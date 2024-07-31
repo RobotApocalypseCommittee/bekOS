@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,8 +19,8 @@
 #ifndef BEKOS_MBR_H
 #define BEKOS_MBR_H
 
+#include "bek/types.h"
 #include "filesystem/partition.h"
-#include "library/types.h"
 
 constexpr inline uSize MBR_OFFSET = 0x1BE;
 

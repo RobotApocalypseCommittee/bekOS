@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,9 +20,9 @@
 
 #include <peripherals/property_tags.h>
 
-#include "library/assertions.h"
+#include "bek/assertions.h"
+#include "bek/utility.h"
 #include "library/debug.h"
-#include "library/utility.h"
 #include "peripherals/peripherals.h"
 
 constexpr inline u8 font[] = {
@@ -128,4 +128,18 @@ void char_blitter::seek(u32 row, u32 col) {
     ASSERT(row < n_rows && col < n_cols);
     m_row = row;
     m_col = col;
+}
+Device::Kind FramebufferDevice::kind() const { return Device::Kind::Framebuffer; }
+bool FramebufferDevice::is_userspace_accessible() const { return true; }
+
+void FramebufferDevice::on_userspace_message(u32 process_id, bek::mut_buffer message) {
+    auto msg_id = message.get_at<u32>(0);
+
+    switch (msg_id) {
+        case 1: {
+            DBG::dbgln("Message 1: Get Info."_sv);
+            VERIFY(message.size() == 4 + sizeof(FramebufferInfo));
+            message.get_at<FramebufferInfo>(4) = info();
+        }
+    }
 }

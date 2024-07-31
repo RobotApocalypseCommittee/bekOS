@@ -19,9 +19,9 @@
 #ifndef BEKOS_INTERRUPT_CONTROLLER_H
 #define BEKOS_INTERRUPT_CONTROLLER_H
 
-#include <library/buffer.h>
 #include <library/function.h>
 
+#include "bek/buffer.h"
 #include "device.h"
 #include "library/optional.h"
 #include "mm/areas.h"

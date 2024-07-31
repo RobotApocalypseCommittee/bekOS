@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,8 +18,7 @@
 #ifndef BEKOS_UART_H
 #define BEKOS_UART_H
 
-#include <library/types.h>
-
+#include "bek/types.h"
 #include "device.h"
 #include "device_tree.h"
 #include "gpio.h"

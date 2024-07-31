@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,11 +20,11 @@
 #define BEKOS_DMA_UTILS_H
 
 #include "addresses.h"
+#include "bek/buffer.h"
+#include "bek/memory.h"
+#include "bek/vector.h"
 #include "kmalloc.h"
-#include "library/buffer.h"
 #include "library/optional.h"
-#include "library/vector.h"
-#include "memory.h"
 #include "peripherals/device_tree.h"
 
 namespace mem {

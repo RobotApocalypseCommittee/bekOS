@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,8 +21,8 @@
 #include <peripherals/peripherals.h>
 #include <utils.h>
 
+#include "bek/utility.h"
 #include "library/debug.h"
-#include "library/utility.h"
 #include "mm/kmalloc.h"
 
 using DBG = DebugScope<"PropTag", true>;

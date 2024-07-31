@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,8 +20,9 @@
 #define BEKOS_FUNCTION_H
 
 #include <library/own_ptr.h>
-#include <library/traits.h>
-#include <library/utility.h>
+
+#include "bek/traits.h"
+#include "bek/utility.h"
 
 namespace bek {
 
@@ -114,6 +115,9 @@ class function<Out(In...), Copyable, Nullable> {
     static_assert(sizeof(InvokerPtr) == sizeof(void*));
     static_assert(alignof(InvokerPtr) == alignof(void*));
     using Storage = detail::function::Storage;
+
+    template <typename T, bool C, bool N>
+    friend class function;
 
 public:
     using Signature = Out(In...);

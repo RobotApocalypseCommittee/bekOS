@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_STRING_H
-#define BEKOS_STRING_H
+#ifndef BEKOS_STR_H
+#define BEKOS_STR_H
 
 #include "assertions.h"
 #include "types.h"
@@ -70,7 +70,9 @@ public:
 
     explicit string(const char *source);
 
-    /// length excludes null-terminator
+    /// Initialises string filled with repeated `init` character.
+    /// \param length Length of string *not including null-terminator*.
+    /// \param init
     explicit string(u32 length, char init);
 
     explicit string(bek::str_view str);
@@ -83,6 +85,8 @@ public:
     const char *data() const {
         return is_long() ? m_long.data : &m_short.in_data[0];
     };
+
+    char* mut_data() { return is_long() ? m_long.data : &m_short.in_data[0]; }
 
     str_view view() const { return {data(), size()}; }
 
@@ -141,4 +145,4 @@ u64 hash(const bek::string &str);
 }  // namespace bek
 constexpr bek::str_view operator""_sv(const char *str, uSize size) { return {str, size}; }
 
-#endif //BEKOS_STRING_H
+#endif  // BEKOS_STR_H

@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,8 @@
 #ifndef BEKOS_OWN_PTR_H
 #define BEKOS_OWN_PTR_H
 
-#include <library/utility.h>
+#include "bek/assertions.h"
+#include "bek/utility.h"
 
 namespace bek {
 template <typename T>
@@ -79,6 +80,11 @@ public:
     }
 
     T* get() const { return m_ptr; }
+
+    void reset() {
+        own_ptr temp{};
+        bek::swap(*this, temp);
+    }
 
 private:
     T* m_ptr{nullptr};

@@ -19,13 +19,13 @@
 #ifndef BEKOS_BLOCK_DEVICE_H
 #define BEKOS_BLOCK_DEVICE_H
 
-#include "library/buffer.h"
+#include "bek/buffer.h"
+#include "bek/str.h"
+#include "bek/types.h"
+#include "bek/vector.h"
 #include "library/function.h"
 #include "library/hashtable.h"
 #include "library/own_ptr.h"
-#include "library/string.h"
-#include "library/types.h"
-#include "library/vector.h"
 
 namespace blk {
 

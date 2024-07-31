@@ -22,11 +22,16 @@
 
 // Info about file/directory without accessing data
 
-#include "library/string.h"
-#include "library/types.h"
-
-#include "library/vector.h"
-#include "library/acquirable_ref.h"
+#include "bek/str.h"
+#include "bek/types.h"
+#include "bek/vector.h"
+#include "filesystem/entry.h"
+#include "library/hashtable.h"
+#include "library/intrusive_shared_ptr.h"
+#include "library/kernel_error.h"
+#include "library/own_ptr.h"
+#include "path.h"
+#include "process/entity.h"
 
 namespace fs {
 class EntryHashtable;

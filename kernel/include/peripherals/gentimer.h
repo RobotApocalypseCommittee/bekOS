@@ -20,7 +20,22 @@
 #ifndef BEKOS_GENTIMER_H
 #define BEKOS_GENTIMER_H
 
-#include <library/types.h>
+#include "bek/types.h"
+#include "device.h"
+#include "interrupt_controller.h"
+#include "library/function.h"
+
+class TimerDevice : public Device {
+public:
+    enum class CallbackAction { Cancel, Reschedule };
+
+    Kind kind() const override { return Device::Kind::Timer; }
+    UserspaceProtocol userspace_protocol() const override { return UserspaceProtocol::None; }
+
+    virtual u64 get_frequency()                                                 = 0;
+    virtual u64 get_ticks()                                                     = 0;
+    virtual bool schedule_callback(bek::function<CallbackAction()>, long ticks) = 0;
+};
 
 unsigned long getClockFrequency();
 unsigned long getClockTicks();

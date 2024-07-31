@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@
 #ifndef BEKOS_UTILITY_H
 #define BEKOS_UTILITY_H
 
-#include "kstring.h"
 #include "traits.h"
 #include "types.h"
 
@@ -52,68 +51,69 @@ inline u16 swapBytes<u16>(u16 value) {
 }
 
 template <typename T>
-inline T readLE(const u8 *data);
+inline T readLE(const u8* data);
 
 template <>
-inline u32 readLE<u32>(const u8 *data) {
+inline u32 readLE<u32>(const u8* data) {
     if constexpr (IS_LITTLE_ENDIAN) {
-        return *reinterpret_cast<const u32 *>(data);
+        return *reinterpret_cast<const u32*>(data);
     } else {
         return data[0] | data[1] << 8 | data[2] << 16 | data[3] << 24;
     }
 }
 
 template <>
-inline u16 readLE<u16>(const u8 *data) {
+inline u16 readLE<u16>(const u8* data) {
     if constexpr (IS_LITTLE_ENDIAN) {
-        return *reinterpret_cast<const u16 *>(data);
+        return *reinterpret_cast<const u16*>(data);
     } else {
         return data[0] | data[1] << 8;
     }
 }
 
 template <typename T>
-inline void writeLE(T value, u8 *data) = delete;
+inline void writeLE(T value, u8* data) = delete;
 
 template <>
-inline void writeLE<u32>(u32 value, u8 *data) {
+inline void writeLE<u32>(u32 value, u8* data) {
     if constexpr (IS_LITTLE_ENDIAN) {
-        *reinterpret_cast<u32 *>(data) = value;
+        *reinterpret_cast<u32*>(data) = value;
     } else {
-        *reinterpret_cast<u32 *>(data) = swapBytes<u32>(value);
+        *reinterpret_cast<u32*>(data) = swapBytes<u32>(value);
     }
 }
 
 template <>
-inline void writeLE<u16>(u16 value, u8 *data) {
+inline void writeLE<u16>(u16 value, u8* data) {
     if constexpr (IS_LITTLE_ENDIAN) {
-        *reinterpret_cast<u16 *>(data) = value;
+        *reinterpret_cast<u16*>(data) = value;
     } else {
-        *reinterpret_cast<u16 *>(data) = swapBytes<u16>(value);
+        *reinterpret_cast<u16*>(data) = swapBytes<u16>(value);
     }
 }
 
-
-template<bool B, class T = void>
+template <bool B, class T = void>
 struct enable_if {};
 
-template<class T>
-struct enable_if<true, T> { typedef T type; };
+template <class T>
+struct enable_if<true, T> {
+    typedef T type;
+};
 
 template <bool B, class T = void>
 using enable_if_t = typename enable_if<B, T>::type;
 
-template<class T, T v>
+template <class T, T v>
 struct integral_constant {
     static constexpr T value = v;
-    using value_type = T;
-    using type = integral_constant; // using injected-class-name
+    using value_type         = T;
+    using type               = integral_constant;  // using injected-class-name
     constexpr operator value_type() const noexcept { return value; }
-    constexpr value_type operator()() const noexcept { return value; } //since c++14
+    constexpr value_type operator()() const noexcept { return value; }  // since c++14
 };
 
 using false_type = integral_constant<bool, false>;
-using true_type = integral_constant<bool, true>;
+using true_type  = integral_constant<bool, true>;
 
 namespace detail {
 
@@ -129,37 +129,56 @@ struct conditional<false, T, F> {
 
 }  // namespace detail
 
+template <typename T, T... Idx>
+struct integer_sequence {
+    using type = T;
+    static constexpr uSize size() noexcept { return sizeof...(Idx); }
+};
+
+#if __has_builtin(__make_integer_seq)
+template <typename T, T N>
+using make_integer_sequence = __make_integer_seq<integer_sequence, T, N>;
+#elif __has_builtin(__integer_pack)
+template <typename T, T N>
+using make_integer_sequence = integer_sequence<T, __integer_pack(N)...>;
+#endif
+
+template <uSize N>
+using make_index_sequence = make_integer_sequence<uSize, N>;
+
 template <bool B, typename T, typename F>
 using conditional = detail::conditional<B, T, F>::type;
 
-template<class T> struct is_lvalue_reference     : false_type {};
-template<class T> struct is_lvalue_reference<T&> : true_type {};
+template <class T>
+struct is_lvalue_reference : false_type {};
+template <class T>
+struct is_lvalue_reference<T&> : true_type {};
 
 template <class T>
-remove_reference<T> &&move(T &&t) noexcept {
-    return static_cast<remove_reference<T> &&>(t);
+remove_reference<T>&& move(T&& t) noexcept {
+    return static_cast<remove_reference<T>&&>(t);
 }
 
 template <class T>
-constexpr T &&forward(remove_reference<T> &t) noexcept {
-    return static_cast<T &&>(t);
+constexpr T&& forward(remove_reference<T>& t) noexcept {
+    return static_cast<T&&>(t);
 }
 
 template <class T>
-constexpr T &&forward(remove_reference<T> &&t) noexcept {
+constexpr T&& forward(remove_reference<T>&& t) noexcept {
     static_assert(!is_lvalue_reference<T>::value, "can not forward an rvalue as an lvalue");
-    return static_cast<T &&>(t);
+    return static_cast<T&&>(t);
 }
 
 template <class T, typename U = T>
-constexpr T exchange(T &obj, U &&u) {
+constexpr T exchange(T& obj, U&& u) {
     T old = bek::move(obj);
     obj   = bek::forward<U>(u);
     return old;
 }
 
 template <class T>
-void swap(T &a, T &b) noexcept {
+void swap(T& a, T& b) noexcept {
     T tmp = move(a);
     a     = move(b);
     b     = move(tmp);
@@ -170,10 +189,10 @@ u64 hash(u64 x);
 inline u64 hash(u32 x) { return hash(static_cast<u64>(x)); }
 inline u64 hash(u16 x) { return hash(static_cast<u64>(x)); }
 
-u64 hash(const char *str, uSize len);
+u64 hash(const char* str, uSize len);
 
 template <class T>
-void copy(T *dest, const T *src, uSize n) {
+void copy(T* dest, const T* src, uSize n) {
     while (n > 0) {
         n--;
         *(dest++) = *(src++);
@@ -181,7 +200,7 @@ void copy(T *dest, const T *src, uSize n) {
 }
 
 template <class T>
-void copy_backward(T *dest, const T *src, uSize n) {
+void copy_backward(T* dest, const T* src, uSize n) {
     dest += n - 1;
     src += n - 1;
     while (n > 0) {
@@ -225,9 +244,9 @@ template <uSize Size, uSize Align>
 struct aligned_storage {
     alignas(Align) char data[Size];
 
-    [[nodiscard]] constexpr const void *ptr() const { return &data[0]; }
+    [[nodiscard]] constexpr const void* ptr() const { return &data[0]; }
 
-    [[nodiscard]] constexpr void *ptr() { return &data[0]; }
+    [[nodiscard]] constexpr void* ptr() { return &data[0]; }
 
     template <typename T>
     static constexpr bool can_store =
@@ -236,7 +255,7 @@ struct aligned_storage {
 
 template <bek::trivially_copyable To, bek::trivially_copyable From>
     requires(sizeof(To) == sizeof(From))
-constexpr To bit_cast(const From &from) noexcept {
+constexpr To bit_cast(const From& from) noexcept {
     return __builtin_bit_cast(To, from);
 }
 
@@ -245,6 +264,14 @@ constexpr u32 floor_log_2(u32 n) {
     return 31u - __builtin_clz(n);
 }
 
-}
+void memcopy(void* __restrict to, const void* __restrict from, uSize n);
+void memmove(void* to, const void* from, uSize n);
+uSize strlen(const char* str);
+uSize strnlen(const char* str, uSize max_len);
+void memset(void* dest, u8 value, uSize n);
 
-#endif //BEKOS_UTILITY_H
+#define OFFSETOF(A, B) __builtin_offsetof(A, B)
+
+}  // namespace bek
+
+#endif  // BEKOS_UTILITY_H

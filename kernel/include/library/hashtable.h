@@ -19,11 +19,11 @@
 #ifndef BEKOS_HASHTABLE_H
 #define BEKOS_HASHTABLE_H
 
-#include "kstring.h"
+#include "bek/types.h"
+#include "bek/utility.h"
+#include "c_string.h"
 #include "mm/kmalloc.h"
 #include "optional.h"
-#include "types.h"
-#include "utility.h"
 namespace bek {
 
 namespace detail {

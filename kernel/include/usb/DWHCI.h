@@ -1,27 +1,24 @@
 /*
- *   bekOS is a basic OS for the Raspberry Pi
+ * bekOS is a basic OS for the Raspberry Pi
+ * Copyright (C) 2024 Bekos Contributors
  *
- *   Copyright (C) 2020  Bekos Inc Ltd
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
 
-#include <library/assert.h>
-#include <library/types.h>
-#include <memory_locations.h>
-
+#include "bek/assertions.h"
+#include "bek/types.h"
 
 #define BIT(nr) (1UL << (nr))
 #define TESTMASK(val, msk) ((val & msk) ? 1 : 0)
@@ -300,7 +297,7 @@ const u32 CHAN_INT_ERROR_MASK        = CHAN_INT_AHB_ERROR | CHAN_INT_STALL | CHA
                                 CHAN_INT_DATA_TOGGLE_ERROR;
 
 ALWAYS_INLINE DynDWReg CHAN_INT_MASK(u32 chan) {
-    assert(chan < 16);
+    ASSERT(chan < 16);
     return DynDWReg(ARM_USB_HOST_BASE + 0x10C + chan * 0x20);
 }
 

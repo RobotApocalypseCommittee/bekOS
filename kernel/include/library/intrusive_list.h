@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,8 +19,8 @@
 #ifndef BEKOS_INTRUSIVE_LIST_H
 #define BEKOS_INTRUSIVE_LIST_H
 
-#include "assertions.h"
-#include "utility.h"
+#include "bek/assertions.h"
+#include "bek/utility.h"
 namespace bek::detail {
 
 template <typename T>

@@ -1,8 +1,5 @@
 add_executable(kernel arch/a64/boot.S
-        library/kstring.cpp
-        library/string.cpp
         library/format.cpp
-        library/utility.cpp
         library/assertions.cpp
         interrupts/int_ctrl.S
         interrupts/int_handle.S
