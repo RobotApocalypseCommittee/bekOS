@@ -16,21 +16,31 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_INT_CTRL_H
-#define BEKOS_INT_CTRL_H
+#include "interrupts/deferred_calls.h"
 
-extern "C"
-void set_vector_table(void);
+using QueueMember = bek::function<void(), false, true>;
 
-extern "C"
-void enable_interrupts(void);
+static QueueMember g_queue_member_pool[5] = {};
 
-extern "C"
-void disable_interrupts(void);
-
-struct InterruptDisabler {
-    InterruptDisabler() { disable_interrupts(); }
-    ~InterruptDisabler() { enable_interrupts(); }
-};
-
-#endif //BEKOS_INT_CTRL_H
+ErrorCode deferred::queue_call(bek::function<void()> callback) {
+    for (auto& member : g_queue_member_pool) {
+        if (!member) {
+            member = QueueMember(bek::move(callback));
+            return ESUCCESS;
+        }
+    }
+    return ENOMEM;
+}
+void deferred::execute_queue() {
+    for (auto& member : g_queue_member_pool) {
+        if (member) {
+            member();
+            member = {};
+        }
+    }
+}
+void deferred::initialise() {
+    for (auto& member : g_queue_member_pool) {
+        member = {};
+    }
+}

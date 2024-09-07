@@ -16,21 +16,18 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_INT_CTRL_H
-#define BEKOS_INT_CTRL_H
+#include "bek/assertions.h"
+#include "bek/types.h"
+#include "interrupts/deferred_calls.h"
+#include "interrupts/int_ctrl.h"
+#include "peripherals/interrupt_controller.h"
 
-extern "C"
-void set_vector_table(void);
+extern InterruptController* global_intc;
 
-extern "C"
-void enable_interrupts(void);
-
-extern "C"
-void disable_interrupts(void);
-
-struct InterruptDisabler {
-    InterruptDisabler() { disable_interrupts(); }
-    ~InterruptDisabler() { enable_interrupts(); }
-};
-
-#endif //BEKOS_INT_CTRL_H
+extern "C" void handle_hardware_interrupt(u64 esr, u64 elr) {
+    VERIFY(global_intc);
+    global_intc->handle_interrupt();
+    enable_interrupts();
+    deferred::execute_queue();
+    disable_interrupts();
+}
