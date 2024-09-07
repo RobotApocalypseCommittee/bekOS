@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,8 +19,8 @@
 #ifndef BEKOS_PARTITION_H
 #define BEKOS_PARTITION_H
 
+#include "bek/format_core.h"
 #include "block_device.h"
-#include "library/format_core.h"
 
 namespace blk {
 
@@ -46,10 +46,8 @@ public:
     uSize logical_block_size() const override;
     bool is_read_only() const override;
     uSize capacity() const override;
-    TransferResult schedule_read(uSize sector_index, bek::mut_buffer buffer,
-                                 TransferCallback cb) override;
-    TransferResult schedule_write(uSize sector_index, bek::buffer buffer,
-                                  TransferCallback cb) override;
+    TransferResult schedule_read(uSize byte_offset, bek::mut_buffer buffer, TransferCallback cb) override;
+    TransferResult schedule_write(uSize byte_offset, bek::buffer buffer, TransferCallback cb) override;
 
 private:
     BlockDevice& m_block_device;

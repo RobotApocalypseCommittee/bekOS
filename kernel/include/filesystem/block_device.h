@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,10 +47,8 @@ public:
     virtual uSize logical_block_size() const                   = 0;
     virtual bool is_read_only() const                          = 0;
     virtual uSize capacity() const                             = 0;
-    virtual TransferResult schedule_read(uSize sector_index, bek::mut_buffer buffer,
-                                         TransferCallback cb)  = 0;
-    virtual TransferResult schedule_write(uSize sector_index, bek::buffer buffer,
-                                          TransferCallback cb) = 0;
+    virtual TransferResult schedule_read(uSize byte_offset, bek::mut_buffer buffer, TransferCallback cb)  = 0;
+    virtual TransferResult schedule_write(uSize byte_offset, bek::buffer buffer, TransferCallback cb) = 0;
     virtual ~BlockDevice()                                     = default;
 
     [[nodiscard]] constexpr u32 global_id() const { return m_global_id; }
@@ -65,11 +63,15 @@ protected:
     bek::string m_name;
 };
 
+TransferResult blocking_read(BlockDevice& dev, uSize byte_offset, bek::mut_buffer buffer);
+TransferResult blocking_write(BlockDevice& dev, uSize byte_offset, bek::buffer buffer);
+
 class BlockDeviceRegistry {
 public:
     static BlockDeviceRegistry& the();
     void register_raw_device(bek::own_ptr<BlockDevice> device);
     bek::pair<bek::string, u32> allocate_identifiers(bek::str_view prefix);
+    bek::vector<BlockDevice*> get_accessible_devices() const;
 
 private:
     bek::vector<bek::own_ptr<BlockDevice>> m_raw_devices;

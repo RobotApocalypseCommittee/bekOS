@@ -1,20 +1,19 @@
 /*
- *   bekOS is a basic OS for the Raspberry Pi
+ * bekOS is a basic OS for the Raspberry Pi
+ * Copyright (C) 2024 Bekos Contributors
  *
- *   Copyright (C) 2020  Bekos Inc Ltd
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #ifndef BEKOS_FATFS_H
@@ -26,69 +25,78 @@
 namespace fs {
 
 class FATFilesystem;
+class FATDirectoryEntry;
 
 class FATEntry: public Entry {
 public:
-    explicit FATEntry(const RawFATEntry &t_entry, FATFilesystem &t_filesystem, EntryRef t_parent);
+    static EntryRef make_ref(LocatedFATEntry entry, bek::shared_ptr<FATDirectoryEntry> parent);
+    FATEntry(bool is_directory, bek::string t_name, const EntryTimestamps& timestamps, uSize size,
+             bek::shared_ptr<FATDirectoryEntry> parent, u32 root_cluster, FATEntryLocation entry_location,
+             FATFilesystem& filesystem);
+    ErrorCode flush() override;
+
+    EntryRef parent() const override;
+    expected<bool> rename(bek::str_view new_name) override;
+    expected<bool> reparent(EntryRef new_parent, bek::optional<bek::str_view> new_name) override;
 
 protected:
-    void commit_changes() override;
+    expected<uSize> fat_read_data(TransactionalBuffer& buffer, uSize offset, uSize length);
+    expected<uSize> fat_write_data(TransactionalBuffer& buffer, uSize offset, uSize length);
+    expected<uSize> fat_resize(uSize new_size);
 
-    FATFilesystem& filesystem;
+    FATFilesystem& m_filesystem;
+    bek::shared_ptr<FATDirectoryEntry> m_parent;
+
+    /// The cluster where the file/directory starts.
     unsigned m_root_cluster = 0;
-    unsigned m_source_cluster = 0;
-    unsigned m_source_index = 0;
-
-friend class FATFile;
+    FATEntryKind m_kind;
+    FATEntryLocation m_entry_location;
 };
 
+// Can be the root node too.
 class FATDirectoryEntry: public FATEntry {
 public:
-    using FATEntry::FATEntry;
-
-    bek::vector<EntryRef> enumerate() override;
-
-    EntryRef lookup(bek::string_view name) override;
-};
-class FATFileEntry: public FATEntry {
-public:
-    using FATEntry::FATEntry;
-};
-
-class FATFile: public File {
-public:
-    explicit FATFile(bek::AcquirableRef<FATFileEntry> fileEntry);
-
-    bool read(void* buf, uSize length, uSize offset) override;
-
-    bool write(void* buf, uSize length, uSize offset) override;
-
-    bool close() override;
-
-    bool resize(uSize new_length) override;
-
-    Entry &getEntry() override;
+    FATDirectoryEntry(const bek::string& name, const EntryTimestamps& timestamps, uSize size,
+                      const bek::shared_ptr<FATDirectoryEntry>& parent, u32 root_cluster,
+                      const FATEntryLocation& entry_location, FATFilesystem& filesystem);
+    ErrorCode rename_child(FATEntry& child, bek::string new_name) {
+        // TODO: Implement
+        return ENOTSUP;
+    }
+    expected<EntryRef> lookup(bek::str_view name) override;
+    expected<bek::vector<EntryRef>> all_children() override;
 
 private:
-    bek::AcquirableRef<FATFileEntry> fileEntry;
+    friend class FATFilesystem;
 };
 
-
-class FATFilesystem: public Filesystem {
+class FATFileEntry: public FATEntry {
 public:
-    explicit FATFilesystem(BlockDevice& partition, EntryHashtable& entryCache);
+    FATFileEntry(const bek::string& name, const EntryTimestamps& timestamps, uSize size,
+                 const bek::shared_ptr<FATDirectoryEntry>& parent, u32 root_cluster,
+                 const FATEntryLocation& entry_location, FATFilesystem& filesystem);
+    expected<uSize> write_bytes(TransactionalBuffer& buffer, uSize offset, uSize length) override;
+    expected<uSize> read_bytes(TransactionalBuffer& buffer, uSize offset, uSize length) override;
+    expected<uSize> resize(uSize new_size) override;
 
-    EntryRef getRootInfo() override;
+public:
+public:
+    using FATEntry::FATEntry;
+};
 
-    File *open(EntryRef entry) override;
+class FATFilesystem final : public Filesystem {
+public:
+    static expected<bek::own_ptr<FATFilesystem>> try_create_from(blk::BlockDevice& device);
+    FATFilesystem(blk::BlockDevice& partition, FATInfo& info);
 
-    FileAllocationTable &getFAT();
+    EntryRef get_root() override;
+
+    FileAllocationTable& get_fat() { return fat; }
 
 private:
     FileAllocationTable fat;
-    bek::AcquirableRef<FATDirectoryEntry> root_directory;
+    bek::shared_ptr<FATDirectoryEntry> root_directory;
 };
-
 
 }
 #endif //BEKOS_FATFS_H

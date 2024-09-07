@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,85 +19,103 @@
 #include "filesystem/filesystem.h"
 
 #include "bek/utility.h"
+#include "filesystem/block_device.h"
+#include "filesystem/fatfs.h"
 #include "filesystem/path.h"
 #include "library/debug.h"
 
-void fs::Entry::acquire() {
-    // TODO: Safety
-    ref_count++;
-    printf("Acquired: %s, %d\n", name.data(), ref_count);
+bek::shared_ptr<fs::FileHandle> fs::open_file(fs::EntryRef entry) {
+    return bek::adopt_shared(new FileHandle{bek::move(entry)});
 }
-
-void fs::Entry::release() {
-    // TODO: Safety
-    ref_count--;
-    printf("Released: %s, %d\n", name.data(), ref_count);
-    if (_dirty && ref_count == 0) {
-        printf("Committing changes to %s\n", name.data());
-        commit_changes();
+expected<fs::EntryRef> fs::fullPathLookup(EntryRef root, const fs::path& s, fs::EntryRef* out_parent) {
+    if (s.is_absolute() || !root) {
+        root = EXPECTED_TRY(FilesystemRegistry::the().lookup_root(s));
     }
-}
+    auto segments = s.segments();
+    for (uSize i = 0; i < segments.size(); ++i) {
+        if (!root->is_directory()) return ENOTDIR;
 
-void fs::Entry::setParent(EntryRef newParent) {
-    parent = std::move(newParent);
-}
-
-u64 fs::Entry::get_hash() {
-    if (m_hash == 0) {
-        m_hash = entry_hash(parent.get() != nullptr ? parent->get_hash() : 0, name.data());
-    }
-    return m_hash;
-}
-
-unsigned fs::Entry::get_ref_count() const {
-    return ref_count;
-}
-
-fs::Entry::~Entry() {
-    printf("Deleting %s\n", name.data());
-}
-
-void fs::Entry::mark_dirty() {
-    _dirty = true;
-}
-
-bek::vector<fs::EntryRef> fs::Entry::enumerate() { ASSERT(false && "Should be implemented"); }
-
-fs::EntryRef fs::Entry::lookup(bek::string_view name) {
-    (void) name;
-    ASSERT(false && "Should be implemented");
-}
-
-
-u64 fs::entry_hash(u64 previous, const char *name) {
-    u64 hash;
-    if (previous == 0) {
-        hash = 5381;
-    } else {
-        hash = previous;
-    }
-    int c;
-    while ((c = *name++)) {
-        hash = ((hash << 5u) + hash) + c;
-    }
-    return hash;
-}
-
-fs::EntryRef fs::fullPathLookup(fs::EntryRef root, bek::string_view s) {
-    for (uSize i = 0; i < s.size(); i++) {
-        if (s.data()[i] == '/') {
-            auto currentPiece = s.substr(0, i);
-            s.remove_prefix(i + 1);
-            if (root->type == EntryType::DIRECTORY) {
-                root = root->lookup(currentPiece);
-            } else {
-                return {};
+        auto segment = segments[i];
+        // Special cases
+        if (segment == "."_sv) continue;
+        if (segment == ".."_sv) {
+            if (root->parent()) {
+                root = root->parent();
             }
+            continue;
+        }
+
+        // Lookup
+        auto lookup_result = root->lookup(segment);
+        if (lookup_result.has_error()) {
+            // We depart, but are obliged to provide parent if possible.
+            if (out_parent && i + 1 == segments.size()) {
+                *out_parent = root;
+            }
+            return lookup_result;
+        } else {
+            root = lookup_result.release_value();
         }
     }
-    return root->type == EntryType::DIRECTORY ? root->lookup(s) : EntryRef{};
+
+    // We completed our mission
+    if (out_parent) *out_parent = root->parent();
+    return root;
+}
+expected<fs::EntryRef> fs::fullPathLookup(fs::EntryRef root, bek::str_view path, fs::EntryRef* out_parent) {
+    bek::string path_s{path};
+    auto path_r = EXPECTED_TRY(fs::path::parse_path(path_s));
+    return fs::fullPathLookup(bek::move(root), path_r, out_parent);
 }
 
+fs::FilesystemRegistry* g_registry = nullptr;
 
-fs::Filesystem::Filesystem(fs::EntryHashtable &entryCache) : entryCache(entryCache) {
+void fs::FilesystemRegistry::register_filesystem(bek::string name, bek::own_ptr<Filesystem> fs) {
+    if (g_registry == nullptr) {
+        g_registry = new fs::FilesystemRegistry{bek::move(name), bek::move(fs)};
+    } else {
+        g_registry->m_filesystems.insert({bek::move(name), bek::move(fs)});
+    }
+}
+fs::FilesystemRegistry::FilesystemRegistry(bek::string root_name, bek::own_ptr<Filesystem> root_fs)
+    : m_root_filesystem{*root_fs} {
+    VERIFY(root_fs);
+    m_filesystems.insert({bek::move(root_name), bek::move(root_fs)});
+}
+
+fs::FilesystemRegistry& fs::FilesystemRegistry::the() {
+    VERIFY(g_registry);
+    return *g_registry;
+}
+
+expected<fs::EntryRef> fs::FilesystemRegistry::lookup_root(const fs::path& the_path) {
+    if (!the_path.is_absolute()) return {EINVAL};
+
+    if (the_path.disk_specifier()) {
+        bek::string root_spec{*the_path.disk_specifier()};
+        if (auto* fs = m_filesystems.find(root_spec); fs) {
+            ASSERT(*fs);
+            return (*fs)->get_root();
+        } else {
+            return {ENOENT};
+        }
+    } else {
+        return m_root_filesystem.get_root();
+    }
+}
+ErrorCode fs::FilesystemRegistry::try_mount_root() {
+    auto devices = blk::BlockDeviceRegistry::the().get_accessible_devices();
+    if (devices.size() == 0) return ENODEV;
+    for (auto* dev : devices) {
+        if (!dev) continue;
+        auto mount_result = FATFilesystem::try_create_from(*dev);
+        if (mount_result.has_error()) {
+            if (mount_result.error() != EINVAL) return mount_result.error();
+            continue;
+        }
+        fs::FilesystemRegistry::register_filesystem(bek::format("fat{}"_sv, dev->global_id()),
+                                                    mount_result.release_value());
+        return ESUCCESS;
+    }
+    return EINVAL;
 }

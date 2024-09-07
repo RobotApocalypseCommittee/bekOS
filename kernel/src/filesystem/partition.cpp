@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,9 +18,9 @@
 
 #include "filesystem/partition.h"
 
+#include "bek/format.h"
 #include "filesystem/mbr.h"
 #include "library/byte_format.h"
-#include "library/format.h"
 
 using namespace blk;
 
@@ -39,19 +39,17 @@ uSize PartitionProxyDevice::logical_block_size() const {
 }
 bool PartitionProxyDevice::is_read_only() const { return m_block_device.is_read_only(); }
 uSize PartitionProxyDevice::capacity() const { return m_sec_count; }
-TransferResult PartitionProxyDevice::schedule_read(uSize sector_index, bek::mut_buffer buffer,
-                                                   TransferCallback cb) {
-    if ((sector_index + (SECTOR_SIZE * buffer.size())) > m_sec_count) {
+TransferResult PartitionProxyDevice::schedule_read(uSize byte_offset, bek::mut_buffer buffer, TransferCallback cb) {
+    if ((byte_offset + buffer.size()) > m_sec_count * SECTOR_SIZE) {
         return TransferResult::OutOfBounds;
     }
-    return m_block_device.schedule_read(sector_index + m_sec_off, buffer, bek::move(cb));
+    return m_block_device.schedule_read(byte_offset + m_sec_off * SECTOR_SIZE, buffer, bek::move(cb));
 }
-TransferResult PartitionProxyDevice::schedule_write(uSize sector_index, bek::buffer buffer,
-                                                    TransferCallback cb) {
-    if ((sector_index + (SECTOR_SIZE * buffer.size())) > m_sec_count) {
+TransferResult PartitionProxyDevice::schedule_write(uSize byte_offset, bek::buffer buffer, TransferCallback cb) {
+    if ((byte_offset + buffer.size()) > m_sec_count * SECTOR_SIZE) {
         return TransferResult::OutOfBounds;
     }
-    return m_block_device.schedule_write(sector_index + m_sec_off, buffer, bek::move(cb));
+    return m_block_device.schedule_write(byte_offset + m_sec_off * SECTOR_SIZE, buffer, bek::move(cb));
 }
 
 constexpr inline bek::str_view name_filesystem_kind(PartitionFsKind kind) {
@@ -68,8 +66,8 @@ constexpr inline bek::str_view name_filesystem_kind(PartitionFsKind kind) {
     ASSERT_UNREACHABLE();
 }
 void blk::bek_basic_format(bek::OutputStream& out, const PartitionInfo& info) {
-    bek::format_to(out, "{} partition, sector {}, size {} sectors."_sv,
-                   name_filesystem_kind(info.kind), info.sector_index, info.size_sectors);
+    bek::format_to(out, "{} partition, sector {}, size {} sectors ({})."_sv, name_filesystem_kind(info.kind),
+                   info.sector_index, info.size_sectors, bek::ByteSize{info.size_sectors * SECTOR_SIZE});
 }
 
 bool blk::probe_block_device(BlockDevice& device,
