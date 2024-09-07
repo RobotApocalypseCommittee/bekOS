@@ -16,21 +16,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "bek/assertions.h"
+#include "library/kernel_error.h"
 
 #include "bek/format.h"
 
-extern bek::OutputStream *debug_stream;
-
-void bek::assertion_failed(const char *pExpr, const char *pFile, unsigned int nLine) {
-    if (debug_stream) {
-        bek::format_to(*debug_stream, "Assertion Failed: {} in {}, line {}.\n"_sv, pExpr, pFile, nLine);
+void bek_basic_format(bek::OutputStream& out, const ErrorCode& code) {
+    switch (code) {
+#define __EMIT_ERROR_CODE(CODE) \
+    case CODE:                  \
+        out.write(#CODE##_sv);  \
+        break;
+        __ENUMERATE_ERROR_CODES
+#undef __EMIT_ERROR_CODE
     }
-    panic();
-}
-void bek::panic(const char *message, const char *file_name, unsigned int line) {
-    if (debug_stream) {
-        bek::format_to(*debug_stream, "Panicked: {} in {}, line {}.\n"_sv, message, file_name, line);
-    }
-    panic();
 }

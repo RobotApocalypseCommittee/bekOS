@@ -21,8 +21,11 @@
 
 #include "api/error_codes.h"
 #include "bek/expected.h"
+#include "bek/format_core.h"
 
 template <typename T, typename E = ErrorCode>
 using expected = bek::expected<T, E>;
+
+void bek_basic_format(bek::OutputStream& out, const ErrorCode& code);
 
 #endif  // BEKOS_KERNEL_ERROR_H

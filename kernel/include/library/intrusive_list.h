@@ -106,6 +106,7 @@ public:
         node.m_list_head = &m_head;
         node.m_prev      = m_head.last;
         node.m_next      = nullptr;
+        if (m_head.last) m_head.last->m_next = &node;
         m_head.last      = &node;
         if (!m_head.first) m_head.first = &node;
     }
@@ -114,6 +115,31 @@ public:
         IntrusiveListNode<T>& node = item.*MemberPtr;
         ASSERT(node.m_list_head == &m_head);
         node.remove();
+    }
+
+    void insert_before(T& before, T& insertee) {
+        auto& before_node = before.*MemberPtr;
+        auto& insertee_node = insertee.*MemberPtr;
+        VERIFY(!insertee_node.m_list_head);
+        VERIFY(before_node.m_list_head == &m_head);
+        insertee_node.m_list_head = &m_head;
+        insertee_node.m_next = &before_node;
+        insertee_node.m_prev = before_node.m_prev;
+        if (before_node.m_prev) {
+            before_node.m_prev->m_next = &insertee_node;
+        }
+        before_node.m_prev = &insertee_node;
+
+        if (m_head.first == &before_node) {
+            m_head.first = &insertee_node;
+        }
+    }
+
+    T& pop_front() {
+        VERIFY(m_head.first);
+        auto& obj = *object_from_node(m_head.first);
+        m_head.first->remove();
+        return obj;
     }
 
     using ForwardIterator = Iterator<true, false>;
@@ -130,6 +156,8 @@ public:
 
     T& front() { return *object_from_node(m_head.first); }
     const T& front() const { return *object_from_node(m_head.first); }
+
+    T* front_ptr() { return object_from_node(m_head.first); }
 
     T& back() { return *object_from_node(m_head.last); }
     const T& back() const { return *object_from_node(m_head.last); }

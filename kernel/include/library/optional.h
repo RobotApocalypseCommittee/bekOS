@@ -167,6 +167,10 @@ private:
 };
 
 static_assert(bek::is_trivially_copy_constructible<bek::optional<int>>);
+
+template <class T>
+optional(T) -> optional<T>;
+
 }  // namespace bek
 
 #endif  // BEKOS_OPTIONAL_H

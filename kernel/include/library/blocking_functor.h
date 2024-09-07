@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,24 +16,33 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <printf.h>
-#include "filesystem/mbr.h"
+#ifndef BEKOS_BLOCKING_FUNCTOR_H
+#define BEKOS_BLOCKING_FUNCTOR_H
 
-MBRPartitions readMBR(BlockDevice &device, uSize block_scale) {
-    MBRPartitions partitions;
-    raw_mbr_partition mbrData[4];
-    device.readBytes(0x1CE, &mbrData, sizeof(mbrData));
-    for (int i = 0; i < 4; i++) {
-        partitions.partitions[i] = {.start = mbrData[i].lba_begin, .size = mbrData[i].sector_count, .type = PART_FREE};
-        switch (mbrData[i].type_code) {
-            case 0xB:
-            case 0xC:
-                partitions.partitions[i].type = PART_FAT32;
-                break;
-            default:
-                partitions.partitions[i].type = PART_FREE;
-                break;
-        }
+namespace bek {
+
+// Takes  one param - TODO: DODGIEST THING IN THE WORLD
+template <typename Arg>
+class BlockingFunctor {
+public:
+    constexpr auto functor() {
+        return [this](Arg arg) {
+            argument = arg;
+            flag = true;
+        };
     }
-    return partitions;
+
+    Arg wait() {
+        while (!flag) {
+        }
+        return argument;
+    }
+
+private:
+    volatile bool flag = false;
+    Arg argument{};
+};
+
 }
+
+#endif  // BEKOS_BLOCKING_FUNCTOR_H

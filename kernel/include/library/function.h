@@ -36,13 +36,12 @@ using fast_forward_t = bek::conditional<bek::integral<T>, T, T&&>;
 namespace function {
 
 static constexpr uSize STORAGE_SIZE  = 16;
-static constexpr uSize STORAGE_ALIGN = 16;
+static constexpr uSize STORAGE_ALIGN = 8;
 
 using Storage = aligned_storage<STORAGE_SIZE, STORAGE_ALIGN>;
 
 template <typename Functor>
-static constexpr bool uses_trivial_small_storage =
-    bek::is_trivially_copyable<Functor> && Storage::can_store<Functor>;
+static constexpr bool uses_trivial_small_storage = bek::is_trivially_copyable<Functor> && Storage::can_store<Functor>;
 
 struct abstract_wrapper {
     virtual abstract_wrapper* clone(Storage& storage)   = 0;
@@ -132,8 +131,8 @@ public:
     template <bek::callable_with_args<Out, In...> Functor>
         requires(!detail::is_bek_function<remove_cv_reference<Functor>> &&
                  (copy_constructible<remove_cv_reference<Functor>> || !Copyable))
-    explicit(!detail::function::uses_trivial_small_storage<Functor>) function(
-        Functor&& functor) {  // NOLINT(*-forwarding-reference-overload, *-explicit-constructor)
+    explicit(!detail::function::uses_trivial_small_storage<Functor>)
+        function(Functor&& functor) {  // NOLINT(*-forwarding-reference-overload, *-explicit-constructor)
         // We're forwarding these references.
         if constexpr (detail::function::uses_trivial_small_storage<Functor>) {
             new (m_storage.ptr()) Functor(static_cast<Functor&&>(functor));
@@ -164,10 +163,7 @@ public:
         requires((Nullable && !Copyable && (!OtherNullable || OtherCopyable)) ||
                  (!OtherNullable && OtherCopyable && (!Copyable || Nullable)))
     explicit function(bek::function<Signature, OtherCopyable, OtherNullable>&& other) {
-        using bek::swap;
-        swap(m_storage, other.m_storage);
-        swap(m_invoker, other.m_invoker);
-        swap(m_wrapper, other.m_wrapper);
+        do_swap(*this, other);
     }
 
     function(const function& other)
@@ -196,16 +192,11 @@ public:
     }
 
     function& operator=(function other) {
-        swap(*this, other);
+        do_swap(*this, other);
         return *this;
     }
 
-    friend void swap(function& a, function& b) noexcept {
-        using bek::swap;
-        swap(a.m_storage, b.m_storage);
-        swap(a.m_invoker, b.m_invoker);
-        swap(a.m_wrapper, b.m_wrapper);
-    }
+    friend void swap(function& a, function& b) { do_swap(a, b); }
 
 
     Out operator()(In... args) {
@@ -222,13 +213,28 @@ public:
     }
 
 private:
-    [[nodiscard]] constexpr inline bool is_inline_wrapped() const {
-        return m_storage.ptr() == m_wrapper;
+    template <bool OtherCopyable, bool OtherNullable>
+    static void do_swap(function& a, bek::function<Signature, OtherCopyable, OtherNullable>& b) noexcept {
+        using bek::swap;
+        swap(a.m_storage, b.m_storage);
+        swap(a.m_invoker, b.m_invoker);
+        // Can't just swap m_wrapper.
+        auto b_wrapper = b.m_wrapper;
+        if (a.m_wrapper == a.m_storage.ptr()) {
+            b.m_wrapper = static_cast<detail::function::abstract_wrapper*>(b.m_storage.ptr());
+        } else {
+            b.m_wrapper = a.m_wrapper;
+        }
+        if (b_wrapper == b.m_storage.ptr()) {
+            a.m_wrapper = static_cast<detail::function::abstract_wrapper*>(a.m_storage.ptr());
+        } else {
+            a.m_wrapper = b_wrapper;
+        }
     }
 
-    static Out empty_function(void*, detail::fast_forward_t<In>...) {
-        PANIC("Called empty bek::function");
-    }
+    [[nodiscard]] constexpr inline bool is_inline_wrapped() const { return m_storage.ptr() == m_wrapper; }
+
+    static Out empty_function(void*, detail::fast_forward_t<In>...) { PANIC("Called empty bek::function"); }
 
     // Members
     Storage m_storage;
@@ -268,7 +274,7 @@ function(Ft) -> function<typename impl_deets::deduce_function_type<Fp>::type>;
 
 template <typename Out, typename... In>
 inline void swap(function<Out(In...)>& a, function<Out(In...)>& b) {
-    a.swap(b);
+    swap(a, b);
 }
 
 /// A fairly unsafe reference to a functor. Efficient if function pointer, dangerous if capturing
@@ -283,9 +289,7 @@ class function_view<Out(In...)> {
 public:
     template <typename Fn>
     explicit function_view(Fn& fn) : m_erased_ptr{&fn} {
-        m_invoker = [](void* ptr, In... args) -> Out {
-            return (*reinterpret_cast<Fn*>(ptr))(args...);
-        };
+        m_invoker = [](void* ptr, In... args) -> Out { return (*reinterpret_cast<Fn*>(ptr))(args...); };
     }
 
     function_view(Out (*f_ptr)(In...)) : m_erased_ptr{f_ptr} {  // NOLINT(*-explicit-constructor)
@@ -294,9 +298,7 @@ public:
         };
     }
 
-    decltype(auto) operator()(In... args) const noexcept {
-        return m_invoker(m_erased_ptr, bek::forward<In>(args)...);
-    }
+    decltype(auto) operator()(In... args) const noexcept { return m_invoker(m_erased_ptr, bek::forward<In>(args)...); }
 
 private:
     using InvokerPtr = Out (*)(void*, In...);

@@ -19,9 +19,8 @@
 #ifndef BEKOS_ARRAY_H
 #define BEKOS_ARRAY_H
 
-#include <initializer_list>
-
 #include "bek/assertions.h"
+#include "bek/initializer_list.h"
 #include "bek/span.h"
 #include "bek/types.h"
 

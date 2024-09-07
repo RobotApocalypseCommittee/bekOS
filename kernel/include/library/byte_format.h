@@ -16,21 +16,31 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "bek/assertions.h"
+#ifndef BEKOS_BYTE_FORMAT_H
+#define BEKOS_BYTE_FORMAT_H
 
 #include "bek/format.h"
 
-extern bek::OutputStream *debug_stream;
+namespace bek {
 
-void bek::assertion_failed(const char *pExpr, const char *pFile, unsigned int nLine) {
-    if (debug_stream) {
-        bek::format_to(*debug_stream, "Assertion Failed: {} in {}, line {}.\n"_sv, pExpr, pFile, nLine);
+struct ByteSize {
+    u64 underlying;
+};
+
+inline void bek_basic_format(OutputStream& out, const ByteSize& sz) {
+    constexpr const uSize threshold = 8;
+    auto n = sz.underlying;
+    if (n >> 30 > threshold) {
+        bek::format_to(out, "{}GiB"_sv, n >> 30);
+    } else if (n >> 20 > threshold) {
+        bek::format_to(out, "{}MiB"_sv, n >> 20);
+    } else if (n >> 10 > threshold) {
+        bek::format_to(out, "{}KiB"_sv, n >> 10);
+    } else {
+        bek::format_to(out, "{} bytes"_sv, n);
     }
-    panic();
 }
-void bek::panic(const char *message, const char *file_name, unsigned int line) {
-    if (debug_stream) {
-        bek::format_to(*debug_stream, "Panicked: {} in {}, line {}.\n"_sv, message, file_name, line);
-    }
-    panic();
-}
+
+}  // namespace bek
+
+#endif  // BEKOS_BYTE_FORMAT_H

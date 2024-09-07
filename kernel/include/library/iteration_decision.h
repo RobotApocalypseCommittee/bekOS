@@ -16,21 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "bek/assertions.h"
+#ifndef BEKOS_ITERATION_DECISION_H
+#define BEKOS_ITERATION_DECISION_H
 
-#include "bek/format.h"
+enum class IterationDecision {
+    Continue,
+    Break,
+};
 
-extern bek::OutputStream *debug_stream;
-
-void bek::assertion_failed(const char *pExpr, const char *pFile, unsigned int nLine) {
-    if (debug_stream) {
-        bek::format_to(*debug_stream, "Assertion Failed: {} in {}, line {}.\n"_sv, pExpr, pFile, nLine);
-    }
-    panic();
-}
-void bek::panic(const char *message, const char *file_name, unsigned int line) {
-    if (debug_stream) {
-        bek::format_to(*debug_stream, "Panicked: {} in {}, line {}.\n"_sv, message, file_name, line);
-    }
-    panic();
-}
+#endif  // BEKOS_ITERATION_DECISION_H

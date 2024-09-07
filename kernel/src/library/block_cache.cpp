@@ -16,21 +16,19 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "bek/assertions.h"
+#include "library/block_cache.h"
 
-#include "bek/format.h"
+#include "bek/allocations.h"
 
-extern bek::OutputStream *debug_stream;
-
-void bek::assertion_failed(const char *pExpr, const char *pFile, unsigned int nLine) {
-    if (debug_stream) {
-        bek::format_to(*debug_stream, "Assertion Failed: {} in {}, line {}.\n"_sv, pExpr, pFile, nLine);
-    }
-    panic();
+bek::shared_ptr<BlockCacheItem> BlockCacheItem::create(u32 size) {
+    // TODO: Custom new and delete? - allocate in one block
+    auto allocation = mem::allocate(size);
+    VERIFY(allocation.pointer);
+    return {bek::shared_ptr<BlockCacheItem>::AdoptTag{},
+            new BlockCacheItem(static_cast<u8*>(allocation.pointer), size)};
 }
-void bek::panic(const char *message, const char *file_name, unsigned int line) {
-    if (debug_stream) {
-        bek::format_to(*debug_stream, "Panicked: {} in {}, line {}.\n"_sv, message, file_name, line);
-    }
-    panic();
+
+BlockCacheItem::~BlockCacheItem() {
+    VERIFY(!is_dirty());
+    mem::free(m_buffer, m_size);
 }

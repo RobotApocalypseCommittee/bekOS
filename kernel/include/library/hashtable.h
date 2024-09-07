@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,9 +21,9 @@
 
 #include "bek/types.h"
 #include "bek/utility.h"
-#include "c_string.h"
 #include "mm/kmalloc.h"
 #include "optional.h"
+
 namespace bek {
 
 namespace detail {
@@ -53,6 +53,30 @@ public:
     using Pair     = pair<Key, Val>;
     using Iterator = Pair*;
 
+    class SequenceIterator {
+    public:
+        SequenceIterator(Pair* start_pair, Fill* start_fill, Pair* end_pair)
+            : m_pair{start_pair}, m_fill{start_fill}, m_end_pair{end_pair} {}
+        friend bool operator==(const SequenceIterator&, const SequenceIterator&) = default;
+        friend bool operator!=(const SequenceIterator&, const SequenceIterator&) = default;
+        Pair& operator*() { return *m_pair; }
+        Pair* operator->() { return m_pair; }
+        void operator++() {
+            do {
+                m_pair++;
+                m_fill++;
+                if (m_pair == m_end_pair) {
+                    return;
+                }
+            } while (*m_fill != Fill::Filled);
+        }
+
+    private:
+        Pair* m_pair;
+        Fill* m_fill;
+        Pair* m_end_pair;
+    };
+
     explicit hashtable(uSize capacity = 4)
         : buckets{nullptr}, filled{nullptr}, capacity{capacity}, load{0} {
         buckets = reinterpret_cast<Pair*>(kmalloc(capacity * sizeof(Pair)));
@@ -69,12 +93,16 @@ public:
         return unchecked_set(pair, false);
     }
 
+    /// Inserts pair into table. If already exists for key, then does not overwrite and
+    /// returns iterator to original.
+    /// \param pair
+    /// \return (iterator, bool: item was inserted)
     pair<Iterator, bool> insert(Pair&& pair) {
         check_size();
         return unchecked_set(bek::move(pair), false);
     }
 
-    void set(Key key, Val val) {
+    pair<Iterator, bool> set(Key key, Val val) {
         check_size();
         return unchecked_set({key, val}, true);
     }
@@ -114,6 +142,19 @@ public:
     const Val& find_unchecked(const Key& key) const { return *find(key); }
 
     Val& find_unchecked(const Key& key) { return *find(key); }
+
+    uSize item_count() const { return load; }
+
+    SequenceIterator begin() const {
+        for (uSize i = 0; i < capacity; i++) {
+            if (filled[i] == Fill::Filled) {
+                return SequenceIterator{&buckets[i], &filled[i], &buckets[capacity]};
+            }
+        }
+        return end();
+    }
+
+    SequenceIterator end() const { return SequenceIterator{&buckets[capacity], &filled[capacity], &buckets[capacity]}; }
 
 private:
     void check_size() {
