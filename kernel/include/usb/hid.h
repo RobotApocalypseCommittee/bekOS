@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,10 +20,11 @@
 #define BEKOS_HID_H
 
 #include "descriptors.h"
+#include "peripherals/keyboard.h"
 #include "usb.h"
-namespace usb {
 
-class HidKeyboard : public Functionality {
+namespace usb {
+class HidKeyboard : public Functionality, public KeyboardDevice {
 public:
     struct Report {
         u8 modifier_keys;
@@ -32,15 +33,15 @@ public:
         bool operator==(const Report&) const = default;
     };
 
-    static bek::own_ptr<Functionality> probe_mouse(const Interface& interface, Device&);
+    static bek::shared_ptr<HidKeyboard> probe(const Interface& interface, usb::Device& dev);
+    protocols::kb::Report get_report() const override;
 
 private:
     void on_set_protocol(bool success);
     void on_interrupt(mem::own_dma_buffer buf, bool success);
 
-    HidKeyboard(Device& device, u8 interrupt_ep_n)
-        : m_device(device), m_interrupt_ep_n(interrupt_ep_n) {}
-    Device& m_device;
+    HidKeyboard(usb::Device& device, u8 interrupt_ep_n) : m_device(device), m_interrupt_ep_n(interrupt_ep_n) {}
+    usb::Device& m_device;
     u8 m_interrupt_ep_n;
     Report m_report{};
 };

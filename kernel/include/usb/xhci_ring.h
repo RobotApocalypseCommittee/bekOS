@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,8 +21,8 @@
 
 #include <usb/usb.h>
 
+#include "bek/format_core.h"
 #include "library/array.h"
-#include "library/format_core.h"
 #include "library/function.h"
 #include "library/optional.h"
 #include "mm/addresses.h"

@@ -22,9 +22,9 @@
 #include <library/optional.h>
 
 #include "bek/buffer.h"
+#include "bek/format_core.h"
 #include "bek/types.h"
 #include "bek/vector.h"
-#include "library/format_core.h"
 #include "library/function.h"
 #include "mm/dma_utils.h"
 

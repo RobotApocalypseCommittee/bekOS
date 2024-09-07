@@ -52,6 +52,7 @@ extern "C" void __cxa_guard_abort(__guard *) {}
 }  // namespace __cxxabiv1
 
 void bek::panic() {
+    asm volatile("brk #0");
     while (true) {
         asm volatile("nop");
     }
