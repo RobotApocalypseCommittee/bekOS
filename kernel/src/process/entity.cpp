@@ -16,16 +16,4 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_PROCESS_ENTRY_H
-#define BEKOS_PROCESS_ENTRY_H
-
-#ifndef __ASSEMBLER__
-#include "process.h"
-
-
-extern "C"
-void do_context_switch(SavedRegs* previous, SavedRegs* next);
-
-#endif
-
-#endif //BEKOS_PROCESS_ENTRY_H
+#include "process/entity.h"

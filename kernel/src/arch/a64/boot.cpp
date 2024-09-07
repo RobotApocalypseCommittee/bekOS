@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,63 +17,77 @@
  */
 
 #include "arch/a64/memory_constants.h"
+#include "filesystem/block_device.h"
+#include "filesystem/fatfs.h"
+#include "interrupts/deferred_calls.h"
 #include "interrupts/int_ctrl.h"
 #include "library/array.h"
+#include "library/byte_format.h"
 #include "library/debug.h"
 #include "mm/memory_manager.h"
 #include "peripherals/arm_gic.h"
 #include "peripherals/clock.h"
 #include "peripherals/device_tree.h"
+#include "peripherals/gentimer.h"
 #include "peripherals/interrupt_controller.h"
 #include "peripherals/pcie.h"
 #include "peripherals/uart.h"
 #include "peripherals/virtio.h"
+#include "process/process.h"
+#include "process/tty.h"
 
 static constexpr uPtr qemu_pl011_address = VA_START + 0x900'0000;
 static constexpr uPtr qemu_clock_freq    = 0x16e3600;
 
 using PROBE_DBG = DebugScope<"Probe", true>;
 
-dev_tree::DevStatus probe_node(dev_tree::Node& node, dev_tree::device_tree& tree);
-
-dev_tree::DevStatus probe_simple_bus(dev_tree::Node& node, dev_tree::device_tree& tree) {
+dev_tree::DevStatus probe_simple_bus(dev_tree::Node& node, dev_tree::device_tree& tree, dev_tree::probe_ctx& ctx) {
     if (node.compatible.size() == 0) return dev_tree::DevStatus::Unrecognised;
-    if (!(node.compatible[0] == "simple-bus"_sv || node.compatible[0] == "linux,dummy-virt"_sv))
-        return dev_tree::DevStatus::Unrecognised;
+    if (node.compatible[0] != "simple-bus"_sv) return dev_tree::DevStatus::Unrecognised;
     for (auto& child : node.children) {
-        probe_node(*child, tree);
+        probe_node(*child, tree, ctx);
     }
     return dev_tree::DevStatus::Success;
 }
 
-constexpr const inline bek::array standard_probes{
-    probe_simple_bus, FixedClock::probe_devtree, PL011::probe_devtree,  pcie::Controller::probe_pcie_host,
-    ArmGIC::probe_devtree, virtio::MMIOTransport::probe_devtree};
+InterruptController* global_intc = nullptr;
 
-dev_tree::DevStatus probe_node(dev_tree::Node& node, dev_tree::device_tree& tree) {
-    for (auto probe_fn : standard_probes) {
-        auto res = probe_fn(node, tree);
-        if (res != dev_tree::DevStatus::Unrecognised) {
-            node.nodeStatus = res;
-
-            if (res == dev_tree::DevStatus::Waiting) {
-                PROBE_DBG::dbgln("Device {} Waiting."_sv, node.name);
-                tree.waiting.push_back(&node);
-            } else if (res == dev_tree::DevStatus::Success) {
-                PROBE_DBG::dbgln("Device {} Success."_sv, node.name);
-            } else if (res == dev_tree::DevStatus::Failure) {
-                PROBE_DBG::dbgln("Device {} Failure."_sv, node.name);
-            }
-
-            return res;
+dev_tree::DevStatus probe_arm_system(dev_tree::Node& node, dev_tree::device_tree& tree, dev_tree::probe_ctx& ctx) {
+    if (node.compatible.size() == 0) return dev_tree::DevStatus::Unrecognised;
+    // TODO: This shouldn't really be hardcoded.
+    if (node.compatible[0] == "linux,dummy-virt"_sv || node.compatible[0] == "raspberrypi,4-model-b"_sv) {
+        for (auto& child : node.children) {
+            probe_node(*child, tree, ctx);
         }
+
+        // First, we find the interrupt controller. Hopefully, it's independent!
+        if (auto int_parent = dev_tree::get_property_u32(node, "interrupt-parent"_sv)) {
+            auto [intc_node, status] = dev_tree::get_node_by_phandle(tree, *int_parent);
+            if (status == dev_tree::DevStatus::Success) {
+                global_intc = Device::as<InterruptController>(intc_node->attached_device.get());
+            } else {
+                return dev_tree::DevStatus::Failure;
+            }
+        } else {
+            return dev_tree::DevStatus::Failure;
+        }
+
+        // Next, we register the generic timer - should be present!
+        DeviceRegistry::the().register_device("generic.timer.arm"_sv, ArmGenericTimer::probe_timer(*global_intc));
+
+        return dev_tree::DevStatus::Success;
+    } else {
+        return dev_tree::DevStatus::Unrecognised;
     }
-
-    PROBE_DBG::dbgln("Device {} Unrecognised."_sv, node.name);
-
-    node.nodeStatus = dev_tree::DevStatus::Unrecognised;
-    return dev_tree::DevStatus::Unrecognised;
 }
+
+constexpr const inline bek::array standard_probes{probe_arm_system,
+                                                  probe_simple_bus,
+                                                  FixedClock::probe_devtree,
+                                                  PL011::probe_devtree,
+                                                  pcie::Controller::probe_pcie_host,
+                                                  ArmGIC::probe_devtree,
+                                                  virtio::MMIOTransport::probe_devtree};
 
 bek::pair<mem::PhysicalRegion, bek::buffer> get_devicetree_regions(uPtr device_tree_address) {
     bek::buffer temp{reinterpret_cast<const char*>(device_tree_address), 8};
@@ -89,6 +103,8 @@ bek::pair<mem::PhysicalRegion, bek::buffer> get_devicetree_regions(uPtr device_t
 
 extern u8 __kernel_start;
 extern u8 __kernel_end;
+extern u8 __stack_start;
+extern u8 __stack_top;
 
 mem::PhysicalRegion get_kernel_region() {
     auto phys_ptr = *mem::kernel_virt_to_phys(&__kernel_start);
@@ -96,39 +112,29 @@ mem::PhysicalRegion get_kernel_region() {
     return {phys_ptr, static_cast<uSize>(size)};
 }
 
+mem::VirtualRegion get_kernel_stack() { return {{&__stack_start}, static_cast<uSize>(&__stack_top - &__stack_start)}; }
+
 extern "C" {
-
-// ABI stuff
-void* __dso_handle;
-
-/// These are no-op for now - I'm assuming destructors don't need to run when system stops
-int __cxa_atexit(void (*destructor)(void*), void* arg, void* dso) {
-    (void)destructor;
-    (void)arg;
-    (void)dso;
-    return 0;
-}
-void __cxa_finalize(void*) {}
-
 uPtr g_current_embedded_table_phys;
 }
 
-InterruptController* global_intc = nullptr;
-PL011* serial                    = nullptr;
 bek::OutputStream* debug_stream  = nullptr;
 
 using DBG = DebugScope<"Kern", true>;
 
 extern "C" [[noreturn]] void kernel_boot(u64 dev_tree_address) {
-    // Placeholder - temporary
+    // 1. Setup Debug UART
     PL011 uart{qemu_pl011_address, qemu_clock_freq};
-    serial       = &uart;
     debug_stream = &uart;
     uart.write("Hello Kernel World!\n"_sv);
+
+    // 2. Set interrupt vector table (easier debugging if fault)
     set_vector_table();
 
+    // 3. Initialise memory allocation (from statically allocated 1MB region)
     mem::initialise_kmalloc();
 
+    // 4. Parse DeviceTree, and get a map of Physical RAM
     auto [dtb_phys_region, dtb_buffer] = get_devicetree_regions(dev_tree_address);
     auto dtb                           = dev_tree::read_dtb(dtb_buffer);
 
@@ -143,45 +149,75 @@ extern "C" [[noreturn]] void kernel_boot(u64 dev_tree_address) {
         DBG::dbgln("    {}"_sv, region);
     }
 
+    // 5. Using Physical map of space, initialise the memory manager.
+    //  (a) Map all the physical memory, using embedded tables initially (and then PageAllocator itself!)
     mem::MemoryManager::initialise(
-        memory_space, static_cast<u8*>(mem::kernel_phys_to_virt({g_current_embedded_table_phys})));
+        memory_space, static_cast<u8*>(mem::kernel_phys_to_virt(mem::PhysicalPtr(g_current_embedded_table_phys))));
 
-    auto& node = *dtb.root_node;
-    DBG::dbgln("Read Device Tree. Probing."_sv);
-    probe_node(node, dtb);
-    for (int i = 1; i < 10; i++) {
-        if (dtb.waiting.size()) {
-            DBG::dbgln("Clearing {} waiting nodes."_sv, dtb.waiting.size());
-            auto vec = bek::move(dtb.waiting);
-            for (auto node : vec) {
-                probe_node(*node, dtb);
-            }
-        } else {
-            DBG::dbgln("All Nodes Probed."_sv);
-            break;
-        }
-    }
-    if (auto int_parent = dev_tree::get_property_u32(node, "interrupt-parent"_sv)) {
-        auto [intc_node, state] = dev_tree::get_node_by_phandle(dtb, *int_parent);
-        if (state == dev_tree::DevStatus::Success) {
-            global_intc = Device::as<InterruptController>(intc_node->attached_device.get());
-        }
-    }
+    // 6. Probe DeviceTree
+    dev_tree::probe_nodes(dtb, bek::span{standard_probes.begin(), standard_probes.end()});
 
-    auto [free_mem, total_mem] = mem::get_kmalloc_usage();
-    DBG::dbgln("Memory: {} of {} bytes used ({}%)."_sv, total_mem - free_mem, total_mem,
-               ((total_mem - free_mem) * 100) / total_mem);
+    mem::log_kmalloc_usage();
 
+    // 7. Enable interrupts + timing, so middle-stage device initialisation and setup can occur.
+    deferred::initialise();
     enable_interrupts();
-
-
-    while (true) {
-        // enable_interrupts();
-        uart.write(uart.getc());
+    if (auto r = timing::initialise(); r != ESUCCESS) {
+        DBG::dbgln("Failed to initialise timing: {}"_sv, r);
+        PANIC("Critical Startup Failure");
     }
-}
 
-extern "C" [[noreturn]] void kernel_main() {
+    // 8. Initialise and enter kernel task.
+    auto r = ProcessManager::initialise_and_adopt(bek::string{"ktask"}, get_kernel_stack());
+
+    if (r == ESUCCESS) {
+        DBG::dbgln("Running in process, PID {}!"_sv, ProcessManager::the().current_process().pid());
+    } else {
+        DBG::dbgln("Failed to transition into process: {}"_sv, r);
+    }
+
+    // 9. Find block devices
+    for (int tries = 0;; tries++) {
+        auto mount_result = fs::FilesystemRegistry::try_mount_root();
+        if (mount_result == ESUCCESS) break;
+        if (tries == 5 || !(mount_result == ENODEV || mount_result == EINVAL)) {
+            DBG::dbgln("Failed to mount root: {}"_sv, mount_result);
+            PANIC("Could not successfully mount root.");
+        }
+        timing::spindelay_us(1'000'000);
+    }
+
+    auto root_r = fs::fullPathLookup({}, "/"_sv, nullptr);
+    VERIFY(root_r.has_value());
+    auto& root = root_r.value();
+
+    auto init_exec_r = fs::fullPathLookup({}, "/init"_sv, nullptr);
+
+    if (init_exec_r.has_error()) {
+        DBG::dbgln("Could not find init executable: {}."_sv, init_exec_r.error());
+        PANIC("init execute failed.");
+    }
+    auto& init_exec = init_exec_r.value();
+
+    bek::vector<bek::shared_ptr<EntityHandle>> init_handles{
+        bek::adopt_shared(new ProcessDebugSerial()),
+        bek::adopt_shared(new NullHandle()),
+        bek::adopt_shared(new ProcessDebugSerial()),
+    };
+
+    auto proc_r = Process::spawn_user_process(bek::string{"init"}, init_exec, root, bek::move(init_handles));
+
+    if (proc_r.has_error()) {
+        DBG::dbgln("Could not spawn init process: {}"_sv, proc_r.error());
+        PANIC("Could not spawn init process");
+    }
+
+    auto& proc = *proc_r.value();
+
+    proc_r.value()->set_state(ProcessState::Running);
+
     while (true) {
+        DBG::dbgln("Noot"_sv);
+        timing::spindelay_us(10'000'000);
     }
 }

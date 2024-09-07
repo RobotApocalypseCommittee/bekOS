@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,4 +16,19 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "peripherals/qemu.h"
+#ifndef BEKOS_TTY_H
+#define BEKOS_TTY_H
+
+#include "bek/format.h"
+#include "bek/format_core.h"
+#include "entity.h"
+#include "library/intrusive_shared_ptr.h"
+
+class ProcessDebugSerial : public EntityHandle {
+public:
+    Kind kind() const override { return Kind::Serial; }
+    expected<uSize> write(u64 offset, TransactionalBuffer& buffer) override;
+    SupportedOperations get_supported_operations() const override { return Write; }
+};
+
+#endif  // BEKOS_TTY_H

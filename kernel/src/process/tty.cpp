@@ -16,16 +16,24 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_PROCESS_ENTRY_H
-#define BEKOS_PROCESS_ENTRY_H
+#include "process/tty.h"
 
-#ifndef __ASSEMBLER__
-#include "process.h"
+#include "library/debug.h"
+#include "process/process.h"
 
+using DBG = DebugScope<"TTY", true>;
 
-extern "C"
-void do_context_switch(SavedRegs* previous, SavedRegs* next);
+expected<uSize> ProcessDebugSerial::write(u64 offset, TransactionalBuffer& buffer) {
+    if (offset && offset != sc::INVALID_OFFSET_VAL) return ESPIPE;
+    if (buffer.size() > 1024) return EFBIG;
+    char buf[1024];
+    EXPECTED_TRY(buffer.read_to(buf, buffer.size(), 0));
 
-#endif
-
-#endif //BEKOS_PROCESS_ENTRY_H
+    bek::str_view str{buf, buffer.size()};
+    auto proc_id = ProcessManager::the().current_process().pid();
+    if (str[str.size() - 1] == '\n') {
+        str = str.substr(0, str.size() - 1);
+    }
+    DBG::dbgln("({}) {}"_sv, proc_id, str);
+    return buffer.size();
+}

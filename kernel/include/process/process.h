@@ -1,105 +1,157 @@
 /*
- *   bekOS is a basic OS for the Raspberry Pi
+ * bekOS is a basic OS for the Raspberry Pi
+ * Copyright (C) 2024 Bekos Contributors
  *
- *   Copyright (C) 2020  Bekos Inc Ltd
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #ifndef BEKOS_PROCESS_H
 #define BEKOS_PROCESS_H
 
-#include <library/vector.h>
+#include <bek/vector.h>
 #include <filesystem/filesystem.h>
-#include "page_mapping.h"
 
-#define KERNEL_STACK_SIZE 4096
-
-struct SavedRegs {
-    // These are the registers that are assumed not to change...
-    u64 x19;
-    u64 x20;
-    u64 x21;
-    u64 x22;
-    u64 x23;
-    u64 x24;
-    u64 x25;
-    u64 x26;
-    u64 x27;
-    u64 x28;
-    u64 fp;
-    u64 sp;
-    u64 pc;
-    u64 el0_sp;
-    // TODO: SIMD / Floating Point
-};
+#include "api/syscalls.h"
+#include "arch/a64/saved_registers.h"
+#include "entity.h"
+#include "library/function.h"
+#include "library/user_buffer.h"
+#include "mm/space_manager.h"
+#include "peripherals/device.h"
 
 enum class ProcessState {
-    STOPPED,
-    RUNNING,
-    WAITING
+    Unready,
+    Stopped,
+    Running,
+    Waiting,
+    AwaitingDeath,
 };
 
-// Data for a task which has a userspace and kernel space component
-struct Process {
-    // Saved from the switch call in kernelspace
-    SavedRegs savedRegs;
-    // Whether we are allowed run the scheduler on this task
-    int preemptCounter;
-    // Used for scheduling
-    int processorTimeCounter;
+class Process : public bek::RefCounted<Process> {
+public:
+    using RawFn = void (*)(void*);
+    bek::str_view name() const { return m_name.view(); }
+    long pid() const { return m_pid; }
+    ProcessState set_state(ProcessState new_state) {
+        auto old_state = m_running_state;
+        m_running_state = new_state;
+        return old_state;
+    }
 
-    int processID;
+    bool has_userspace() const { return m_userspace_state.is_valid(); }
 
-    ProcessState state;
+    void quit_process(int exit_code);
 
-    translation_table translationTable;
-    bek::vector<uPtr> userPages;
+    expected<long> sys_open(uPtr path_str, uSize path_len, sc::OpenFlags flags, int parent, uPtr stat_struct);
+    expected<long> sys_read(int entity_handle, uSize offset, uPtr buffer, uSize len);
+    expected<long> sys_write(int entity_handle, uSize offset, uPtr buffer, uSize len);
+    expected<long> sys_seek(int entity_handle, sc::SeekLocation location, iSize offset);
+    expected<long> sys_close(int entity_handle);
+    expected<long> sys_stat(int entity_handle, uPtr path_str, uSize path_len, bool follow_symlinks, uPtr stat_struct);
+    expected<long> sys_get_directory_entries(int entity_handle, uSize offset, uPtr buffer, uSize len);
+    expected<long> sys_list_devices(uPtr buffer, uSize len, u64 protocol_filter);
+    expected<long> sys_allocate(uPtr address, uSize size, sc::AllocateFlags flags);
+    expected<long> sys_deallocate(uPtr address, uSize size);
+    expected<long> sys_get_pid();
+    expected<long> sys_open_device(uPtr path_str, uPtr path_len);
+    expected<long> sys_message_device(int entity_handle, u64 id, uPtr buffer, uSize size);
 
-    uPtr user_stack_top;
-    uPtr kernel_stack_top;
+    template <typename Fn>
+    auto with_space_manager(Fn&& fn) {
+        VERIFY(has_userspace());
+        return fn(m_userspace_state->address_space_manager);
+    }
 
-    bek::vector<fs::File *> openFiles = {};
+    expected<UserBuffer> create_user_buffer(uPtr ptr, uSize size, bool for_writing);
+    static expected<bek::shared_ptr<Process>> spawn_kernel_process(bek::string name, RawFn fn, void* arg);
+    static expected<bek::shared_ptr<Process>> spawn_user_process(bek::string name, fs::EntryRef executable,
+                                                                 fs::EntryRef cwd,
+                                                                 bek::vector<bek::shared_ptr<EntityHandle>> handles);
+
+    Process(const Process&) = delete;
+    Process& operator=(const Process&) = delete;
+    Process(Process&&) = delete;
+    Process& operator=(Process&&) = delete;
+
+private:
+    Process(bek::string name, Process* parent, mem::VirtualRegion kernel_stack);
+    expected<bek::shared_ptr<EntityHandle>> get_open_entity(int entity_id);
+    [[nodiscard]] ErrorCode execute_executable(fs::EntryRef executable, fs::EntryRef cwd,
+                                               bek::vector<bek::shared_ptr<EntityHandle>> handles);
+
+    // Basic properties.
+    bek::string m_name;
+    long m_pid;
+
+    // Child and Parent relations
+    Process* m_parent;
+    bek::vector<Process*> m_children;
+
+    // Important State
+    SavedRegs m_saved_regs{};
+    mem::VirtualRegion m_kernel_stack{};
+    struct UserspaceState {
+        mem::UserPtr user_stack_top;
+        fs::EntryRef cwd;
+        SpaceManager address_space_manager;
+        bek::vector<bek::shared_ptr<EntityHandle>> open_entities;
+    };
+    // TODO: Lock these.
+    bek::optional<UserspaceState> m_userspace_state;
+
+    // Scheduling Information
+    long m_processor_time_counter{1};
+    int m_preempt_counter{0};
+    ProcessState m_running_state;
+
+    // Other Information
+    bek::optional<int> m_exit_code;
+
+    friend class ProcessManager;
 };
 
 class ProcessManager {
 public:
-    using ProcessFn = void (*)(u64);
+    static ErrorCode initialise_and_adopt(bek::string name, mem::VirtualRegion kernel_stack);
+    static ProcessManager& the();
 
-    ProcessManager();
+    /// Inserts process into process table, allocating PID if necessary.
+    ErrorCode register_process(bek::shared_ptr<Process> proc);
 
-    ProcessManager(const ProcessManager&) = delete;
-    void operator=(const ProcessManager&) = delete;
-    ProcessManager& operator=(ProcessManager&& p) = default;
-
-    void fork(ProcessFn fn, u64 argument = 0);
-    void fork(Process* process);
-
-    void disablePreempt();
-    void enablePreempt();
+    void enter_critical();
+    void exit_critical();
+    bool is_critical() const;
+    int count_critical() const;
 
     bool schedule();
 
-    void switchContext(Process* process);
+    Process& current_process();
 
-    Process* getCurrentProcess();
+    ProcessManager(const ProcessManager&) = delete;
+
+    ProcessManager& operator=(const ProcessManager&) = delete;
+    ProcessManager(ProcessManager&&) = delete;
+    ProcessManager& operator=(ProcessManager&&) = delete;
+
 private:
+    ProcessManager() = default;
+    ErrorCode initialise_with_scheduling(bek::shared_ptr<Process> first_process);
+    void switch_context(Process& process);
 
-    bek::vector<Process*> m_processes;
-    Process* m_current;
+    bek::vector<bek::shared_ptr<Process>> m_processes{};
+    Process* m_current{nullptr};
+    uSize m_last_nanoseconds;
 };
 
-extern ProcessManager* processManager;
-
-#endif //BEKOS_PROCESS_H
+#endif  // BEKOS_PROCESS_H

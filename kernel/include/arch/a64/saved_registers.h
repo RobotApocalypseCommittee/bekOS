@@ -16,16 +16,31 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_PROCESS_ENTRY_H
-#define BEKOS_PROCESS_ENTRY_H
+#ifndef BEKOS_A64_SAVED_REGISTERS_H
+#define BEKOS_A64_SAVED_REGISTERS_H
 
-#ifndef __ASSEMBLER__
-#include "process.h"
+#include "bek/types.h"
 
+struct SavedRegs {
+    // These are the registers that are assumed not to change...
+    u64 x19;
+    u64 x20;
+    u64 x21;
+    u64 x22;
+    u64 x23;
+    u64 x24;
+    u64 x25;
+    u64 x26;
+    u64 x27;
+    u64 x28;
+    u64 fp;
+    u64 sp;
+    u64 pc;
+    u64 el0_sp;
+    // TODO: SIMD / Floating Point
 
-extern "C"
-void do_context_switch(SavedRegs* previous, SavedRegs* next);
+    // Creates state setup for executing a NORETURN fn, passing in arg.
+    static SavedRegs create_for_kernel(void (*fn)(void*), void* arg, void* stack_top, uPtr user_stack_ptr = 0);
+};
 
-#endif
-
-#endif //BEKOS_PROCESS_ENTRY_H
+#endif  // BEKOS_A64_SAVED_REGISTERS_H
