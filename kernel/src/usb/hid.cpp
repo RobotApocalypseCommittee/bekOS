@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,12 +18,13 @@
 
 #include <usb/hid.h>
 
+#include "api/protocols/kb.h"
 #include "library/debug.h"
 
 using DBG = DebugScope<"HID", true>;
 using namespace usb;
 
-bek::own_ptr<Functionality> HidKeyboard::probe_mouse(const Interface &interface, Device &dev) {
+bek::shared_ptr<HidKeyboard> HidKeyboard::probe(const Interface& interface, usb::Device& dev) {
     if (interface.interface_class != 0x3 || interface.interface_subclass != 0x1 ||
         interface.interface_protocol != 0x1) {
         return nullptr;
@@ -31,11 +32,11 @@ bek::own_ptr<Functionality> HidKeyboard::probe_mouse(const Interface &interface,
 
     // We know this is a *boot interface* keyboard!
     if (interface.endpoints.size() != 1) return nullptr;
-    auto &ep = interface.endpoints[0];
+    auto& ep = interface.endpoints[0];
     if (ep.ttype != TransferType::Interrupt || ep.direction != Direction::In) return nullptr;
 
     auto ptr  = new HidKeyboard(dev, ep.number);
-    auto &hid = *ptr;
+    auto& hid = *ptr;
 
     dev.schedule_transfer(TransferRequest{
         TransferType::Control,
@@ -45,10 +46,10 @@ bek::own_ptr<Functionality> HidKeyboard::probe_mouse(const Interface &interface,
             hid.on_set_protocol(r == TransferRequest::Result::Success);
         },
         {},
-        SetupPacket{SetupPacket::make_req_type(Direction::Out, ControlTransferType::Class,
-                                               ControlTransferTarget::Interface),
-                    0x0B, 0, interface.interface_number, 0}});
-    return bek::own_ptr<Functionality>(ptr);
+        SetupPacket{
+            SetupPacket::make_req_type(Direction::Out, ControlTransferType::Class, ControlTransferTarget::Interface),
+            0x0B, 0, interface.interface_number, 0}});
+    return bek::adopt_shared(ptr);
 }
 void HidKeyboard::on_set_protocol(bool success) {
     if (!success) {
@@ -89,8 +90,13 @@ void HidKeyboard::on_interrupt(mem::own_dma_buffer buf, bool success) {
                         bek::move(buf),
                         {}});
 }
+protocols::kb::Report HidKeyboard::get_report() const {
+    protocols::kb::Report protocol_report = {m_report.modifier_keys, {}};
+    bek::memcopy(protocol_report.keys, m_report.keys, 6);
+    return protocol_report;
+}
 
-constexpr inline const char *modifier_key_strings[] = {"LCtrl", "LShift", "LAlt", "LWin",
+constexpr inline const char* modifier_key_strings[] = {"LCtrl", "LShift", "LAlt", "LWin",
                                                        "RCtrl", "RShift", "RAlt", "RWin"};
 constexpr char try_convert_keycode(u8 c) {
     if (c >= 4 && c <= 29) {
@@ -103,7 +109,7 @@ constexpr char try_convert_keycode(u8 c) {
         return 0;
     }
 }
-void usb::bek_basic_format(bek::OutputStream &out, const HidKeyboard::Report &report) {
+void usb::bek_basic_format(bek::OutputStream& out, const HidKeyboard::Report& report) {
     bool first = true;
     if (report.modifier_keys != 0) {
         for (int i = 0; i < 8; i++) {

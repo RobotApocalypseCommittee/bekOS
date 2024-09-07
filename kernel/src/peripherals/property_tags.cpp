@@ -53,11 +53,11 @@ bool property_tags::request_tags(void* tags, u32 tags_size) {
 
     // Hope kmalloc aligns 16
     PropertyTagsBuffer* buffer = reinterpret_cast<PropertyTagsBuffer*>(kmalloc(buffer_size));
-    memset(buffer, 0, buffer_size);
+    bek::memset(buffer, 0, buffer_size);
     DBG::dbgln("Buffer address: {:XL}"_sv, reinterpret_cast<uPtr>(buffer));
     buffer->buffer_code = BUFFER_CODE_REQUEST;
     buffer->buffer_size = buffer_size;
-    memcpy(&buffer->Tags[0], tags, tags_size);
+    bek::memcopy(&buffer->Tags[0], tags, tags_size);
     buffer->Tags[tags_size] = 0;
     // Ready to send
     u32 bus_addr = (u32)bus_address((uPtr)buffer);
@@ -74,7 +74,7 @@ bool property_tags::request_tags(void* tags, u32 tags_size) {
         return false;
     }
     DBG::dbgln("Tag submission success"_sv);
-    memcpy(tags, buffer->Tags, tags_size);
+    bek::memcopy(tags, buffer->Tags, tags_size);
     kfree(buffer, buffer_size);
     return true;
 }

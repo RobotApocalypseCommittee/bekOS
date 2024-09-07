@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -99,7 +99,8 @@ bek::vector<IntMapping> get_interrupt_mapping(dev_tree::Node& node,
     return mapping;
 }
 
-dev_tree::DevStatus Controller::probe_pcie_host(dev_tree::Node& node, dev_tree::device_tree& tree) {
+dev_tree::DevStatus Controller::probe_pcie_host(dev_tree::Node& node, dev_tree::device_tree& tree,
+                                                dev_tree::probe_ctx& ctx) {
     if (!(node.compatible.size() && node.compatible[0] == "pci-host-ecam-generic"_sv))
         return dev_tree::DevStatus::Unrecognised;
     DBG::dbgln("Probing Device {}"_sv, node.name);
@@ -418,5 +419,6 @@ mem::PCIeDeviceArea Controller::initialise_bar(Function& function, u8 bar_n) {
 void bek_basic_format(bek::OutputStream& out, const Controller::AllocatedRange& rng) {
     bek::format_to(out, "{} ({}), at {:Xl}"_sv, rng.pcie_address, rng.size, (uPtr)rng.mapped_ptr);
 }
+bek::str_view Controller::preferred_name_prefix() const { return "generic.pciehost"_sv; }
 
 }  // namespace pcie

@@ -118,4 +118,4 @@ void LegacyInterruptController::register_handler(
     handlers[interruptType] = bek::move(handler);
 }
 Device::Kind InterruptController::kind() const { return Device::Kind::InterruptController; }
-bool InterruptController::is_userspace_accessible() const { return false; }
+bek::str_view InterruptController::preferred_name_prefix() const { return "generic.interrupt_controller"_sv; }

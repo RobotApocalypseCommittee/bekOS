@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@ void MailboxChannel::flush() {
     while (!(read_register(MAILBOX0_STATUS) & MAILBOX_EMPTY)) {
         read_register(MAILBOX0_READ);
         // TODO: Replace
-        bad_udelay(20000);
+        timing::spindelay_us(20000);
     }
 
 }

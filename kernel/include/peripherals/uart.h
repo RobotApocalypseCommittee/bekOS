@@ -18,11 +18,11 @@
 #ifndef BEKOS_UART_H
 #define BEKOS_UART_H
 
+#include "bek/format_core.h"
 #include "bek/types.h"
 #include "device.h"
 #include "device_tree.h"
 #include "gpio.h"
-#include "library/format_core.h"
 #include "peripherals/peripherals.h"
 
 // The base address for UART.
@@ -51,6 +51,7 @@
 class UART : public bek::OutputStream, public Device {
 public:
     Kind kind() const override;
+    bek::str_view preferred_name_prefix() const override;
     void reserve(uSize n) override;
     void puthex(unsigned long x);
 
@@ -69,7 +70,8 @@ public:
     void write(bek::str_view str) override;
     void write(char c) override;
 
-    static dev_tree::DevStatus probe_devtree(dev_tree::Node& node, dev_tree::device_tree& tree);
+    static dev_tree::DevStatus probe_devtree(dev_tree::Node& node, dev_tree::device_tree& tree,
+                                             dev_tree::probe_ctx& ctx);
 
 private:
     u32 m_base_clock;

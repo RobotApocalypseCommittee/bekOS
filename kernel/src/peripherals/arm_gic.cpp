@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -156,6 +156,9 @@ ArmGIC::Handle ArmGIC::register_interrupt(bek::buffer selection_data) {
     if (is_spi) {
         // Device tree maps SPIs from 0.
         interrupt_id += 32;
+    } else {
+        // Device tree maps PPIs from 0
+        interrupt_id += 16;
     }
     ASSERT(interrupt_id <= m_num_ids);
 
@@ -195,15 +198,15 @@ void ArmGIC::handle_interrupt() {
         VERIFY(m_handlers[interrupt_id].is_valid());
         enable_interrupts();
         (*m_handlers[interrupt_id])();
+        disable_interrupts();
         m_cpu_base.write<u32>(cpu::EOIR, iar);
-
     } else {
         ASSERT(interrupt_id >= 1020);
     }
 }
 
 extern InterruptController* global_intc;
-dev_tree::DevStatus ArmGIC::probe_devtree(dev_tree::Node& node, dev_tree::device_tree&) {
+dev_tree::DevStatus ArmGIC::probe_devtree(dev_tree::Node& node, dev_tree::device_tree&, dev_tree::probe_ctx& ctx) {
     if (!(node.compatible.size() && (node.compatible[0] == "arm,gic-400"_sv ||
                                      node.compatible[0] == "arm,cortex-a15-gic"_sv)))
         return dev_tree::DevStatus::Unrecognised;

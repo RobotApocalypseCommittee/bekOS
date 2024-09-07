@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -513,7 +513,7 @@ bool Controller::initialise() {
     // §6.6 of spec
     for (int i = 0; i < n_scratchpad; i++) {
         auto scratchpad = function->dma_pool().allocate(xhci_page_size, xhci_page_size);
-        memset(scratchpad.data(), 0, xhci_page_size);
+        bek::memset(scratchpad.data(), 0, xhci_page_size);
         // IS THIS THE RIGHT THING?
         m_scratchpad_ptr_array[i] = scratchpad.dma_ptr().get();
         scratchpad.release();

@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,15 +41,16 @@ using Callback = bek::function<void(uSize), false, true>;
 
 class MMIOTransport {
 public:
-    explicit MMIOTransport(virtio::BaseRegs regs, bek::vector<dev_tree::range_t> dma_mappings)
-        : m_regs(regs), m_pool(bek::move(dma_mappings)) {}
-    static dev_tree::DevStatus probe_devtree(dev_tree::Node& node, dev_tree::device_tree&);
+    explicit MMIOTransport(virtio::BaseRegs regs, bek::vector<dev_tree::range_t> dma_mappings);
+    static dev_tree::DevStatus probe_devtree(dev_tree::Node& node, dev_tree::device_tree&, dev_tree::probe_ctx& ctx);
 
     bek::optional<u64> configure_features(u64 required, u64 supported);
     mem::PCIeDeviceArea device_config_area() const;
 
     bool setup_vqueue(u32 queue_idx);
     bool queue_transfer(u32 queue_idx, bek::span<TransferElement> elements, Callback cb);
+
+    bool blocking_transfer(u32 queue_idx, bek::span<TransferElement> elements);
 
     mem::dma_pool& get_dma_pool() { return m_pool; }
 

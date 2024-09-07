@@ -30,7 +30,7 @@
 class ArmGIC : public InterruptController {
 public:
     static ArmGIC create(mem::DeviceArea distributor_base, mem::DeviceArea cpu_base);
-    static dev_tree::DevStatus probe_devtree(dev_tree::Node& node, dev_tree::device_tree&);
+    static dev_tree::DevStatus probe_devtree(dev_tree::Node& node, dev_tree::device_tree&, dev_tree::probe_ctx& ctx);
 
     Handle register_interrupt(bek::buffer selection_data) override;
     void register_handler(u32 interrupt_id, InterruptHandler&& handler) override;

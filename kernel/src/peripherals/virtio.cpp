@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "mm/memory_manager.h"
 #include "peripherals/interrupt_controller.h"
 #include "peripherals/virtio/block.h"
+#include "peripherals/virtio/framebuffer.h"
 #include "peripherals/virtio/virtio_regs.h"
 
 using DBG = DebugScope<"Virtio", true>;
@@ -32,7 +33,23 @@ namespace virtio {
 constexpr uSize magic_number = 0x74726976;
 
 using probe_t                     = void (*)(bek::own_ptr<MMIOTransport>);
-constexpr probe_t driver_probes[] = {nullptr, nullptr, BlockDevice::create_block_dev};
+constexpr probe_t driver_probes[] = {nullptr,
+                                     nullptr,
+                                     BlockDevice::create_block_dev,
+                                     nullptr,
+                                     nullptr,
+                                     nullptr,
+                                     nullptr,
+                                     nullptr,
+                                     nullptr,
+                                     nullptr,
+                                     nullptr,
+                                     nullptr,
+                                     nullptr,
+                                     nullptr,
+                                     nullptr,
+                                     nullptr,
+                                     GraphicsDevice::create_gpu_dev};
 
 struct SplitVQDescriptor {
     enum Flags : u16 {
@@ -63,8 +80,8 @@ struct SplitVQUsedEntry {
     u32 id;
     u32 length;
 };
-
 static_assert(sizeof(SplitVQUsedEntry) == 8);
+
 struct SplitVQUsedHeader {
     enum : u16 { NO_NOTIFY = 1 } flags;
     u16 idx;
@@ -113,21 +130,26 @@ struct SplitVQ {
         auto& hdr = used.raw_view().get_at<SplitVQUsedHeader>(0);
         while (last_seen_used_idx != hdr.idx) {
             auto& used_entry = hdr.entries[last_seen_used_idx % descriptors.size()];
-            auto res         = callbacks.extract(used_entry.id);
+            auto res = callbacks.extract(used_entry.id);
+
+            // Free Descriptors
+            u64 descriptors_to_free = 1;
+            auto desc_idx = used_entry.id;
+            while (descriptors[desc_idx].flags & SplitVQDescriptor::NEXT) {
+                desc_idx = descriptors[desc_idx].next;
+                descriptors_to_free++;
+            }
+            // Add to front of chain.
+            descriptors[desc_idx].next = bek::exchange(next_free_desc, used_entry.id);
+            free_descriptors += descriptors_to_free;
+
+            // Here, we assume it will wrap appropriately.
+            last_seen_used_idx++;
+
             // If there was a callback, and the callback was not empty.
             if (res && *res) {
                 (*res)(used_entry.length);
             }
-            // Free Descriptors
-            auto desc_idx = used_entry.id;
-            while (descriptors[desc_idx].flags & SplitVQDescriptor::NEXT) {
-                desc_idx = descriptors[desc_idx].next;
-            }
-            // Add to front of chain.
-            descriptors[desc_idx].next = bek::exchange(next_free_desc, used_entry.id);
-
-            // Here, we assume it will wrap appropriately.
-            last_seen_used_idx++;
         }
     }
 
@@ -141,8 +163,8 @@ struct SplitVQ {
     u32 last_seen_used_idx;
 };
 
-dev_tree::DevStatus MMIOTransport::probe_devtree(dev_tree::Node& node,
-                                                 dev_tree::device_tree& tree) {
+dev_tree::DevStatus MMIOTransport::probe_devtree(dev_tree::Node& node, dev_tree::device_tree& tree,
+                                                 dev_tree::probe_ctx& ctx) {
     if (!(node.compatible.size() && node.compatible[0] == "virtio,mmio"_sv))
         return dev_tree::DevStatus::Unrecognised;
 
@@ -260,7 +282,7 @@ bek::optional<u64> MMIOTransport::configure_features(u64 required, u64 supported
     return device_feats;
 }
 bool MMIOTransport::setup_vqueue(u32 queue_idx) {
-    constexpr u32 sensible_max_queue_num = 128;
+    constexpr u32 sensible_max_queue_num = 32;
 
     m_regs.QUEUE_SEL(queue_idx);
     if (m_regs.QUEUE_READY()) {
@@ -359,6 +381,19 @@ void MMIOTransport::on_notification() {
             queue->process_used();
         }
     }
+}
+MMIOTransport::MMIOTransport(virtio::BaseRegs regs, bek::vector<dev_tree::range_t> dma_mappings)
+    : m_regs(regs), m_pool(bek::move(dma_mappings)) {}
+bool MMIOTransport::blocking_transfer(u32 queue_idx, bek::span<TransferElement> elements) {
+    volatile bool complete = false;
+    auto res = queue_transfer(queue_idx, elements, [&](uSize transferred) {
+        DBG::dbgln("Callback!"_sv);
+        complete = true;
+    });
+    if (!res) return false;
+    while (!complete) {
+    }
+    return true;
 }
 
 }  // namespace virtio

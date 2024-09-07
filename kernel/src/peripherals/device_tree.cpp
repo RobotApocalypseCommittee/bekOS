@@ -18,12 +18,11 @@
 
 #include "peripherals/device_tree.h"
 
+#include "bek/format.h"
 #include "bek/span.h"
 #include "bek/types.h"
 #include "bek/vector.h"
-#include "c_string.h"
 #include "library/debug.h"
-#include "library/format.h"
 
 using namespace dev_tree;
 #define EX_BYTE_32(x, n) static_cast<u32>(reinterpret_cast<u8*>(&x)[n])
@@ -73,7 +72,7 @@ struct dtb_string_getter {
 
     [[nodiscard]] bek::str_view get_string(u32 offset) const {
         auto begin = strings_data.data() + offset;
-        auto len   = strlen(begin);
+        auto len = bek::strlen(begin);
         return {begin, len};
     }
 
@@ -86,7 +85,7 @@ bek::vector<bek::str_view> dtb_read_stringlist(bek::buffer buffer) {
     const char* end = buffer.end();
     auto res        = bek::vector<bek::str_view>{};
     while (ptr < end) {
-        auto len = strlen(ptr);
+        auto len = bek::strlen(ptr);
         res.push_back({ptr, len});
         ptr += len + 1;
     }
@@ -122,7 +121,7 @@ struct dtb_struct_pointer {
     }
 
     bek::str_view read_null_string() {
-        auto len = strlen(reinterpret_cast<const char*>(buf));
+        auto len = bek::strlen(reinterpret_cast<const char*>(buf));
         auto str = bek::str_view{reinterpret_cast<const char*>(buf), len};
         buf += len + 1;
         return str;
@@ -326,6 +325,8 @@ bek::pair<Node*, DevStatus> dev_tree::get_node_by_phandle(const device_tree& tre
             return {nullptr, DevStatus::Failure};
         case DevStatus::Success:
             return {&node, DevStatus::Success};
+        default:
+            ASSERT_UNREACHABLE();
     }
 }
 bek::optional<u32> dev_tree::get_inheritable_property_u32(const dev_tree::Node& node,
@@ -550,6 +551,61 @@ bek::vector<mem::PhysicalRegion> dev_tree::get_reserved_regions(const device_tre
         }
     }
     return regions;
+}
+
+using PROBE_DBG = DebugScope<"Probe", true>;
+
+struct dev_tree::probe_ctx {
+    bek::span<ProbeFn*> probe_functions;
+    bek::vector<Node*> waiting{};
+};
+
+dev_tree::DevStatus dev_tree::probe_node(dev_tree::Node& node, dev_tree::device_tree& tree, dev_tree::probe_ctx& ctx) {
+    for (auto probe_fn : ctx.probe_functions) {
+        auto res = probe_fn(node, tree, ctx);
+        if (res != dev_tree::DevStatus::Unrecognised) {
+            node.nodeStatus = res;
+
+            if (res == dev_tree::DevStatus::Waiting) {
+                PROBE_DBG::dbgln("Device {} Waiting."_sv, node.name);
+                ctx.waiting.push_back(&node);
+            } else if (res == dev_tree::DevStatus::Success) {
+                PROBE_DBG::dbgln("Device {} Success."_sv, node.name);
+            } else if (res == dev_tree::DevStatus::Failure) {
+                PROBE_DBG::dbgln("Device {} Failure."_sv, node.name);
+            }
+
+            return res;
+        }
+    }
+
+    PROBE_DBG::dbgln("Device {} Unrecognised."_sv, node.name);
+
+    node.nodeStatus = dev_tree::DevStatus::Unrecognised;
+    return dev_tree::DevStatus::Unrecognised;
+}
+
+void dev_tree::probe_nodes(device_tree& tree, bek::span<ProbeFn*> probe_functions) {
+    auto& root_node = *tree.root_node;
+    PROBE_DBG::dbgln("Probing DeviceTree."_sv);
+
+    auto ctx = probe_ctx{probe_functions, {}};
+
+    probe_node(root_node, tree, ctx);
+    uSize last_waiting = 0;
+    for (int iterations = 3; iterations > 0; (ctx.waiting.size() != last_waiting) || iterations--) {
+        last_waiting = ctx.waiting.size();
+        if (last_waiting) {
+            PROBE_DBG::dbgln("Clearing {} waiting nodes."_sv, ctx.waiting.size());
+            auto vec = bek::move(ctx.waiting);
+            for (auto node : vec) {
+                probe_node(*node, tree, ctx);
+            }
+        } else {
+            PROBE_DBG::dbgln("All Nodes Probed."_sv);
+            break;
+        }
+    }
 }
 
 bek::optional<bek::buffer> Node::get_property(bek::str_view name) const {

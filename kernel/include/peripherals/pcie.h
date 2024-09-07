@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -85,7 +85,7 @@ struct Address {
             case 3:
                 return AddressSpaceKind::Mem64Bit;
         }
-        __unreachable();
+        ASSERT_UNREACHABLE();
     }
 };
 
@@ -152,7 +152,8 @@ class Controller final : public Device {
     static constexpr Kind DeviceKind = Device::Kind::PCIeHost;
 
 public:
-    static dev_tree::DevStatus probe_pcie_host(dev_tree::Node& node, dev_tree::device_tree& tree);
+    static dev_tree::DevStatus probe_pcie_host(dev_tree::Node& node, dev_tree::device_tree& tree,
+                                               dev_tree::probe_ctx& ctx);
 
     /// Runs probe function for each function on the PCIe Bus.
     void probe(ProbeFn* probe_function);
@@ -164,6 +165,7 @@ public:
     mem::MappedDmaPool& dma_pool() { return m_dma_pool; }
 
     mem::PCIeDeviceArea initialise_bar(Function& function, u8 bar_n);
+    bek::str_view preferred_name_prefix() const override;
 
 private:
     struct IntHandler {

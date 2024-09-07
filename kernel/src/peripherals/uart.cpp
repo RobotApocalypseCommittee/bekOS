@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -85,7 +85,8 @@ void PL011::write(char c) {
     }
     write_register(UART0_DR, c);
 }
-dev_tree::DevStatus PL011::probe_devtree(dev_tree::Node& node, dev_tree::device_tree& tree) {
+
+dev_tree::DevStatus PL011::probe_devtree(dev_tree::Node& node, dev_tree::device_tree& tree, dev_tree::probe_ctx& ctx) {
     if (!(node.compatible.size() && node.compatible[0] == "arm,pl011"_sv))
         return dev_tree::DevStatus::Unrecognised;
     // Get first clock.
@@ -102,10 +103,10 @@ dev_tree::DevStatus PL011::probe_devtree(dev_tree::Node& node, dev_tree::device_
     } else if (clk_node.nodeStatus == dev_tree::DevStatus::Success) {
         // Downcast
         auto& clk_dev = *Device::as<Clock>(clk_node.attached_device.get());
-        auto reg      = dev_tree::get_std_regs(node);
-
+        auto reg = dev_tree::get_regions_from_reg(node);
+        // FIXME: We don't map, because we hackily already do in kernel.
         // TODO: Bus Mapping
-        node.attached_device = bek::make_own<PL011>(reg[0].address, clk_dev.get_frequency());
+        node.attached_device = bek::make_own<PL011>(VA_IDENT_OFFSET + reg[0].start.get(), clk_dev.get_frequency());
         // TODO: Properly do this.
         debug_stream = static_cast<PL011*>(node.attached_device.get());
         DBG::dbgln("Successfully probed {}"_sv, node.name);
@@ -161,3 +162,4 @@ void UART::puthex(unsigned long x) {
         write(n);
     }
 }
+bek::str_view UART::preferred_name_prefix() const { return "generic.serial"_sv; }

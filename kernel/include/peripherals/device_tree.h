@@ -20,13 +20,12 @@
 #define BEKOS_DEVICE_TREE_H
 
 #include "bek/buffer.h"
+#include "bek/format_core.h"
 #include "bek/span.h"
 #include "bek/str.h"
 #include "bek/types.h"
 #include "bek/vector.h"
-#include "c_string.h"
 #include "device.h"
-#include "library/format_core.h"
 #include "library/hashtable.h"
 #include "library/optional.h"
 #include "library/own_ptr.h"
@@ -88,7 +87,7 @@ struct RangeArray {
             range_t range{};
             range.child_address  = read_from_buffer(remaining_range, offset, child_cells);
             range.parent_address = read_from_buffer(remaining_range, offset, parent_cells);
-            range.size           = read_from_buffer(remaining_range, offset, size_cells);
+            range.size = read_from_buffer(remaining_range, offset, size_cells);
             return range;
         }
 
@@ -96,6 +95,7 @@ struct RangeArray {
             auto offset = (parent_cells + child_cells + size_cells) * 4;
             ASSERT(remaining_range.size() >= offset);
             remaining_range = remaining_range.subdivide(offset, remaining_range.size() - offset);
+            return *this;
         }
 
         constexpr bool operator==(const Iterator&) const = default;
@@ -143,7 +143,6 @@ struct device_tree {
     bek::vector<reserved_region> reserved_regions{};
     bek::own_ptr<Node> root_node{};
     bek::hashtable<u32, Node*> phandles{};
-    bek::vector<Node*> waiting{};
 };
 
 bek::pair<Node*, DevStatus> get_node_by_phandle(const device_tree& tree, u32 phandle);
@@ -153,7 +152,11 @@ bek::vector<mem::PhysicalRegion> get_reserved_regions(const device_tree& tree);
 
 device_tree read_dtb(bek::buffer dtb);
 
-using ProbeFn = DevStatus(Node&, device_tree&);
+struct probe_ctx;
+
+using ProbeFn = DevStatus(Node&, device_tree&, probe_ctx&);
+dev_tree::DevStatus probe_node(dev_tree::Node& node, device_tree& tree, probe_ctx& ctx);
+void probe_nodes(device_tree& tree, bek::span<ProbeFn*> probe_functions);
 
 void bek_basic_format(bek::OutputStream& out, const reg_t& reg);
 void bek_basic_format(bek::OutputStream& out, const range_t& reg);

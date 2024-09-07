@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,6 +51,7 @@ public:
     virtual void disable_interrupt(u32 interrupt_id)                            = 0;
     virtual void handle_interrupt()                                             = 0;
     Kind kind() const override;
+    bek::str_view preferred_name_prefix() const override;
 };
 
 class LegacyInterruptController {

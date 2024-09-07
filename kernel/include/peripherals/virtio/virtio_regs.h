@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -113,6 +113,23 @@ struct BlkDevRegs {
     BEK_REGISTER_RO(max_sec_erase_sec, u32, 0x3C)
     BEK_REGISTER_RO(max_sec_erase_seq, u32, 0x40)
     BEK_REGISTER_RO(sec_erase_sec_align, u32, 0x44)
+
+    mem::PCIeDeviceArea base;
+};
+
+struct GpuDevRegs {
+    enum Features {
+        FEAT_VIRTGL = BEK_BIT(0),
+        FEAT_EDID = BEK_BIT(1),
+        FEAT_RESOURCE_UUID = BEK_BIT(2),
+        FEAT_RESOURCE_BLOB = BEK_BIT(3),
+        FEAT_CONTEXT_INIT = BEK_BIT(4),
+    };
+
+    BEK_REGISTER_RO(events_read, u32, 0x00)
+    BEK_REGISTER(events_clear, u32, 0x04)
+    BEK_REGISTER_RO(num_scanouts, u32, 0x08)
+    BEK_REGISTER_RO(num_capsets, u32, 0x0C)
 
     mem::PCIeDeviceArea base;
 };

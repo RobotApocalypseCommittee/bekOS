@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -75,38 +75,42 @@ void BlockDevice::create_block_dev(bek::own_ptr<MMIOTransport> transport) {
 uSize BlockDevice::logical_block_size() const { return m_logical_block_size; }
 bool BlockDevice::is_read_only() const { return m_readonly; }
 uSize BlockDevice::capacity() const { return m_capacity_sectors; }
-blk::TransferResult BlockDevice::schedule_read(uSize sector_index, bek::mut_buffer buffer,
-                                               blk::TransferCallback cb) {
-    VERIFY(buffer.size() % blk::SECTOR_SIZE == 0);
-    // FIXME: magic numbers
-    auto request      = m_transport->get_dma_pool().allocate(buffer.size() + 17, 8);
+blk::TransferResult BlockDevice::schedule_read(uSize byte_offset, bek::mut_buffer buffer, blk::TransferCallback cb) {
+    // First, we round down offset, and calculate number of sectors to transfer
+    uSize sector_index = byte_offset / blk::SECTOR_SIZE;
+    uSize offset_within_sector = byte_offset - (sector_index * blk::SECTOR_SIZE);
+    uSize sector_count = bek::ceil_div(buffer.size() + offset_within_sector, blk::SECTOR_SIZE);
+    uSize transfer_size = sector_count * blk::SECTOR_SIZE;
+
+    auto request = m_transport->get_dma_pool().allocate(transfer_size + 17, 8);
     auto& req_header  = request.raw_view().get_at<BlockRequestHeader>(0);
     req_header.sector = sector_index;
     req_header.type   = BlockRequestHeader::IN;
 
     TransferElement transfer[3]{
         {TransferElement::OUT, request.view().subdivide(0, 16)},
-        {TransferElement::IN, request.view().subdivide(16, buffer.size())},
-        {TransferElement::IN, request.view().subdivide(buffer.size() + 16, 1)}};
+                                {TransferElement::IN, request.view().subdivide(16, transfer_size)},
+                                {TransferElement::IN, request.view().subdivide(transfer_size + 16, 1)}};
 
     if (!m_transport->queue_transfer(
             0, {transfer, 3},
-            Callback(
-                [req = bek::move(request), buffer, cb = bek::move(cb)](uSize transferred) mutable {
-                    if (transferred != 1 + buffer.size()) {
-                        DBG::dbgln("Transferred {} bytes!"_sv, transferred);
+            Callback([req = bek::move(request), buffer, cb = bek::move(cb), transfer_size,
+                                               offset_within_sector](uSize transferred) mutable {
+                                         if (transferred != 1 + transfer_size) {
+                                             DBG::dbgln("Transferred {} bytes!"_sv, transferred);
                     }
-                    auto status = req.raw_view().get_at<u8>(buffer.size() + 16);
-                    DBG::dbgln("Status: {:b}"_sv, status);
-                    memcpy(buffer.data(), req.raw_view().data() + 16, buffer.size());
-                    cb(status == 0 ? blk::TransferResult::Success : blk::TransferResult::Failure);
+                                         auto status = req.raw_view().get_at<u8>(transfer_size + 16);
+                                         DBG::dbgln("Status: {:b}"_sv, status);
+                                         bek::memcopy(buffer.data(), req.raw_view().data() + 16 + offset_within_sector,
+                                                      buffer.size());
+                                         cb(status == 0 ? blk::TransferResult::Success : blk::TransferResult::Failure);
                 }))) {
         DBG::dbgln("Could not setup transfer."_sv);
         return blk::TransferResult::Failure;
     }
+    return blk::TransferResult::Success;
 }
-blk::TransferResult BlockDevice::schedule_write(uSize sector_index, bek::buffer buffer,
-                                                blk::TransferCallback cb) {
+blk::TransferResult BlockDevice::schedule_write(uSize byte_offset, bek::buffer buffer, blk::TransferCallback cb) {
     return blk::TransferResult::Failure;
 }
 BlockDevice::BlockDevice(bek::string name, u32 global_id, bek::own_ptr<MMIOTransport> transport,

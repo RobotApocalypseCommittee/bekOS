@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,20 +29,23 @@ public:
     virtual u64 get_frequency() = 0;
 
     Kind kind() const override { return Kind::Clock; }
+    bek::str_view preferred_name_prefix() const override { return "generic.clock"_sv; }
 };
 
 class FixedClock : public Clock {
 public:
     explicit FixedClock(u64 frequency) : frequency{frequency} {}
 
-    static dev_tree::DevStatus probe_devtree(dev_tree::Node& node, dev_tree::device_tree& tree);
+    static dev_tree::DevStatus probe_devtree(dev_tree::Node& node, dev_tree::device_tree& tree, dev_tree::probe_ctx&);
 
     u64 get_frequency() override { return frequency; }
 
 private:
     u64 frequency;
 };
-inline dev_tree::DevStatus FixedClock::probe_devtree(dev_tree::Node& node, dev_tree::device_tree&) {
+
+inline dev_tree::DevStatus FixedClock::probe_devtree(dev_tree::Node& node, dev_tree::device_tree&,
+                                                     dev_tree::probe_ctx&) {
     if (!(node.compatible.size() && node.compatible[0] == "fixed-clock"_sv))
         return dev_tree::DevStatus::Unrecognised;
     auto prop_opt = node.get_property("clock-frequency"_sv);
