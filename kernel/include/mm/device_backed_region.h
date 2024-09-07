@@ -16,29 +16,22 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_KMALLOC_H
-#define BEKOS_KMALLOC_H
+#ifndef BEKOS_DEVICE_BACKED_REGION_H
+#define BEKOS_DEVICE_BACKED_REGION_H
 
-#include "bek/allocations.h"
-#include "bek/types.h"
-#include "bek/utility.h"
+#include "backing_region.h"
+#include "peripherals/device.h"
 
-namespace mem {
+class DeviceBackedRegion : public mem::BackingRegion {
+public:
+    explicit DeviceBackedRegion(mem::PhysicalRegion region) : m_region(region) {}
+    uSize size() const override { return m_region.size; }
+    ErrorCode map_into_table(TableManager& manager, mem::UserRegion user_region, uSize offset, bool readable,
+                             bool writable, bool executable) override;
+    ErrorCode unmap_from_table(TableManager& manager, mem::UserRegion user_region, uSize offset) override;
 
-void initialise_kmalloc();
+private:
+    mem::PhysicalRegion m_region;
+};
 
-bek::pair<uSize, uSize> get_kmalloc_usage();
-void log_kmalloc_usage();
-
-}  // namespace mem
-
-// void operator delete  (void* ptr, void* place ) noexcept;
-// void operator delete[](void* ptr, void* place ) noexcept;
-
-inline void* kmalloc(uSize sz) { return mem::allocate(sz).pointer; }
-inline void* kmalloc(uSize sz, uSize align) { return mem::allocate(sz, align).pointer; }
-
-inline void kfree(void* ptr, uSize sz) { return mem::free(ptr, sz); }
-inline void kfree(void* ptr, uSize sz, uSize align) { return mem::free(ptr, sz, align); }
-
-#endif  // BEKOS_KMALLOC_H
+#endif  // BEKOS_DEVICE_BACKED_REGION_H

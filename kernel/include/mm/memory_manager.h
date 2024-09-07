@@ -21,9 +21,9 @@
 
 #include "arch/a64/translation_tables.h"
 #include "areas.h"
+#include "bek/format_core.h"
 #include "bek/types.h"
 #include "bek/vector.h"
-#include "library/format_core.h"
 #include "page_allocator.h"
 
 namespace mem {

@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 #include "mm/memory_manager.h"
 
-#include "library/format.h"
+#include "bek/format.h"
 
 namespace mem {
 
@@ -95,7 +95,7 @@ void MemoryManager::initialise(const bek::vector<AnnotatedRegion>& regions,
 }
 
 MemoryManager::MemoryManager(u8* current_embedded_table)
-    : m_table_manager(current_embedded_table) {}
+    : m_table_manager(TableManager::create_global_manager(current_embedded_table)) {}
 VirtualRegion MemoryManager::map_normal_memory(PhysicalRegion region) {
     auto v_ptr = VA_IDENT_OFFSET + region.start.get();
     auto r     = m_table_manager.map_region(v_ptr, region.start.get(), region.size, AttributesRWnE,

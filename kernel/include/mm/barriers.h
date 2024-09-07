@@ -16,29 +16,27 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_KMALLOC_H
-#define BEKOS_KMALLOC_H
-
-#include "bek/allocations.h"
-#include "bek/types.h"
-#include "bek/utility.h"
+#ifndef BEKOS_BARRIERS_H
+#define BEKOS_BARRIERS_H
 
 namespace mem {
 
-void initialise_kmalloc();
+class CompletionFlag {
+public:
+    explicit CompletionFlag(bool b = false) : m_b(b) {}
+    void set();
+    void unset();
+    bool test();
 
-bek::pair<uSize, uSize> get_kmalloc_usage();
-void log_kmalloc_usage();
+    void wait() {
+        while (!test()) {
+        }
+    }
+
+private:
+    bool m_b;
+};
 
 }  // namespace mem
 
-// void operator delete  (void* ptr, void* place ) noexcept;
-// void operator delete[](void* ptr, void* place ) noexcept;
-
-inline void* kmalloc(uSize sz) { return mem::allocate(sz).pointer; }
-inline void* kmalloc(uSize sz, uSize align) { return mem::allocate(sz, align).pointer; }
-
-inline void kfree(void* ptr, uSize sz) { return mem::free(ptr, sz); }
-inline void kfree(void* ptr, uSize sz, uSize align) { return mem::free(ptr, sz, align); }
-
-#endif  // BEKOS_KMALLOC_H
+#endif  // BEKOS_BARRIERS_H

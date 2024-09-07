@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,8 +20,10 @@
 
 #include <library/bitset.h>
 
+#include "arch/a64/memory_constants.h"
 #include "library/debug.h"
 #include "library/intrusive_list.h"
+#include "mm/page_allocator.h"
 
 constexpr bool is_aligned(uPtr ptr, uSize alignment) { return ptr % alignment == 0; }
 
@@ -216,6 +218,16 @@ struct KernelAllocator {
         : m_bitmap_allocator(initial_start, initial_size) {}
 
     mem::AllocatedRegion allocate(uSize size, uSize align) {
+        if (size >= 64 * KiB) {
+            VERIFY(align <= PAGE_SIZE);
+            auto pages = bek::ceil_div(size, (uSize)PAGE_SIZE);
+            if (auto region = mem::PageAllocator::the().allocate_region(pages)) {
+                return {region->start.get(), region->size};
+            } else {
+                return {nullptr, 0};
+            }
+        }
+
         for (auto& allocator : m_slab_allocators) {
             if (size <= allocator.object_size() && align <= allocator.object_size()) {
                 return {allocator.allocate(), allocator.object_size()};
@@ -226,6 +238,12 @@ struct KernelAllocator {
     }
 
     void free(void* ptr, uSize size, uSize align) {
+        if (size >= 64 * KiB) {
+            VERIFY(align <= PAGE_SIZE);
+            VERIFY((uPtr)ptr % PAGE_SIZE == 0);
+            mem::PageAllocator::the().free_region(mem::VirtualPtr{static_cast<u8*>(ptr)});
+        }
+
         for (auto& allocator : m_slab_allocators) {
             if (size <= allocator.object_size() && align <= allocator.object_size()) {
                 allocator.free(ptr);
@@ -250,7 +268,8 @@ struct KernelAllocator {
                                           SlabAllocator{512}, SlabAllocator{1024}};
 };
 
-inline constexpr uSize INITIAL_ALLOCATION_SPACE_SIZE = 512 * KiB;
+// FIXME BAD BAD BAD
+inline constexpr uSize INITIAL_ALLOCATION_SPACE_SIZE = 1 * MiB;
 alignas(BitmapAllocator::chunk_size) static char initial_allocation_space
     [INITIAL_ALLOCATION_SPACE_SIZE];
 
@@ -275,6 +294,12 @@ void mem::free(void* ptr, uSize size, uSize align) {
 }
 bek::pair<uSize, uSize> mem::get_kmalloc_usage() {
     return {global_kernel_allocator->free_bytes(), global_kernel_allocator->total_bytes()};
+}
+void mem::log_kmalloc_usage() {
+    using LOG_DBG = DebugScope<"kmalloc", true>;
+    auto [free_mem, total_mem] = mem::get_kmalloc_usage();
+    LOG_DBG::dbgln("Memory: {} of {} bytes used ({}%)."_sv, total_mem - free_mem, total_mem,
+                   ((total_mem - free_mem) * 100) / total_mem);
 }
 
 void* operator new(uSize count) { return mem::allocate(count).pointer; }

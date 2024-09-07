@@ -21,7 +21,6 @@
 
 #include "addresses.h"
 #include "bek/buffer.h"
-#include "bek/memory.h"
 #include "bek/vector.h"
 #include "kmalloc.h"
 #include "library/optional.h"
@@ -54,7 +53,7 @@ public:
         return *reinterpret_cast<T*>(data() + offset);
     }
 
-    constexpr static dma_buffer null_buffer() { return {nullptr, 0, {0}}; }
+    constexpr static dma_buffer null_buffer() { return {nullptr, 0, {}}; }
 
 private:
     char* m_data;
@@ -168,12 +167,16 @@ template <typename T>
 class dma_object {
 public:
     explicit dma_object(dma_pool& pool) : m_buffer(pool.allocate(sizeof(T), alignof(T))) {}
+    dma_object(dma_pool& pool, const T& val) : dma_object(pool) {
+        *typed_ptr() = val;
+        sync_after_write();
+    }
 
-    const T& operator*() const { return *reinterpret_cast<const T*>(m_buffer.data()); }
-    T& operator*() { return *reinterpret_cast<T*>(m_buffer.data()); }
+    const T& operator*() const { return *typed_ptr(); }
+    T& operator*() { return *typed_ptr(); }
 
-    const T* operator->() const { return reinterpret_cast<const T*>(m_buffer.data()); }
-    T* operator->() { return reinterpret_cast<T*>(m_buffer.data()); }
+    const T* operator->() const { return typed_ptr(); }
+    T* operator->() { return typed_ptr(); }
 
     void sync_before_read() { dma_sync_before_read(m_buffer.data(), sizeof(T)); }
 
@@ -184,6 +187,9 @@ public:
     [[nodiscard]] dma_buffer get_view() const { return m_buffer.view(); }
 
 private:
+    const T* typed_ptr() const { return reinterpret_cast<const T*>(m_buffer.data()); }
+    T* typed_ptr() { return reinterpret_cast<T*>(m_buffer.data()); }
+
     own_dma_buffer m_buffer;
 };
 

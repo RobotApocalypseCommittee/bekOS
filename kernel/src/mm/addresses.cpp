@@ -16,29 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_KMALLOC_H
-#define BEKOS_KMALLOC_H
+#include "mm/addresses.h"
 
-#include "bek/allocations.h"
-#include "bek/types.h"
-#include "bek/utility.h"
+#include "bek/format.h"
 
-namespace mem {
-
-void initialise_kmalloc();
-
-bek::pair<uSize, uSize> get_kmalloc_usage();
-void log_kmalloc_usage();
-
-}  // namespace mem
-
-// void operator delete  (void* ptr, void* place ) noexcept;
-// void operator delete[](void* ptr, void* place ) noexcept;
-
-inline void* kmalloc(uSize sz) { return mem::allocate(sz).pointer; }
-inline void* kmalloc(uSize sz, uSize align) { return mem::allocate(sz, align).pointer; }
-
-inline void kfree(void* ptr, uSize sz) { return mem::free(ptr, sz); }
-inline void kfree(void* ptr, uSize sz, uSize align) { return mem::free(ptr, sz, align); }
-
-#endif  // BEKOS_KMALLOC_H
+void mem::format_pointer(bek::OutputStream& out, uPtr ptr) { bek::format_to(out, "p{:Xl}"_sv, ptr); }
