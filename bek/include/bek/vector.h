@@ -22,6 +22,7 @@
 #include "allocations.h"
 #include "buffer.h"
 #include "initializer_list.h"
+#include "memory.h"
 #include "utility.h"
 
 namespace bek {
@@ -52,6 +53,17 @@ public:
         array      = reinterpret_cast<T*>(mem::allocate(m_capacity * sizeof(T)).pointer);
         for (uSize i = 0; i < m_size; i++) {
             new (&array[i]) T(v[i]);
+        }
+    }
+
+    vector(const T* begin, const T* end)
+        : m_size{static_cast<uSize>(end - begin)}, m_capacity{(m_size == 0) ? 1ul : m_size} {
+        auto res = mem::allocate(m_capacity * sizeof(T));
+        VERIFY(res.pointer);
+        array = reinterpret_cast<T*>(res.pointer);
+        m_capacity = res.size / sizeof(T);
+        for (auto* it = array; begin < end; it++, begin++) {
+            new (it) T(*begin);
         }
     }
 
@@ -119,6 +131,19 @@ public:
         }
         new (&array[i]) T(bek::move(item));
         m_size++;
+    }
+
+    T extract(const T& item) {
+        const T* ptr = &item;
+        VERIFY(ptr >= &array[0] && ptr < &array[m_size]);
+        auto i = ptr - &array[0];
+        T x = bek::move(array[i]);
+        for (uSize idx = i + 1; idx < m_size; idx++) {
+            array[idx - 1] = bek::move(array[idx]);
+        }
+        array[m_size - 1].~T();
+        m_size--;
+        return x;
     }
 
     const T& operator[](uSize n) const { return array[n]; }

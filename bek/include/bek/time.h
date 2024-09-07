@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_TIME_H
-#define BEKOS_TIME_H
+#ifndef BEK_TIME_H
+#define BEK_TIME_H
 
 #include "types.h"
 
@@ -51,4 +51,4 @@ u16 dos_date_from(DecomposedTime date);
 u16 dos_time_from(DecomposedTime time);
 DecomposedTime datetime_from_dos(u16 dos_date, u16 dos_time);
 
-#endif  // BEKOS_TIME_H
+#endif  // BEK_TIME_H

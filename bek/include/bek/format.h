@@ -16,12 +16,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_FORMAT_H
-#define BEKOS_FORMAT_H
+#ifndef BEK_FORMAT_H
+#define BEK_FORMAT_H
 
+#include "bek/format_core.h"
 #include "bek/span.h"
 #include "bek/str.h"
-#include "format_core.h"
+
 namespace bek {
 
 template <typename T>
@@ -93,6 +94,11 @@ void format_to(OutputStream& out, bek::str_view format_str,
 namespace bek {
 
 template <>
+struct Formatter<char> : internal::StringFormatter {
+    void format_to(OutputStream& out, char c) { out.write(c); }
+};
+
+template <>
 struct Formatter<bek::str_view> : internal::StringFormatter {};
 
 template <>
@@ -149,4 +155,4 @@ bek::string format(bek::str_view format_str, Types const&... parameters) {
 
 }  // namespace bek
 
-#endif  // BEKOS_FORMAT_H
+#endif  // BEK_FORMAT_H

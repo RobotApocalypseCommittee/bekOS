@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_INITIALIZER_LIST_H
-#define BEKOS_INITIALIZER_LIST_H
+#ifndef BEK_INITIALIZER_LIST_H
+#define BEK_INITIALIZER_LIST_H
 
 #include "bek/types.h"
 
@@ -51,4 +51,4 @@ public:
 
 }  // namespace std
 
-#endif  // BEKOS_INITIALIZER_LIST_H
+#endif  // BEK_INITIALIZER_LIST_H

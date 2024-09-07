@@ -16,11 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-builtins"
+#ifndef BEK_TRAITS_H
+#define BEK_TRAITS_H
+
 #include "types.h"
-#ifndef BEKOS_TRAITS_H
-#define BEKOS_TRAITS_H
 
 namespace bek {
 
@@ -203,7 +202,7 @@ inline constexpr bool is_volatile<T volatile> = true;
     template <typename T>                   \
     inline constexpr bool is_##NAME = EXPR; \
     template <typename T>                   \
-    concept NAME = is_##NAME<T>;
+    concept NAME = is_##NAME<T>
 
 #define BEK_REQUIRES_TRAIT(NAME, REQUIRES) \
     template <typename T>                  \
@@ -222,7 +221,12 @@ BEK_EXPRESSION_TRAIT(trivially_move_constructible, __is_trivially_constructible(
 BEK_EXPRESSION_TRAIT(trivially_copy_assignable, __is_trivially_assignable(T, const T&));
 BEK_EXPRESSION_TRAIT(trivially_move_assignable, __is_trivially_assignable(T, T&&));
 BEK_EXPRESSION_TRAIT(trivially_copyable, __is_trivially_copyable(T));
+
+#if __has_builtin(__is_trivially_destructible)
+BEK_EXPRESSION_TRAIT(trivially_destructible, __is_trivially_destructible(T));
+#else
 BEK_EXPRESSION_TRAIT(trivially_destructible, __has_trivial_destructor(T));
+#endif
 
 BEK_REQUIRES_TRAIT(copy_constructible, requires(const T& t) { ::new T(t); });
 BEK_REQUIRES_TRAIT(move_constructible, requires { ::new T(declval<T&&>()); });
@@ -278,6 +282,4 @@ using underlying_type = __underlying_type(T);
 
 }  // namespace bek
 
-#endif  // BEKOS_TRAITS_H
-
-#pragma clang diagnostic pop
+#endif  // BEK_TRAITS_H

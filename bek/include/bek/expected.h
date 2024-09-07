@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_EXPECTED_H
-#define BEKOS_EXPECTED_H
+#ifndef BEK_EXPECTED_H
+#define BEK_EXPECTED_H
 
 #include "swl/variant.hpp"
 
@@ -92,4 +92,4 @@ private:
         _temp.release_value();       \
     })
 
-#endif  // BEKOS_EXPECTED_H
+#endif  // BEK_EXPECTED_H

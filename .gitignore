@@ -51,11 +51,14 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
-*.elf
+# IDEs, tools, filesystem
 .idea/
-b/
-cmake-build*/
-build/
-.vscode
-/toolchain-arm.cmake
 .clangd/
+.vscode
+.DS_Store
+
+# Build Structure
+cmake-build*/
+
+# User-specific config
+/toolchain-arm.cmake

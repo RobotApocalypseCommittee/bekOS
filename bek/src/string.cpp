@@ -18,6 +18,7 @@
 
 #include "bek/allocations.h"
 #include "bek/assertions.h"
+#include "bek/memory.h"
 #include "bek/str.h"
 #include "bek/utility.h"
 
@@ -30,7 +31,7 @@ bek::string::string(const string& s) {
         m_long.capacity = s.m_long.capacity;
         m_long.length   = s.m_long.length;
         m_long.data     = static_cast<char*>(mem::allocate(get_long_capacity()).pointer);
-        copy(m_long.data, s.m_long.data, m_long.length + 1);
+        memcopy(m_long.data, s.m_long.data, m_long.length + 1);
     } else {
         // Simply copy
         m_short = s.m_short;
@@ -78,7 +79,7 @@ string& bek::string::operator=(string s) {
     return *this;
 }
 
-bek::string::string(string&& s) { swap(s); }
+bek::string::string(string&& s) noexcept { swap(s); }
 
 void bek::string::set_short_length(u8 len) {
     ASSERT(len <= 14);
@@ -99,6 +100,7 @@ u8 bek::string::get_short_length() const { return m_short.length >> 1; }
 bek::string::string() {}
 
 void string::swap(string& s) { bek::swap(m_short, s.m_short); }
+
 string::string(bek::str_view str) {
     // Without 0-terminator.
     auto len = str.size();
@@ -107,11 +109,11 @@ string::string(bek::str_view str) {
         set_long_capacity(len + 1);
         set_long_length(len);
         m_long.data = static_cast<char*>(mem::allocate(len + 1).pointer);
-        memcpy(m_long.data, str.data(), len);
+        memcopy(m_long.data, str.data(), len);
         m_long.data[len] = '\0';
     } else {
         set_short_length(len);
-        memcpy(&m_short.in_data[0], str.data(), len);
+        memcopy(&m_short.in_data[0], str.data(), len);
         m_short.in_data[len] = '\0';
     }
 }

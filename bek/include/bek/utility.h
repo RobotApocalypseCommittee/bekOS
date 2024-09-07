@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_UTILITY_H
-#define BEKOS_UTILITY_H
+#ifndef BEK_UTILITY_H
+#define BEK_UTILITY_H
 
 #include "traits.h"
 #include "types.h"
@@ -264,14 +264,8 @@ constexpr u32 floor_log_2(u32 n) {
     return 31u - __builtin_clz(n);
 }
 
-void memcopy(void* __restrict to, const void* __restrict from, uSize n);
-void memmove(void* to, const void* from, uSize n);
-uSize strlen(const char* str);
-uSize strnlen(const char* str, uSize max_len);
-void memset(void* dest, u8 value, uSize n);
-
 #define OFFSETOF(A, B) __builtin_offsetof(A, B)
 
 }  // namespace bek
 
-#endif  // BEKOS_UTILITY_H
+#endif  // BEK_UTILITY_H

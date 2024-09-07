@@ -16,12 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-//
-// Created by Joe Bell on 22/08/2023.
-//
-
-#ifndef BEKOS_FORMAT_CORE_H
-#define BEKOS_FORMAT_CORE_H
+#ifndef BEK_FORMAT_CORE_H
+#define BEK_FORMAT_CORE_H
 
 #include "bek/str.h"
 #include "bek/types.h"
@@ -36,4 +32,4 @@ struct OutputStream {
 
 }  // namespace bek
 
-#endif  // BEKOS_FORMAT_CORE_H
+#endif  // BEK_FORMAT_CORE_H

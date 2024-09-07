@@ -455,12 +455,12 @@ private:
 
     template <unsigned Idx, class... Args>
     constexpr void do_emplace_no_dtor(Args&&... args) {
+        current = static_cast<index_type>(Idx);
         auto* ptr = vimpl::addressof(unsafe_get<Idx>());
 
         using T = alternative<Idx>;
         new ((void*)(ptr)) T(SWL_FWD(args)...);
 
-        current = static_cast<index_type>(Idx);
     }
 
     // destroy the current elem IFF not valueless

@@ -16,15 +16,21 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_MEMORY_H
-#define BEKOS_MEMORY_H
+#ifndef BEK_MEMORY_H
+#define BEK_MEMORY_H
 
 #include "types.h"
 
 namespace bek {
 
-void* memcpy(void* __restrict s1, const void* __restrict s2, uSize n);
+/// Copies memory of length n bytes. Automatically handles memmove.
+void memcopy(void* to, const void* from, uSize n);
+void memset(void* dest, u8 value, uSize n);
 
+uSize strlen(const char* str);
+uSize strlen(const char* str, uSize max_len);
+
+int mem_compare(const void* a, const void* b, uSize n);
 }
 
-#endif  // BEKOS_MEMORY_H
+#endif  // BEK_MEMORY_H

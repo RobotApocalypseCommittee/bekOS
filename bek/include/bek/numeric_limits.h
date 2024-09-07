@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_NUMERIC_LIMITS_H
-#define BEKOS_NUMERIC_LIMITS_H
+#ifndef BEK_NUMERIC_LIMITS_H
+#define BEK_NUMERIC_LIMITS_H
 
 namespace bek {
 
@@ -26,22 +26,27 @@ struct numeric_limits {};
 
 template <>
 struct numeric_limits<unsigned char> {
-    static constexpr unsigned char min() { return 0; }
-    static constexpr unsigned char max() { return ~(unsigned char)0; }
+    static constexpr uSize min() { return 0; }
+    static constexpr uSize max() { return ~(unsigned char)0; }
 };
 
 template <>
 struct numeric_limits<unsigned short> {
-    static constexpr unsigned short min() { return 0; }
-    static constexpr unsigned short max() { return ~(unsigned short)0; }
+    static constexpr uSize min() { return 0; }
+    static constexpr uSize max() { return ~(unsigned short)0; }
 };
 
 template <>
 struct numeric_limits<unsigned int> {
-    static constexpr unsigned int min() { return 0; }
-    static constexpr unsigned int max() { return ~(unsigned int)0; }
+    static constexpr uSize min() { return 0; }
+    static constexpr uSize max() { return ~(unsigned int)0; }
+};
+
+template <>
+struct numeric_limits<long> {
+    static constexpr uSize max() { return (2ul << (sizeof(long) * 8ul - 1ul)) - 1ul; }
 };
 
 }  // namespace bek
 
-#endif  // BEKOS_NUMERIC_LIMITS_H
+#endif  // BEK_NUMERIC_LIMITS_H

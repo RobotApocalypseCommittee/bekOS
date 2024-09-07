@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_LIBRARY_BUFFER_H
-#define BEKOS_LIBRARY_BUFFER_H
+#ifndef BEK_BUFFER_H
+#define BEK_BUFFER_H
 
 #include "assertions.h"
 #include "types.h"
@@ -130,5 +130,4 @@ private:
 
 }
 
-#endif // BEKOS_LIBRARY_BUFFER_H
-
+#endif  // BEK_BUFFER_H

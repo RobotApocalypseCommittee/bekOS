@@ -30,7 +30,7 @@ struct AllocatedRegion {
     uSize size;
 };
 
-inline constexpr uSize ALLOCATOR_DEFAULT_ALIGNMENT = 16;
+inline constexpr uSize ALLOCATOR_DEFAULT_ALIGNMENT = 8;
 
 /// Allocated region of at least size bytes, of alignment align.
 /// \param size Size of region to request.

@@ -1,9 +1,8 @@
 # Generated from CLion C/C++ Code Style settings
 BasedOnStyle: Google
 IndentWidth: 4
-AlignConsecutiveAssignments: Consecutive
 AccessModifierOffset: -4
-ColumnLimit: 100
+ColumnLimit: 120
 FixNamespaceComments: true
 PointerAlignment: Left
 ReferenceAlignment: Left

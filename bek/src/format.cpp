@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "library/format.h"
+#include "bek/format.h"
 
 void bek::StringStream::write(bek::str_view str) {
     // TODO: Make more efficient.
@@ -30,7 +30,9 @@ void bek::StringStream::reserve(uSize n) { chars.reserve(n + chars.size()); }
 bek::string bek::StringStream::build_and_clear() {
     chars.push_back('\0');
     // TODO: Construct without copy.
-    return bek::string(chars.data());
+    bek::string result{chars.data()};
+    chars.clear();
+    return result;
 }
 void bek::internal::format_to(bek::OutputStream& out, bek::str_view format_str,
                               bek::span<TypeErasedFormatter> parameters) {
@@ -125,7 +127,7 @@ static bek::str_view convert_unsigned_to_string(u64 v, u8 base, bool uppercase, 
     static constexpr const char* uppercase_alphabet = "0123456789ABCDEF";
     ASSERT(base >= 2 && base <= 16);
     ASSERT(min_len <= 64);
-    memset(buffer, '0', 64);
+    bek::memset(buffer, '0', 64);
 
     if (v == 0) {
         return {&buffer[0], min_len};

@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_STR_H
-#define BEKOS_STR_H
+#ifndef BEK_STR_H
+#define BEK_STR_H
 
 #include "assertions.h"
 #include "types.h"
@@ -92,14 +92,12 @@ public:
 
     string(const string &);
 
-    string(string &&);
+    string(string&&) noexcept;
 
     string &operator=(string);
     void swap(string &other);
 
     ~string();
-
-    friend bool operator==(const string &, const string &);
 
 private:
     struct long_str {
@@ -139,10 +137,12 @@ private:
     u8 get_short_length() const;
 };
 
+bool operator==(const string&, const string&);
+
 u64 hash(const bek::str_view &view);
 u64 hash(const bek::string &str);
 
 }  // namespace bek
 constexpr bek::str_view operator""_sv(const char *str, uSize size) { return {str, size}; }
 
-#endif  // BEKOS_STR_H
+#endif  // BEK_STR_H
