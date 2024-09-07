@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include <arch/a64/translation_tables.h>
 
 #include "library/debug.h"
+#include "mm/page_allocator.h"
 
 using DBG = DebugScope<"PGTBL", true>;
 
@@ -84,6 +85,8 @@ struct [[gnu::packed]] ARMv8MMU_L3_Entry {
         return ret.entry;
     }
 
+    static constexpr ARMv8MMU_L3_Entry create_null() { return {}; }
+
     friend bool operator==(ARMv8MMU_L3_Entry a, ARMv8MMU_L3_Entry b) = default;
 };
 
@@ -114,6 +117,8 @@ union ARMv8MMU_UpperEntry {
         entry.block.address         = raw_ptr >> SHIFTS[2];
         return entry;
     }
+
+    static constexpr ARMv8MMU_UpperEntry create_null() { return {}; }
 };
 static_assert(sizeof(ARMv8MMU_UpperEntry) == 8);
 static_assert(sizeof(ARMv8MMU_L3_Entry) == 8);
@@ -128,7 +133,7 @@ bool crude_map_region(uPtr virt_addr, uPtr phys_addr, uSize size, u64 flags, uPt
 
     if (tables_current == tables_start) {
         // Need to init whole space.
-        memset(reinterpret_cast<void*>(tables_start), 0, tables_end - tables_start);
+        bek::memset(reinterpret_cast<void*>(tables_start), 0, tables_end - tables_start);
         tables_current += PAGE_SIZE;
     }
 
@@ -173,15 +178,26 @@ bool crude_map_region(uPtr virt_addr, uPtr phys_addr, uSize size, u64 flags, uPt
     return true;
 }
 
-TableManager::TableManager(u8* current_embedded_table)
-    : m_embedded_tables_current(current_embedded_table) {}
+TableManager::TableManager(u8* current_embedded_table, u8* root_table)
+    : m_embedded_tables_current(current_embedded_table), m_root_table(root_table) {}
 bool TableManager::map_region(uPtr virt_start, uPtr phys_start, uSize size, PageAttributes attrs,
                               MemAttributeIndex attr_idx) {
+    VERIFY(m_root_table);
     // Check properly aligned to page.
     if (virt_start & PAGE_OFFSET_MASK || phys_start & PAGE_OFFSET_MASK || size & PAGE_OFFSET_MASK)
         return false;
-    return map_upper(&__initial_pgtables_start, virt_start, phys_start, size,
-                     static_cast<u64>(attrs) | (attr_idx << 2), L0);
+    return map_upper(m_root_table, virt_start, phys_start, size, static_cast<u64>(attrs) | (attr_idx << 2), L0);
+}
+
+bool TableManager::unmap_region(uPtr virt_start, uSize size) {
+    VERIFY(m_root_table);
+    // Check properly aligned to page.
+    if (virt_start & PAGE_OFFSET_MASK || size & PAGE_OFFSET_MASK) return false;
+    auto b = unmap_upper(m_root_table, virt_start, size, L0);
+    if (!b) {
+        DBG::dbgln("Failed to unmap region {:Xl} (size {})"_sv, virt_start, size);
+    }
+    return b;
 }
 
 bool TableManager::map_upper(u8* table, uPtr& virt_start, uPtr& phys_start, uSize& size, u64 flags,
@@ -211,7 +227,7 @@ bool TableManager::map_upper(u8* table, uPtr& virt_start, uPtr& phys_start, uSiz
                 ARMv8MMU_UpperEntry::create_table_entry(*mem::kernel_virt_to_phys(next_table));
             DBG::dbgln("New level {} table."_sv, static_cast<int>(level + 1));
         } else if (entry_kind == PT_UPPER_TABLE_DESCRIPTOR) {
-            next_table = (u8*)mem::kernel_phys_to_virt({tbl[idx].table.table_page << PAGE_SHIFT});
+            next_table = (u8*)mem::kernel_phys_to_virt(mem::PhysicalPtr{tbl[idx].table.table_page << PAGE_SHIFT});
         } else {
             // TODO: Spaces overlap!
             return false;
@@ -245,12 +261,109 @@ bool TableManager::map_lower(u8* table, uPtr& virt_start, uPtr& phys_start, uSiz
     }
     return true;
 }
-u8* TableManager::allocate_table() {
-    if (m_embedded_tables_current < &__initial_pgtables_end) {
-        auto* res = m_embedded_tables_current;
-        m_embedded_tables_current += PAGE_SIZE;
-        return res;
-    } else {
-        PANIC("I don't know how to get new pages!");
+bool TableManager::unmap_upper(u8* table, uPtr& virt_start, uSize& size, TableLevel level) {
+    VERIFY(level != L3);
+    auto* tbl = reinterpret_cast<ARMv8MMU_UpperEntry*>(table);
+
+    auto idx = (virt_start >> SHIFTS[level]) & PT_INDEX_MASK;
+
+    for (; idx < PT_ENTRY_COUNT && size > 0; idx++) {
+        auto entry_kind = tbl[idx].table.descriptor_code;
+        u8* next_table = nullptr;
+
+        if (entry_kind == PT_UPPER_TABLE_DESCRIPTOR) {
+            next_table = (u8*)mem::kernel_phys_to_virt(PhysPtr{tbl[idx].table.table_page << PAGE_SHIFT});
+            // If spans whole range of entry, remove that table.
+            if ((virt_start & (SIZES[level] - 1)) == 0 && size >= SIZES[level]) {
+                tbl[idx] = ARMv8MMU_UpperEntry::create_null();
+                free_table(next_table);
+                virt_start += SIZES[level];
+                size -= SIZES[level];
+                continue;
+            }
+
+        } else if (entry_kind == PT_UPPER_BLOCK_DESCRIPTOR) {
+            // If spans whole block, simple!
+            if ((virt_start & (SIZES[level] - 1)) == 0 && size >= SIZES[level]) {
+                tbl[idx] = ARMv8MMU_UpperEntry::create_null();
+                continue;
+            } else {
+                // Does not span whole block - needs to free individual entries within block.
+                // TODO: Need to do a complex thing.
+                return false;
+            }
+        } else {
+            // Trying to unmap non-mapped region.
+            return false;
+        }
+
+        if (level == L2) {
+            // Move to L3
+            auto res = unmap_lower(next_table, virt_start, size);
+            if (!res) return false;
+        } else {
+            auto res = unmap_upper(next_table, virt_start, size, static_cast<TableLevel>(level + 1));
+            if (!res) return false;
+        }
     }
+    return true;
+}
+bool TableManager::unmap_lower(u8* table, uPtr& virt_start, uSize& size) {
+    auto* tbl = reinterpret_cast<ARMv8MMU_L3_Entry*>(table);
+    auto idx = (virt_start >> SHIFTS[L3]) & PT_INDEX_MASK;
+    for (; idx < PT_ENTRY_COUNT && size > 0; idx++) {
+        tbl[idx] = ARMv8MMU_L3_Entry::create_null();
+        virt_start += SIZES[L3];
+        size -= SIZES[L3];
+    }
+    return true;
+}
+
+u8* TableManager::allocate_table() {
+    u8* res = nullptr;
+    if (m_embedded_tables_current && m_embedded_tables_current < &__initial_pgtables_end) {
+        res = m_embedded_tables_current;
+        m_embedded_tables_current += PAGE_SIZE;
+    } else {
+        res = mem::PageAllocator::the().allocate_region(1)->start.ptr;
+    }
+    VERIFY(res);
+    bek::memset(res, 0, PAGE_SIZE);
+    return res;
+}
+
+bool TableManager::free_table(u8* table) {
+    if (table >= &__initial_pgtables_start && table < &__initial_pgtables_end) {
+        if (table + PAGE_SIZE == m_embedded_tables_current) {
+            m_embedded_tables_current = table;
+        } else {
+            // Sad, but nothing we can do.
+        }
+    } else {
+        mem::PageAllocator::the().free_region({table});
+    }
+    return true;
+}
+TableManager TableManager::create_global_manager(u8* current_embedded_table) {
+    return TableManager(current_embedded_table, &__initial_pgtables_start);
+}
+TableManager TableManager::create_user_manager() {
+    auto root_table = mem::PageAllocator::the().allocate_region(1);
+    VERIFY(root_table && root_table->start.ptr);
+    // TODO: Error handling?
+    return TableManager(nullptr, root_table->start.ptr);
+}
+u8* TableManager::get_root_table() const {
+    VERIFY(m_root_table);
+    return m_root_table;
+}
+TableManager::TableManager(TableManager&& manager) noexcept
+    : m_embedded_tables_current(bek::exchange(manager.m_embedded_tables_current, nullptr)),
+      m_root_table(bek::exchange(manager.m_root_table, nullptr)) {}
+TableManager& TableManager::operator=(TableManager&& manager) noexcept {
+    if (&manager != this) {
+        m_embedded_tables_current = bek::exchange(manager.m_embedded_tables_current, nullptr);
+        m_root_table = bek::exchange(manager.m_root_table, nullptr);
+    }
+    return *this;
 }

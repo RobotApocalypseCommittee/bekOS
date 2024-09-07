@@ -16,18 +16,19 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Aarch64
 #include "arch/a64/sysreg_constants.h"
+#include "arch/a64/asm_defines.h"
 
 .macro adrl, dst, sym
     adrp    \dst, \sym
     add     \dst, \dst, :lo12:\sym
 .endm
 
-// To ensure it's at the start
+// To ensure it's at the start.
+// This is not a function.
 .section ".text.boot"
 .globl _head
-_head : 
+_head:
     b   _start  // Is there a need for a header
     nop
     .quad   0
@@ -39,10 +40,8 @@ _head :
     .word   0x644d5241
     .word   0  // Should not be 0?
 
-// Makes it global
-.globl _start
-// Kernel entry point
-_start:
+// Kernel Entry start point
+ASM_FUNCTION_BEGIN(_start)
     mov     x19, x0  // Device Tree Address
     mrs     x1, mpidr_el1 
     and     x1, x1, #3
@@ -129,6 +128,7 @@ el1:
     // Should never return...
 1:  wfe
     b       1b
+ASM_FUNCTION_END(_start)
 
 __memzero: 
     str     xzr, [x0], #8

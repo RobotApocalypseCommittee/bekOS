@@ -16,25 +16,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_MEMORY_CONSTANTS_H
-#define BEKOS_MEMORY_CONSTANTS_H
+// NOLINTBEGIN(*-reserved-identifier)
 
-// The start of virtual addresses (assuming 48-bit VAs)
-#define VA_START 0xFFFF000000000000
+extern "C" [[gnu::used]] void* __dso_handle = nullptr;
 
-// Where the kernel is mapped. The kernel will be linked at this address.
-// This leaves 128TB for identity mapping.
-// TODO: Synchronise between this and the linker script.
-#define KERNEL_VBASE 0xFFFF800000000000
+/// These are no-op for now - I'm assuming destructors don't need to run when system stops
+extern "C" [[gnu::used]] int __cxa_atexit(void (*destructor)(void*), void* arg, void* dso) {
+    (void)destructor;
+    (void)arg;
+    (void)dso;
+    return 0;
+}
+extern "C" void __cxa_finalize(void*) {}
 
-// Offset for the identity mapping of memory etc.
-#define VA_IDENT_OFFSET VA_START
-
-#define SIZE_2M (2ul << 20)
-
-#define PAGE_SHIFT 12
-#define PAGE_SIZE 4096
-
-#define USER_ADDR_MAX 0x0000FFFFFFFFFFFF
-
-#endif  // BEKOS_MEMORY_CONSTANTS_H
+// NOLINTEND(*-reserved-identifier)
