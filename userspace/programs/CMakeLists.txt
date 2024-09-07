@@ -1,0 +1,18 @@
+add_custom_target(bekos_userspace)
+
+function(bekos_program exec_name)
+    cmake_parse_arguments(PARSE_ARGV 1 BEKOS_PROGRAM "" "DESTINATION" "SOURCES")
+    set(BEKOS_PROGRAM_TARGET "program_${exec_name}")
+    if (NOT DEFINED BEKOS_PROGRAM_DESTINATION)
+        set(BEKOS_PROGRAM_DESTINATION "bin/")
+    endif ()
+    add_executable(${BEKOS_PROGRAM_TARGET} ${BEKOS_PROGRAM_SOURCES})
+    target_compile_options(${BEKOS_PROGRAM_TARGET} PRIVATE -Wall -Wextra -mgeneral-regs-only)
+    target_link_options(${BEKOS_PROGRAM_TARGET} PRIVATE "-Wl,--gc-sections")
+    set_target_properties(${BEKOS_PROGRAM_TARGET} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/system/${BEKOS_PROGRAM_DESTINATION}")
+    set_target_properties(${BEKOS_PROGRAM_TARGET} PROPERTIES RUNTIME_OUTPUT_NAME "${exec_name}")
+    add_dependencies(bekos_userspace ${BEKOS_PROGRAM_TARGET})
+endfunction()
+
+add_subdirectory(init)
+add_subdirectory(shell)

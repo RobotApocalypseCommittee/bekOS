@@ -1,2 +1,3 @@
-add_subdirectory(library)
-add_subdirectory(examples)
+add_subdirectory(libcore)
+add_subdirectory(libc)
+add_subdirectory(programs)
