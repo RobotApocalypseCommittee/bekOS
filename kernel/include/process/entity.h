@@ -42,13 +42,28 @@ public:
     [[nodiscard]] virtual Kind kind() const = 0;
 
     /// Reads into buffer from offset. If offset == -1, this means a position was not / could not be supplied.
-    virtual expected<uSize> read(u64 offset, TransactionalBuffer& buffer) { return ENOTSUP; };
+    virtual expected<uSize> read(u64 offset, TransactionalBuffer& buffer) {
+        (void)offset, (void)buffer;
+        return ENOTSUP;
+    };
 
     /// Writes from buffer from offset. If offset == -1, this means a position was not / could not be supplied.
-    virtual expected<uSize> write(u64 offset, TransactionalBuffer& buffer) { return ENOTSUP; };
-    virtual expected<uSize> seek(sc::SeekLocation position, i64 offset) { return ENOTSUP; }
-    virtual expected<long> message(u64 id, TransactionalBuffer& buffer) const { return ENOTSUP; }
-    virtual expected<long> configure(u64 config_item, TransactionalBuffer& buffer) const { return ENOTSUP; }
+    virtual expected<uSize> write(u64 offset, TransactionalBuffer& buffer) {
+        (void)offset, (void)buffer;
+        return ENOTSUP;
+    };
+    virtual expected<uSize> seek(sc::SeekLocation position, i64 offset) {
+        (void)offset, (void)position;
+        return ENOTSUP;
+    }
+    virtual expected<long> message(u64 id, TransactionalBuffer& buffer) const {
+        (void)id, (void)buffer;
+        return ENOTSUP;
+    }
+    virtual expected<long> configure(u64 config_item, TransactionalBuffer& buffer) const {
+        (void)config_item, (void)buffer;
+        return ENOTSUP;
+    }
     virtual SupportedOperations get_supported_operations() const = 0;
     virtual ~EntityHandle() = default;
 
@@ -72,8 +87,8 @@ public:
     SupportedOperations get_supported_operations() const override {
         return SupportedOperations::Read | SupportedOperations::Write;
     }
-    expected<uSize> read(u64 offset, TransactionalBuffer& buffer) override { return 0ul; }
-    expected<uSize> write(u64 offset, TransactionalBuffer& buffer) override { return buffer.size(); }
+    expected<uSize> read(u64, TransactionalBuffer&) override { return 0ul; }
+    expected<uSize> write(u64, TransactionalBuffer& buffer) override { return buffer.size(); }
 };
 
 #endif  // BEKOS_ENTITY_H

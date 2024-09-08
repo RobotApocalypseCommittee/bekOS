@@ -30,7 +30,7 @@ unsigned long core_atexit_function_count = 0;
 AtExitFuncEntry core_atexit_functions[ATEXIT_MAXIMUM_FUNCTIONS];
 
 extern "C" {
-[[gnu::naked, noreturn, gnu::used]] void _start(int, char**);
+[[noreturn, gnu::used]] void _start(int, char**);
 int main(int, char**);
 
 [[gnu::weak]] extern void (*const __init_array_start)();  // NOLINT(*-reserved-identifier)

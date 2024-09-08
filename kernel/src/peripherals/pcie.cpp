@@ -100,7 +100,7 @@ bek::vector<IntMapping> get_interrupt_mapping(dev_tree::Node& node,
 }
 
 dev_tree::DevStatus Controller::probe_pcie_host(dev_tree::Node& node, dev_tree::device_tree& tree,
-                                                dev_tree::probe_ctx& ctx) {
+                                                dev_tree::probe_ctx&) {
     if (!(node.compatible.size() && node.compatible[0] == "pci-host-ecam-generic"_sv))
         return dev_tree::DevStatus::Unrecognised;
     DBG::dbgln("Probing Device {}"_sv, node.name);

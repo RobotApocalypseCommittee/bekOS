@@ -29,8 +29,6 @@ extern "C" {
 extern uPtr g_current_embedded_table_phys;
 }
 
-#define SIZE_2M (2ull << 20)
-
 #define PT_NORMAL_RE (ReadOnly | AF | (MAIR_NORMAL_NC_INDEX << 2))
 #define PT_NORMAL_RW (PrivilegedExecuteNever | AF | (MAIR_NORMAL_NC_INDEX << 2))
 #define PT_NORMAL_RO (ReadOnly | PrivilegedExecuteNever | AF | (MAIR_NORMAL_NC_INDEX << 2))
@@ -48,7 +46,7 @@ uSize devtree_mapping_size(uPtr device_tree_address) {
     return rounded_end - rounded_start;
 }
 
-[[gnu::always_inline]] uPtr kptr_virt(uPtr ptr, uPtr k_phys) {
+ALWAYS_INLINE uPtr kptr_virt(uPtr ptr, uPtr k_phys) {
     if (ptr >= KERNEL_VBASE) {
         return ptr;
     } else {
@@ -56,7 +54,7 @@ uSize devtree_mapping_size(uPtr device_tree_address) {
     }
 }
 
-[[gnu::always_inline]] uPtr kptr_phys(uPtr ptr, uPtr k_phys) {
+ALWAYS_INLINE uPtr kptr_phys(uPtr ptr, uPtr k_phys) {
     if (ptr >= KERNEL_VBASE) {
         return ptr - KERNEL_VBASE + k_phys;
     } else {
@@ -84,9 +82,6 @@ extern "C" i64 setup_early_tables(uPtr load_address, uPtr device_tree_address) {
 
     uPtr virt_devtree_start = kptr_virt(reinterpret_cast<uPtr>(&__devtree_start), load_address);
     uPtr phys_devtree_start = device_tree_address & -SIZE_2M;
-    // We need to add the offset if there was one.
-    uPtr device_tree_virtual_pointer =
-        reinterpret_cast<uPtr>(&__devtree_start) + (device_tree_address & (SIZE_2M - 1));
     uSize devtree_size = devtree_mapping_size(device_tree_address);
 
     uPtr pgtable_current = pgtables_start;

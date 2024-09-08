@@ -22,10 +22,10 @@
 #include "bek/buffer.h"
 #include "bek/types.h"
 #include "bek/vector.h"
-#include "device_tree.h"
-#include "interrupt_controller.h"
 #include "library/function.h"
 #include "library/optional.h"
+#include "peripherals/device_tree.h"
+#include "peripherals/interrupt_controller.h"
 
 class ArmGIC : public InterruptController {
 public:

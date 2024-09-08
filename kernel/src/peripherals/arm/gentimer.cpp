@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "peripherals/gentimer.h"
+#include "peripherals/arm/gentimer.h"
 
 u64 ArmGenericTimer::get_frequency() {
     u64 frequency;

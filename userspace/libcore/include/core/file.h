@@ -62,7 +62,7 @@ public:
     explicit BufferedFileOutputStream(core::BufferedFile& f) : m_f{f} {}
     void write(bek::str_view str) override { m_f.write(str.data(), str.size()); }
     void write(char c) override { m_f.write(&c, 1); }
-    void reserve(uSize n) override {}
+    void reserve(uSize n) override { (void)n; }
 
 private:
     core::BufferedFile& m_f;

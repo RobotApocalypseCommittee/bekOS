@@ -25,7 +25,7 @@ using DBG = DebugScope<"ERR", true>;
 
 struct ExceptionSyndrome {
     struct AbortInformation {
-        constexpr AbortInformation(u32 iss, u32 iss2)
+        constexpr AbortInformation(u32 iss, [[maybe_unused]] u32 iss2)
             : fault_status_code{static_cast<u8>(iss & 0b111111)}, wnr{static_cast<bool>(iss & (0b1 << 6))} {}
         constexpr bek::str_view fault_kind() const {
             switch ((fault_status_code >> 2) & 0b1111) {

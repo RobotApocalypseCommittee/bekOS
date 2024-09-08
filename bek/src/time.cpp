@@ -66,13 +66,14 @@ DecomposedTime UnixTimestamp::decompose() const {
     for (; month <= 12; month++) {
         auto min_days = MONTH_DAYS[month];
         if (leap_year && month >= 3) {
-            min_days + 1;
+            min_days += 1;
         }
         if (leftover_days < min_days) {
             break;
         }
     }
     u32 days    = leftover_days - MONTH_DAYS[month - 1];
+    if (leap_year && (month - 1) >= 3) days -= 1;
     u32 hours   = leftover_in_day / 3600;
     u32 minutes = (leftover_in_day % 3600) / 60;
     u32 seconds = leftover_in_day % 60;

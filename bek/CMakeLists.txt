@@ -14,4 +14,4 @@ target_include_directories(bek PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include PRIVAT
 target_compile_features(bek PRIVATE cxx_std_20)
 #set_source_files_properties(src/memory.cpp PROPERTIES COMPILE_FLAGS )
 
-target_compile_options(bek PUBLIC -static -nostdlib -nostdinc++ -fdata-sections -ffunction-sections PRIVATE -Wall -Wextra -fno-exceptions -fno-rtti)
+target_compile_options(bek PUBLIC -static -nostdlib -nostdinc++ -fdata-sections -ffunction-sections PRIVATE -fno-exceptions -fno-rtti)

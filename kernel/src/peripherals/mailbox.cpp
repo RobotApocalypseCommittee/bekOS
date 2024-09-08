@@ -15,8 +15,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include <peripherals/gentimer.h>
 #include "peripherals/mailbox.h"
+
+#include "peripherals/arm/gentimer.h"
 #include "peripherals/peripherals.h"
 // FIXME
 #define MAILBOX_BASE (0xBBBBBBBB + 0x0000B880)

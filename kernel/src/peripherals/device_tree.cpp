@@ -185,7 +185,7 @@ device_tree dev_tree::read_dtb(bek::buffer dtb) {
     fdt_header header;
 
     // Copy data and adjust endianness
-    for (int i = 0; i < sizeof(fdt_header) / sizeof(u32); i++) {
+    for (uSize i = 0; i < sizeof(fdt_header) / sizeof(u32); i++) {
         reinterpret_cast<u32*>(&header)[i] =
             big_to_cpu(reinterpret_cast<const u32*>(dtb.data())[i]);
     }

@@ -31,9 +31,9 @@ Device::Kind FramebufferDevice::kind() const { return Device::Kind::Framebuffer;
 bek::optional<DeviceProtocol> FramebufferDevice::userspace_protocol() const {
     return DeviceProtocol::FramebufferProvider;
 }
-expected<long> FramebufferDevice::on_userspace_message(u64 id, TransactionalBuffer& message) {
+expected<long> FramebufferDevice::on_userspace_message(u64, TransactionalBuffer& message) {
     auto msg_id = EXPECTED_TRY(message.read_object<bek::underlying_type<MessageKind>>());
-    if (msg_id < 0 || msg_id >= MessageKind::MessageKindEnd_) {
+    if (msg_id >= MessageKind::MessageKindEnd_) {
         return EINVAL;
     }
     auto msg_kind = static_cast<MessageKind>(msg_id);

@@ -68,8 +68,8 @@ bool allocate_framebuffer(framebuffer_info& info) {
 
 framebuffer::framebuffer(framebuffer_info t_info) : m_info(t_info) {}
 void framebuffer::clear(colour c) {
-    for (int row = 0; row < m_info.height; row++) {
-        for (int col = 0; col < m_info.width; col++) {
+    for (unsigned int row = 0; row < m_info.height; row++) {
+        for (unsigned int col = 0; col < m_info.width; col++) {
             setPixel(row, col, c);
         }
     }
@@ -85,7 +85,7 @@ u32 framebuffer::getWidth() const { return m_info.width; }
 #define CHAR_HEIGHT 8
 
 char_blitter::char_blitter(framebuffer t_fb, colour fg, colour bg)
-    : m_framebuffer(t_fb), m_col(0), m_row(0), m_fg(fg), m_bg(bg) {
+    : m_framebuffer(t_fb), m_row(0), m_col(0), m_fg(fg), m_bg(bg) {
     n_cols = m_framebuffer.getWidth() / CHAR_WIDTH;
     n_rows = m_framebuffer.getHeight() / CHAR_HEIGHT;
 }

@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "peripherals/arm_gic.h"
+#include "peripherals/arm/arm_gic.h"
 
 #include "interrupts/int_ctrl.h"
 #include "mm/memory_manager.h"
@@ -206,7 +206,7 @@ void ArmGIC::handle_interrupt() {
 }
 
 extern InterruptController* global_intc;
-dev_tree::DevStatus ArmGIC::probe_devtree(dev_tree::Node& node, dev_tree::device_tree&, dev_tree::probe_ctx& ctx) {
+dev_tree::DevStatus ArmGIC::probe_devtree(dev_tree::Node& node, dev_tree::device_tree&, dev_tree::probe_ctx&) {
     if (!(node.compatible.size() && (node.compatible[0] == "arm,gic-400"_sv ||
                                      node.compatible[0] == "arm,cortex-a15-gic"_sv)))
         return dev_tree::DevStatus::Unrecognised;

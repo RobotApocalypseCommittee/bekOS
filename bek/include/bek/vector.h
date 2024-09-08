@@ -124,7 +124,6 @@ public:
         if (m_capacity == m_size) {
             expand_storage(m_capacity * 2);
         }
-        auto size_to_copy = m_size - i;
         for (uSize idx = m_size - 1; i <= idx; idx--) {
             new (&array[idx + 1]) T(bek::move(array[idx]));
             array[idx].~T();

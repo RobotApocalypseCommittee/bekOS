@@ -86,7 +86,7 @@ void PL011::write(char c) {
     write_register(UART0_DR, c);
 }
 
-dev_tree::DevStatus PL011::probe_devtree(dev_tree::Node& node, dev_tree::device_tree& tree, dev_tree::probe_ctx& ctx) {
+dev_tree::DevStatus PL011::probe_devtree(dev_tree::Node& node, dev_tree::device_tree& tree, dev_tree::probe_ctx&) {
     if (!(node.compatible.size() && node.compatible[0] == "arm,pl011"_sv))
         return dev_tree::DevStatus::Unrecognised;
     // Get first clock.

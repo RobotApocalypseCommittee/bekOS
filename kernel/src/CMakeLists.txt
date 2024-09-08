@@ -9,9 +9,9 @@ add_executable(kernel arch/a64/boot.S
         interrupts/int_handle.S
         interrupts/error_handler.cpp
         peripherals/device_tree.cpp
-        peripherals/arm_gic.cpp
+        peripherals/arm/arm_gic.cpp
         peripherals/peripherals.cpp
-        peripherals/gentimer.cpp
+        peripherals/arm/gentimer.cpp
         peripherals/mailbox.cpp
         peripherals/property_tags.cpp
         peripherals/framebuffer.cpp
@@ -66,8 +66,7 @@ target_include_directories(kernel PRIVATE ../include)
 
 target_compile_options(kernel PRIVATE -ffreestanding -fbuiltin
         -fno-asynchronous-unwind-tables -fno-exceptions -fno-rtti
-        -nostdlib -nostartfiles -Waddress-of-packed-member -Werror=return-type
-        -Wall -Wextra -march=armv8-a+nofp -fmacro-prefix-map=${PROJECT_SOURCE_DIR}=.)
+        -nostdlib -nostartfiles -march=armv8-a+nofp -fmacro-prefix-map=${PROJECT_SOURCE_DIR}=.)
 target_link_options(kernel PRIVATE -nodefaultlibs -nostdlib -nostartfiles -T${CMAKE_CURRENT_SOURCE_DIR}/arch/a64/kernel-link.ld)
 target_link_libraries(kernel gcc bek)
 

@@ -20,10 +20,10 @@
 #define BEKOS_GENTIMER_H
 
 #include "bek/types.h"
-#include "device.h"
-#include "interrupt_controller.h"
 #include "library/function.h"
-#include "timer.h"
+#include "peripherals//interrupt_controller.h"
+#include "peripherals//timer.h"
+#include "peripherals/device.h"
 
 class ArmGenericTimer : public TimerDevice {
 public:

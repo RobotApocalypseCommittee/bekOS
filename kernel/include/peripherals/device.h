@@ -36,7 +36,11 @@ public:
     [[nodiscard]] virtual bek::optional<DeviceProtocol> userspace_protocol() const { return {}; };
     [[nodiscard]] virtual bek::str_view preferred_name_prefix() const = 0;
 
-    virtual expected<long> on_userspace_message(u64 id, TransactionalBuffer& message) { ASSERT_UNREACHABLE(); }
+    virtual expected<long> on_userspace_message(u64 id, TransactionalBuffer& message) {
+        (void)id;
+        (void)message;
+        ASSERT_UNREACHABLE();
+    }
 
     virtual ~Device() = default;
 

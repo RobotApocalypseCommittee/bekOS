@@ -27,7 +27,7 @@
  * Broadcom BCM2835 Peripherals Guide
  */
 
-#include "peripherals/emmc.h"
+#include "peripherals/raspberry/emmc.h"
 
 #include <c_string.h>
 #include <utils.h>
