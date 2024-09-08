@@ -57,9 +57,8 @@ public:
     expected<bek::shared_ptr<mem::UserOwnedAllocation>> allocate_placed_region(mem::UserRegion region,
                                                                                MemoryOperation allowed_operations,
                                                                                bek::str_view name);
-    expected<mem::UserRegion> allocate_flexible_region(uSize size, MemoryOperation allowed_operations,
-                                                       bek::str_view name, bek::optional<mem::UserPtr> hint);
 
+    expected<SpaceManager> clone_for_fork();
     void debug_print() const;
     uPtr raw_root_ptr() const;
 
@@ -71,6 +70,8 @@ public:
 
 private:
     explicit SpaceManager(TableManager manager) : m_tables(bek::move(manager)) {}
+    SpaceManager(TableManager manager, bek::vector<UserspaceRegion> regions)
+        : m_regions{bek::move(regions)}, m_tables{bek::move(manager)} {}
 
     bek::vector<UserspaceRegion> m_regions{};
     TableManager m_tables;

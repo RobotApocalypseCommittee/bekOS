@@ -126,3 +126,26 @@ expected<bek::shared_ptr<mem::UserOwnedAllocation>> SpaceManager::allocate_place
     EXPECTED_TRY(place_region(region.start.ptr, allowed_operations, bek::string{name}, allocation));
     return allocation;
 }
+expected<SpaceManager> SpaceManager::clone_for_fork() {
+    bek::vector<UserspaceRegion> regions{};
+    TableManager manager = TableManager::create_user_manager();
+    regions.reserve(m_regions.size());
+    for (auto& old_region : m_regions) {
+        regions.push_back({
+            .user_region = old_region.user_region,
+            .backing = EXPECTED_TRY(old_region.backing->clone_for_fork(old_region)),
+            .name = old_region.name,
+            .permissions = old_region.permissions,
+        });
+        auto& new_region = regions.back();
+        if (auto res = new_region.backing->map_into_table(
+                manager, new_region.user_region, 0,
+                (new_region.permissions & MemoryOperation::Read) != MemoryOperation::None,
+                (new_region.permissions & MemoryOperation::Write) != MemoryOperation::None,
+                (new_region.permissions & MemoryOperation::Execute) != MemoryOperation::None);
+            res != ESUCCESS) {
+            return res;
+        }
+    }
+    return SpaceManager{bek::move(manager), bek::move(regions)};
+}

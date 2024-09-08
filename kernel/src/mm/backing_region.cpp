@@ -19,6 +19,7 @@
 #include "mm/backing_region.h"
 
 #include "mm/page_allocator.h"
+#include "mm/space_manager.h"
 
 expected<bek::shared_ptr<mem::UserOwnedAllocation>> mem::UserOwnedAllocation::create_contiguous(uSize pages) {
     auto allocation = mem::PageAllocator::the().allocate_region(pages);
@@ -47,3 +48,16 @@ ErrorCode mem::UserOwnedAllocation::unmap_from_table(TableManager& manager, mem:
     return ESUCCESS;
 }
 mem::UserOwnedAllocation::~UserOwnedAllocation() { mem::PageAllocator::the().free_region(m_region.start); }
+expected<bek::shared_ptr<mem::BackingRegion>> mem::UserOwnedAllocation::clone_for_fork(
+    UserspaceRegion& current_region) {
+    if (!(current_region.permissions & MemoryOperation::Write)) {
+        // We don't need to write to this region! So just copy reference (nice).
+        return bek::shared_ptr<mem::BackingRegion>{this};
+    } else {
+        // May need to write. In future, Copy-on-Write!
+        // TODO: Copy on Write.
+        auto new_backing_region = EXPECTED_TRY(create_contiguous(m_region.size / PAGE_SIZE));
+        bek::memcopy(new_backing_region->m_region.start.ptr, m_region.start.ptr, m_region.size);
+        return new_backing_region;
+    }
+}

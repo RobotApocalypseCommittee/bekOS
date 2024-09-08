@@ -96,3 +96,5 @@ void core::syscall::exit(int code) {
 core::expected<long> core::syscall::message(long entity_handle, u64 id, void* buffer, uSize length) {
     return syscall_to_result<long>(sc::SysCall::CommandDevice, entity_handle, id, buffer, length);
 }
+core::expected<long> core::syscall::fork() { return syscall_to_result<long>(sc::SysCall::Fork); }
+void core::syscall::wait(uSize microseconds) { syscall(sc::SysCall::Sleep, microseconds); }

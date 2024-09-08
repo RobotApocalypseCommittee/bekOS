@@ -29,6 +29,7 @@ public:
     ErrorCode map_into_table(TableManager& manager, mem::UserRegion user_region, uSize offset, bool readable,
                              bool writable, bool executable) override;
     ErrorCode unmap_from_table(TableManager& manager, mem::UserRegion user_region, uSize offset) override;
+    expected<bek::shared_ptr<BackingRegion>> clone_for_fork(UserspaceRegion& current_region) override;
 
 private:
     mem::PhysicalRegion m_region;

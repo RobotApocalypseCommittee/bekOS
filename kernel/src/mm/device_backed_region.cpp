@@ -36,3 +36,6 @@ ErrorCode DeviceBackedRegion::unmap_from_table(TableManager& manager, mem::UserR
 
     return ESUCCESS;
 }
+expected<bek::shared_ptr<mem::BackingRegion>> DeviceBackedRegion::clone_for_fork(UserspaceRegion& current_region) {
+    return bek::shared_ptr<mem::BackingRegion>{this};
+}

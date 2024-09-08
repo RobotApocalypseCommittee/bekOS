@@ -46,7 +46,10 @@ enum class SysCall : int {
     Deallocate,
     // Process
     GetPid,
+    Fork,
     Exit,
+    // Miscellaneous
+    Sleep,
 };
 
 enum class OpenFlags {

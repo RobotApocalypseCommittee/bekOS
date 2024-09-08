@@ -313,6 +313,20 @@ int main(int argc, char** argv) {
         c += 1;
     }
     fb.flush();
+
+    auto fork_result = core::syscall::fork();
+    if (fork_result.has_error()) {
+        dbgln("Fork failed: {}"_sv, (u32)fork_result.error());
+    } else if (fork_result.value() == 0) {
+        dbgln("Fork - child process!"_sv);
+        while (true) {
+            core::syscall::wait(1'000'000);
+            dbgln("Ping!"_sv);
+        }
+    } else {
+        dbgln("Fork - parent process. Child process: {}."_sv, fork_result.value());
+    }
+
     while (true) {
         auto ch = kbd.get_update();
         if (ch) {

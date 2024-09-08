@@ -66,6 +66,7 @@ public:
     expected<long> sys_get_pid();
     expected<long> sys_open_device(uPtr path_str, uPtr path_len);
     expected<long> sys_message_device(int entity_handle, u64 id, uPtr buffer, uSize size);
+    expected<long> sys_fork();
 
     template <typename Fn>
     auto with_space_manager(Fn&& fn) {

@@ -103,6 +103,10 @@ expected<int> get_pid();
 
 [[noreturn]] void exit(int code);
 
+expected<long> fork();
+
+void wait(uSize microseconds);
+
 }  // namespace core::syscall
 
 #endif  // BEKOS_CORE_SYSCALL_H

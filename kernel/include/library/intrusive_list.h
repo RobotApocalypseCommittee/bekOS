@@ -165,6 +165,7 @@ public:
     uSize size() const {
         uSize s = 0;
         for (auto& item : *this) {
+            (void)item;
             s++;
         }
         return s;

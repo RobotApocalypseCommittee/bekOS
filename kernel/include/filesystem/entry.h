@@ -64,11 +64,21 @@ public:
     virtual ErrorCode flush() = 0;
 
     // Children - only if directory
-    virtual expected<EntryRef> lookup(bek::str_view name) { return ENOTSUP; }
+    virtual expected<EntryRef> lookup(bek::str_view name) {
+        (void)name;
+        return ENOTSUP;
+    }
     virtual expected<bek::vector<EntryRef>> all_children() { return ENOTSUP; }
 
-    virtual expected<EntryRef> add_child(bek::str_view name, bool is_directory) { return ENOTSUP; };
-    virtual ErrorCode remove_child(bek::str_view name) { return ENOTSUP; }
+    virtual expected<EntryRef> add_child(bek::str_view name, bool is_directory) {
+        (void)name;
+        (void)is_directory;
+        return ENOTSUP;
+    };
+    virtual ErrorCode remove_child(bek::str_view name) {
+        (void)name;
+        return ENOTSUP;
+    }
 
     // Binary Contents - Only if File.
     virtual ErrorCode prepare_for_access() { return ENOTSUP; }

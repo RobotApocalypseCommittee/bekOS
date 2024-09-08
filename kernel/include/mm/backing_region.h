@@ -24,6 +24,8 @@
 #include "library/kernel_error.h"
 #include "library/own_ptr.h"
 
+class UserspaceRegion;
+
 namespace mem {
 
 /// Virtual Class for a region of memory which backs a region of userspace address space.
@@ -52,6 +54,8 @@ public:
                                        uSize offset) = 0;
     virtual ~BackingRegion()                         = default;
 
+    virtual expected<bek::shared_ptr<BackingRegion>> clone_for_fork(UserspaceRegion& current_region) = 0;
+
     BackingRegion()                                = default;
     BackingRegion(const BackingRegion&)            = delete;
     BackingRegion& operator=(const BackingRegion&) = delete;
@@ -73,6 +77,7 @@ public:
                              bool readable, bool writeable, bool executable) override;
     ErrorCode unmap_from_table(TableManager& manager, UserRegion user_region,
                                uSize offset) override;
+    expected<bek::shared_ptr<BackingRegion>> clone_for_fork(UserspaceRegion& current_region) override;
 
     UserOwnedAllocation(UserOwnedAllocation&&) = default;
     ~UserOwnedAllocation() override;

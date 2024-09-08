@@ -22,7 +22,10 @@
 #include <library/kernel_error.h>
 
 #include "library/debug.h"
+#include "mm/page_allocator.h"
+#include "peripherals/timer.h"
 #include "process/process.h"
+#include "process/syscall_handling.h"
 
 using DBG = DebugScope<"Process", true>;
 
@@ -70,6 +73,11 @@ expected<long> handle_syscall(int syscall_no, u64 arg1, u64 arg2, u64 arg3, u64 
             return current_process.sys_deallocate(arg1, arg2);
         case sc::SysCall::GetPid:
             return current_process.sys_get_pid();
+        case sc::SysCall::Fork:
+            return current_process.sys_fork();
+        case sc::SysCall::Sleep:
+            timing::spindelay_us(arg1);
+            return 0;
         case sc::SysCall::Exit:
             current_process.quit_process(arg1);
             ASSERT_UNREACHABLE();
@@ -389,4 +397,38 @@ expected<long> Process::sys_message_device(int entity_handle, u64 id, uPtr buffe
     }
 
     return handle->message(id, user_buffer);
+}
+
+extern "C" [[noreturn]] void userspace_return_from_fork(void*);
+expected<long> Process::sys_fork() {
+    auto kernel_stack = mem::PageAllocator::the().allocate_region(m_kernel_stack.size / PAGE_SIZE);
+    if (!kernel_stack) return ENOMEM;
+    auto proc = bek::adopt_shared(new Process(m_name, this, *kernel_stack));
+    if (!proc) {
+        mem::PageAllocator::the().free_region(kernel_stack->start);
+        return ENOMEM;
+    }
+    proc->m_userspace_state = UserspaceState{
+        .user_stack_top = m_userspace_state->user_stack_top,
+        .cwd = m_userspace_state->cwd,
+        .address_space_manager = EXPECTED_TRY(m_userspace_state->address_space_manager.clone_for_fork()),
+        .open_entities = m_userspace_state->open_entities,
+    };
+
+    // We need to do a dodgy thing now. TODO: work out way to make this less dodgy later.
+    bek::memcopy(kernel_stack->end().ptr - STACK_REGISTER_HEADER_SZ,
+                 m_kernel_stack.end().ptr - STACK_REGISTER_HEADER_SZ, STACK_REGISTER_HEADER_SZ);
+    uPtr current_user_stack_ptr = 0;
+    asm volatile("mrs %0, sp_el0" : "=r"(current_user_stack_ptr));
+    VERIFY(current_user_stack_ptr != 0);
+
+    proc->m_saved_regs =
+        SavedRegs::create_for_kernel(userspace_return_from_fork, nullptr,
+                                     proc->m_kernel_stack.end().ptr - STACK_REGISTER_HEADER_SZ, current_user_stack_ptr);
+    if (auto r = ProcessManager::the().register_process(proc); r != ESUCCESS) {
+        return r;
+    }
+    proc->m_userspace_state->address_space_manager.debug_print();
+    proc->set_state(ProcessState::Running);
+    return proc->pid();
 }
