@@ -129,7 +129,7 @@ extern "C" [[noreturn]] void kernel_boot(u64 dev_tree_address) {
     uart.write("Hello Kernel World!\n"_sv);
 
     // 2. Set interrupt vector table (easier debugging if fault)
-    set_vector_table();
+    do_set_vector_table();
 
     // 3. Initialise memory allocation (from statically allocated 1MB region)
     mem::initialise_kmalloc();
@@ -214,7 +214,7 @@ extern "C" [[noreturn]] void kernel_boot(u64 dev_tree_address) {
 
     auto& proc = *proc_r.value();
 
-    proc_r.value()->set_state(ProcessState::Running);
+    proc.set_state(ProcessState::Running);
 
     while (true) {
         DBG::dbgln("Noot"_sv);

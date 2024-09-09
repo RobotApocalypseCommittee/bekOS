@@ -23,7 +23,7 @@
 #include <filesystem/filesystem.h>
 
 #include "api/syscalls.h"
-#include "arch/a64/saved_registers.h"
+#include "arch/saved_registers.h"
 #include "entity.h"
 #include "library/function.h"
 #include "library/user_buffer.h"
@@ -37,6 +37,9 @@ enum class ProcessState {
     Waiting,
     AwaitingDeath,
 };
+
+expected<long> handle_syscall(u64 syscall_no, u64 arg1, u64 arg2, u64 arg3, u64 arg4, u64 arg5, u64 arg6, u64 arg7,
+                              InterruptContext& ctx);
 
 class Process : public bek::RefCounted<Process> {
 public:
@@ -66,7 +69,8 @@ public:
     expected<long> sys_get_pid();
     expected<long> sys_open_device(uPtr path_str, uPtr path_len);
     expected<long> sys_message_device(int entity_handle, u64 id, uPtr buffer, uSize size);
-    expected<long> sys_fork();
+    expected<long> sys_fork(InterruptContext& ctx);
+    expected<long> sys_execute(uPtr executable_path, uSize path_len, uPtr args_array, uSize args_n);
 
     template <typename Fn>
     auto with_space_manager(Fn&& fn) {
@@ -100,8 +104,9 @@ private:
     bek::vector<Process*> m_children;
 
     // Important State
-    SavedRegs m_saved_regs{};
+    SavedRegisters m_saved_registers{};
     mem::VirtualRegion m_kernel_stack{};
+
     struct UserspaceState {
         mem::UserPtr user_stack_top;
         fs::EntryRef cwd;

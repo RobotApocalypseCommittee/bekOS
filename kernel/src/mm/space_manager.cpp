@@ -19,7 +19,6 @@
 #include "mm/space_manager.h"
 
 #include "library/debug.h"
-#include "mm.h"
 #include "mm/page_allocator.h"
 
 using DBG = DebugScope<"SpaceManager", true>;

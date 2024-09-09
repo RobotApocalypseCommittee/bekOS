@@ -16,9 +16,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_SYSCALL_HANDLING_H
-#define BEKOS_SYSCALL_HANDLING_H
+#include "core/io.h"
+#include "core/syscall.h"
 
-#define STACK_REGISTER_HEADER_SZ 272
+int main(int argc, char** argv) {
+    auto pid = core::syscall::get_pid();
+    if (pid.has_error()) return pid.error();
+    core::fprintln(core::stdout, "BekOS Stub, version 0.1, pid {}."_sv, pid.value());
 
-#endif //BEKOS_SYSCALL_HANDLING_H
+    while (true) {
+        core::syscall::wait(1'000'000);
+        core::fprintln(core::stdout, "Ping!"_sv);
+    }
+}

@@ -1,38 +1,87 @@
 // clang-format off
 #include "arch/a64/asm_defines.h"
+#include "arch/a64/kernel_entry.h"
 
-// This function takes fn and arg from x19, x20 (saved regs) and calls it.
-// fn should never return, but if it does we brk and load nullptr.
-ASM_FUNCTION_BEGIN(kfunction_stub_a64)
-    mov x0, x20
-    blr x19
-    brk #0
-    mov x8, xzr
-    ldr x0, [x8]
-ASM_FUNCTION_END(kfunction_stub_a64)
+// Clobbers x9, x10
+.macro save_context ctx
+    stp x19, x20, [\ctx, #16 * 0]
+    stp x21, x22, [\ctx, #16 * 1]
+    stp x23, x24, [\ctx, #16 * 2]
+    stp x25, x26, [\ctx, #16 * 3]
+    stp x27, x28, [\ctx, #16 * 4]
+    stp x29, x30, [\ctx, #16 * 5]
 
+    mov x9, sp
+    mrs x10, SP_EL0
+    stp x9, x10, [\ctx, #16 * 6]
+.endm
 
-ASM_FUNCTION_BEGIN(set_usertable)
+// Clobbers x9, x10
+.macro restore_context ctx, pc_reg
+    ldp x19, x20, [\ctx, #16 * 0]
+    ldp x21, x22, [\ctx, #16 * 1]
+    ldp x23, x24, [\ctx, #16 * 2]
+    ldp x25, x26, [\ctx, #16 * 3]
+    ldp x27, x28, [\ctx, #16 * 4]
+    ldp x29, \pc_reg, [\ctx, #16 * 5]
+    ldp x9, x10, [\ctx, #16 * 6]
+    mov sp, x9
+    msr SP_EL0, x10
+.endm
+
+// process_entry.h: void do_context_switch(SavedRegisters& previous, SavedRegisters& next)
+// Called _by_ function we wish to return to, in kernel
+// (x30 is populated, and we can change temporary registers)
+ASM_FUNCTION_BEGIN(do_context_switch)
+    // Will save x30 to pc/lr slot.
+    save_context x0
+    // Restore pc/lr slot to x30.
+    restore_context x1, x30
+    // Jump to restored pc/lr as return.
+    ret
+ASM_FUNCTION_END(do_context_switch)
+
+// process_entry.h: void do_switch_user_address_space(uPtr new_address_root)
+ASM_FUNCTION_BEGIN(do_switch_user_address_space)
     msr	ttbr0_el1, x0
     tlbi vmalle1is // clear caches
     DSB ISH // wait for data to be done
     isb // wait for instruction to be done
     ret
-ASM_FUNCTION_END(set_usertable)
+ASM_FUNCTION_END(do_switch_user_address_space)
+
+// process_entry.h: uPtr do_get_current_user_stack()
+ASM_FUNCTION_BEGIN(do_get_current_user_stack)
+    mrs x0, sp_el0
+    ret
+ASM_FUNCTION_END(do_get_current_user_stack)
+
+// process_entry.h: [[noreturn]] void do_assume_process_state(SavedRegisters& registers, u64 argument)
+ASM_FUNCTION_BEGIN(do_assume_process_state)
+    // Restores provided context; x2 is function to jump to.
+    restore_context x0, x2
+    inline_enable_interrupts
+    mov x0, x1
+    br x2
+ASM_FUNCTION_END(do_assume_process_state)
 
 
-// userspace_first_entry(uPtr user_entry_point).
-// This function is the entry (kernel) fn for a userspace process ready to start.
-// It never returns; it does not use stack.
-// We set the necessary return registers, zero-out the scratch registers, and eret.
-ASM_FUNCTION_BEGIN(userspace_first_entry)
-    bl disable_interrupts   // Interrupts at this point could be disasterous
-    msr ELR_EL1, x0     // Return to provided entry point
-    mov x1, xzr
-    msr SPSR_EL1, x1    // Set to 0 - this reenables interrupts, etc. on eret
-                        // Take it on trust that SP_EL0 set correctly
+// saved_registers.cpp: [[noreturn]] kernel_first_entry_a64()
+// x19 = fn, x20 = arg.
+ASM_FUNCTION_BEGIN(kernel_first_entry_a64)
+    mov x0, x20
+    br x19
+ASM_FUNCTION_END(kernel_first_entry_a64)
 
-    mov x0, xzr         // Zero out GP registers
+// saved_registers.cpp: [[noreturn]] user_first_entry_a64()
+// x19 = user_entry.
+ASM_FUNCTION_BEGIN(user_first_entry_a64)
+    inline_disable_interrupts
+    msr ELR_EL1, x19
+    mov x0, xzr
+    msr SPSR_EL1, x0    // Reset state.
+
+    mov x1, xzr         // Zero out GP registers
     mov x2, xzr
     mov x3, xzr
     mov x4, xzr
@@ -50,39 +99,20 @@ ASM_FUNCTION_BEGIN(userspace_first_entry)
     mov x16, xzr
     mov x17, xzr
     mov x18, xzr
+    mov x19, xzr
 
-    mov x19, xzr        // These two might have been set in executing kfunction_stub_a64
-    mov x20, xzr
     eret
-ASM_FUNCTION_END(userspace_first_entry)
+ASM_FUNCTION_END(user_first_entry_a64)
 
-// Called _by_ function we wish to return to, in kernel
-// (x30 is populated, and we can change temporary registers)
-ASM_FUNCTION_BEGIN(do_context_switch)
-    // We need to store the stack pointer
-    // And the el0 stack pointer
-    mov x9, sp
-    mrs x10, SP_EL0
-    stp x19, x20, [x0], #16
-    stp x21, x22, [x0], #16
-    stp x23, x24, [x0], #16
-    stp x25, x26, [x0], #16
-    stp x27, x28, [x0], #16
-    stp x29, x9, [x0], #16
-    stp x30, x10, [x0]
 
-    // Now restore the old ones
-    ldp x19, x20, [x1], #16
-    ldp x21, x22, [x1], #16
-    ldp x23, x24, [x1], #16
-    ldp x25, x26, [x1], #16
-    ldp x27, x28, [x1], #16
-    ldp x29, x9, [x1], #16
-    ldp x30, x10, [x1]
-    // Restore stack pointer
-    mov sp, x9
-    // Restore el0 stack pointer
-    msr SP_EL0, x10
-    // Return (to the new x30)
-    ret
-ASM_FUNCTION_END(do_context_switch)
+// saved_registers.cpp: [[noreturn]] ret_from_fork_a64()
+// An InterruptContext has been pushed onto otherwise brand new stack.
+// We take no arguments - everything that should be 0 is 0.
+ASM_FUNCTION_BEGIN(ret_from_fork_a64)
+    inline_disable_interrupts   // Interrupts at this point could be disasterous
+    restore_regs
+    eret
+ASM_FUNCTION_END(ret_from_fork_a64)
+
+
+

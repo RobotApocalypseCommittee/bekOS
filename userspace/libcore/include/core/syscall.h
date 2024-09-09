@@ -105,6 +105,8 @@ expected<int> get_pid();
 
 expected<long> fork();
 
+expected<long> exec(bek::str_view path);
+
 void wait(uSize microseconds);
 
 }  // namespace core::syscall

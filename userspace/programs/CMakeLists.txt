@@ -16,3 +16,4 @@ endfunction()
 
 add_subdirectory(init)
 add_subdirectory(shell)
+add_subdirectory(stub)

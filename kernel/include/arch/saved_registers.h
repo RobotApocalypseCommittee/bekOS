@@ -16,20 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_INT_CTRL_H
-#define BEKOS_INT_CTRL_H
+#ifndef BEKOS_ARCH_SAVED_REGISTERS_H
+#define BEKOS_ARCH_SAVED_REGISTERS_H
 
-extern "C" void do_set_vector_table(void);
+#include "a64/saved_registers.h"
 
-extern "C"
-void enable_interrupts(void);
-
-extern "C"
-void disable_interrupts(void);
-
-struct InterruptDisabler {
-    InterruptDisabler() { disable_interrupts(); }
-    ~InterruptDisabler() { enable_interrupts(); }
-};
-
-#endif //BEKOS_INT_CTRL_H
+#endif  // BEKOS_ARCH_SAVED_REGISTERS_H

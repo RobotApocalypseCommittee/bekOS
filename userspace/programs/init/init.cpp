@@ -319,9 +319,15 @@ int main(int argc, char** argv) {
         dbgln("Fork failed: {}"_sv, (u32)fork_result.error());
     } else if (fork_result.value() == 0) {
         dbgln("Fork - child process!"_sv);
-        while (true) {
+        /*while (true) {
             core::syscall::wait(1'000'000);
             dbgln("Ping!"_sv);
+        }*/
+        auto exec_result = core::syscall::exec("/bin/stub"_sv);
+        if (exec_result.has_error()) {
+            dbgln("Exec failed: {}"_sv, (u32)fork_result.error());
+        } else {
+            dbgln("What the fuck"_sv);
         }
     } else {
         dbgln("Fork - parent process. Child process: {}."_sv, fork_result.value());

@@ -1,12 +1,10 @@
-add_executable(kernel arch/a64/boot.S
-        arch/a64/early_boot.cpp
-        arch/a64/translation_tables.cpp
-        arch/a64/barrier.cpp
+add_executable(kernel
         library/assertions.cpp
         library/block_cache.cpp
         library/user_buffer.cpp
-        interrupts/int_ctrl.S
         interrupts/int_handle.S
+        interrupts/deferred_calls.cpp
+        interrupts/interrupt_handler.cpp
         interrupts/error_handler.cpp
         peripherals/device_tree.cpp
         peripherals/arm/arm_gic.cpp
@@ -30,6 +28,7 @@ add_executable(kernel arch/a64/boot.S
         mm/space_manager.cpp
         mm/backing_region.cpp
         mm/device_backed_region.cpp
+        mm/addresses.cpp
         usb/xhci_ring.cpp
         usb/descriptors.cpp
         usb/usb.cpp
@@ -47,19 +46,28 @@ add_executable(kernel arch/a64/boot.S
         process/elf.cpp
         process/syscalls.cpp
         process/tty.cpp
-        mm/addresses.cpp
-        arch/a64/saved_registers.cpp
         peripherals/timing.cpp
-        arch/a64/cxxabi.cpp
         library/kernel_error.cpp
-        interrupts/deferred_calls.cpp
-        interrupts/interrupt_handler.cpp
 )
+
+if (BEKOS_ARCHITECTURE STREQUAL "a64")
+    target_sources(kernel PRIVATE
+            arch/a64/cxxabi.cpp
+            arch/a64/saved_registers.cpp
+            arch/a64/process.S
+            arch/a64/barrier.cpp
+            arch/a64/boot.S
+            arch/a64/early_boot.cpp
+            arch/a64/translation_tables.cpp
+            arch/a64/process_entry.cpp
+            arch/a64/impl.cpp
+            arch/a64/syscontrol.S)
+endif ()
 
 if (BEKOS_SYSTEM_NAME STREQUAL "rpi3")
     target_sources(kernel PRIVATE boot/boot.cpp)
 elseif (BEKOS_SYSTEM_NAME STREQUAL "virt")
-    target_sources(kernel PRIVATE arch/a64/boot.cpp arch/a64/impl.cpp arch/a64/impl.S arch/a64/process.S)
+    target_sources(kernel PRIVATE arch/a64/boot.cpp)
 endif ()
 
 target_include_directories(kernel PRIVATE ../include)

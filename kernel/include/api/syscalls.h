@@ -28,7 +28,7 @@
 
 namespace sc {
 
-enum class SysCall : int {
+enum class SysCall : u64 {
     // File Operations
     Open,
     Close,
@@ -47,6 +47,7 @@ enum class SysCall : int {
     // Process
     GetPid,
     Fork,
+    Exec,
     Exit,
     // Miscellaneous
     Sleep,

@@ -16,20 +16,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_INT_CTRL_H
-#define BEKOS_INT_CTRL_H
+#include "arch/process_entry.h"
 
-extern "C" void do_set_vector_table(void);
+#include "arch/a64/saved_registers.h"
+#include "process/process.h"
 
-extern "C"
-void enable_interrupts(void);
-
-extern "C"
-void disable_interrupts(void);
-
-struct InterruptDisabler {
-    InterruptDisabler() { disable_interrupts(); }
-    ~InterruptDisabler() { enable_interrupts(); }
-};
-
-#endif //BEKOS_INT_CTRL_H
+extern "C" void handle_syscall_a64(InterruptContext& ctx) {
+    auto result = handle_syscall(ctx.x[0], ctx.x[1], ctx.x[2], ctx.x[3], ctx.x[4], ctx.x[5], ctx.x[6], ctx.x[7], ctx);
+    if (result.has_value()) {
+        ctx.set_return_value(result.value());
+    } else {
+        ctx.set_return_value(-result.error());
+    }
+}

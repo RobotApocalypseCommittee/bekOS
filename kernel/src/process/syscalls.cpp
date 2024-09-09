@@ -21,27 +21,17 @@
 #include <bek/types.h>
 #include <library/kernel_error.h>
 
+#include "arch/process_entry.h"
+#include "interrupts/int_ctrl.h"
 #include "library/debug.h"
 #include "mm/page_allocator.h"
 #include "peripherals/timer.h"
 #include "process/process.h"
-#include "process/syscall_handling.h"
 
 using DBG = DebugScope<"Process", true>;
 
-expected<long> handle_syscall(int syscall_no, u64 arg1, u64 arg2, u64 arg3, u64 arg4, u64 arg5, u64 arg6, u64 arg7);
-
-extern "C" u64 handle_syscall_hard(int syscall_no, u64 arg1, u64 arg2, u64 arg3, u64 arg4, u64 arg5, u64 arg6,
-                                   u64 arg7) {
-    auto r = handle_syscall(syscall_no, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
-    if (r.has_error()) {
-        return -r.error();
-    } else {
-        return r.value();
-    }
-}
-
-expected<long> handle_syscall(int syscall_no, u64 arg1, u64 arg2, u64 arg3, u64 arg4, u64 arg5, u64 arg6, u64 arg7) {
+expected<long> handle_syscall(u64 syscall_no, u64 arg1, u64 arg2, u64 arg3, u64 arg4, u64 arg5, u64 arg6, u64 arg7,
+                              InterruptContext& ctx) {
     // Takes from registers w0, x1-x7.
     sc::SysCall syscall{syscall_no};
     Process& current_process = ProcessManager::the().current_process();
@@ -74,10 +64,12 @@ expected<long> handle_syscall(int syscall_no, u64 arg1, u64 arg2, u64 arg3, u64 
         case sc::SysCall::GetPid:
             return current_process.sys_get_pid();
         case sc::SysCall::Fork:
-            return current_process.sys_fork();
+            return current_process.sys_fork(ctx);
         case sc::SysCall::Sleep:
             timing::spindelay_us(arg1);
             return 0;
+        case sc::SysCall::Exec:
+            return current_process.sys_execute(arg1, arg2, arg3, arg4);
         case sc::SysCall::Exit:
             current_process.quit_process(arg1);
             ASSERT_UNREACHABLE();
@@ -399,8 +391,7 @@ expected<long> Process::sys_message_device(int entity_handle, u64 id, uPtr buffe
     return handle->message(id, user_buffer);
 }
 
-extern "C" [[noreturn]] void userspace_return_from_fork(void*);
-expected<long> Process::sys_fork() {
+expected<long> Process::sys_fork(InterruptContext& ctx) {
     auto kernel_stack = mem::PageAllocator::the().allocate_region(m_kernel_stack.size / PAGE_SIZE);
     if (!kernel_stack) return ENOMEM;
     auto proc = bek::adopt_shared(new Process(m_name, this, *kernel_stack));
@@ -415,20 +406,52 @@ expected<long> Process::sys_fork() {
         .open_entities = m_userspace_state->open_entities,
     };
 
-    // We need to do a dodgy thing now. TODO: work out way to make this less dodgy later.
-    bek::memcopy(kernel_stack->end().ptr - STACK_REGISTER_HEADER_SZ,
-                 m_kernel_stack.end().ptr - STACK_REGISTER_HEADER_SZ, STACK_REGISTER_HEADER_SZ);
-    uPtr current_user_stack_ptr = 0;
-    asm volatile("mrs %0, sp_el0" : "=r"(current_user_stack_ptr));
-    VERIFY(current_user_stack_ptr != 0);
+    auto current_user_stack = do_get_current_user_stack();
 
-    proc->m_saved_regs =
-        SavedRegs::create_for_kernel(userspace_return_from_fork, nullptr,
-                                     proc->m_kernel_stack.end().ptr - STACK_REGISTER_HEADER_SZ, current_user_stack_ptr);
+    proc->m_saved_registers =
+        SavedRegisters::create_for_return_from_fork(ctx, proc->m_kernel_stack.end().ptr, current_user_stack);
     if (auto r = ProcessManager::the().register_process(proc); r != ESUCCESS) {
         return r;
     }
     proc->m_userspace_state->address_space_manager.debug_print();
     proc->set_state(ProcessState::Running);
     return proc->pid();
+}
+
+expected<long> Process::sys_execute(uPtr executable_path, uSize path_len, uPtr args_array, uSize args_n) {
+    {
+        using namespace fs;
+        // Caution - path needs stable reference to path string.
+        auto path_string = EXPECTED_TRY(read_string_from_user(executable_path, path_len));
+        auto the_path = EXPECTED_TRY(path::parse_path(path_string));
+
+        // TODO: Lock userspace state.
+        EntryRef root = m_userspace_state->cwd;
+        auto entry = EXPECTED_TRY(fullPathLookup(root, the_path, nullptr));
+
+        auto exec_result =
+            execute_executable(entry, m_userspace_state->cwd, bek::move(m_userspace_state->open_entities));
+
+        // execute_executable enters critical if altering current process's saved regs.
+        VERIFY(ProcessManager::the().is_critical());
+        if (exec_result != ESUCCESS) {
+            ProcessManager::the().exit_critical();
+            return exec_result;
+        }
+    }
+    // At this point,
+    // (a) we are in critical section (for our own processor!)
+    // (b) SavedRegisters has been set and is volatile.
+    // (c) The current kernel stack *must* contain no RAII elements, or resources to be freed.
+
+    do_switch_user_address_space(m_userspace_state->address_space_manager.raw_root_ptr());
+
+    // (i) Disable interrupts
+    disable_interrupts();
+    // (ii) leave critical
+    ProcessManager::the().exit_critical();
+    VERIFY(!ProcessManager::the().is_critical());
+
+    do_assume_process_state(m_saved_registers, 0);
+    ASSERT_UNREACHABLE();
 }

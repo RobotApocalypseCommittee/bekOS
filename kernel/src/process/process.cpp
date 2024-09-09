@@ -18,17 +18,16 @@
 
 #include "process/process.h"
 
+#include "arch/process_entry.h"
 #include "bek/assertions.h"
 #include "filesystem/path.h"
 #include "interrupts/deferred_calls.h"
 #include "interrupts/int_ctrl.h"
 #include "library/debug.h"
 #include "library/user_buffer.h"
-#include "mm.h"
 #include "mm/page_allocator.h"
 #include "peripherals/timer.h"
 #include "process/elf.h"
-#include "process/process_entry.h"
 
 using DBG = DebugScope<"Process", false>;
 
@@ -37,8 +36,6 @@ constexpr inline uSize DEFAULT_USER_STACK = 4 * PAGE_SIZE;
 constexpr inline uSize MAX_USER_STACK = 1024 * PAGE_SIZE;
 
 constexpr inline uSize CONTEXT_SWITCH_NS = 100'000'00;  // 100ms
-
-extern "C" [[noreturn]] void userspace_first_entry(void*);
 
 Process::Process(bek::string name, Process* parent, mem::VirtualRegion kernel_stack)
     : m_name(bek::move(name)),
@@ -84,7 +81,7 @@ expected<bek::shared_ptr<Process>> Process::spawn_kernel_process(bek::string nam
         return ENOMEM;
     }
     // Process is not registered - its PID is invalid, and it is Unready.
-    proc->m_saved_regs = SavedRegs::create_for_kernel(fn, arg, kernel_stack->end().get());
+    proc->m_saved_registers = SavedRegisters::create_for_kernel_task(fn, arg, kernel_stack->end().get());
 
     if (auto r = ProcessManager::the().register_process(proc); r != ESUCCESS) {
         // Don't free kernel stack - owned by process now.
@@ -115,7 +112,6 @@ expected<bek::shared_ptr<Process>> Process::spawn_user_process(bek::string name,
     if (auto r = ProcessManager::the().register_process(proc); r != ESUCCESS) {
         return r;
     }
-    proc->m_userspace_state->address_space_manager.debug_print();
 
     return proc;
 }
@@ -140,9 +136,13 @@ ErrorCode Process::execute_executable(fs::EntryRef executable, fs::EntryRef cwd,
 
     m_userspace_state = UserspaceState{stack_region.end(), bek::move(cwd), bek::move(new_space), bek::move(handles)};
 
-    m_saved_regs =
-        SavedRegs::create_for_kernel(userspace_first_entry, reinterpret_cast<void*>(elf->get_entry_point().get()),
-                                     m_kernel_stack.end().get(), stack_region.end().get());
+    m_userspace_state->address_space_manager.debug_print();
+
+    if (&ProcessManager::the().current_process() == this) {
+        ProcessManager::the().enter_critical();
+    }
+    m_saved_registers = SavedRegisters::create_for_user_execute(elf->get_entry_point().ptr, m_kernel_stack.end().get(),
+                                                                stack_region.end().ptr);
     return ESUCCESS;
 }
 
@@ -157,7 +157,7 @@ ErrorCode ProcessManager::initialise_and_adopt(bek::string name, mem::VirtualReg
 
     auto proc = bek::adopt_shared(new Process(bek::move(name), nullptr, kernel_stack));
     if (!proc) return ENOMEM;
-    proc->m_saved_regs = {};
+    proc->m_saved_registers = {};
     proc->m_pid = 0;
     proc->m_running_state = ProcessState::Running;
 
@@ -296,15 +296,15 @@ void ProcessManager::switch_context(Process& process) {
         // Do nothing
         return;
     }
-    SavedRegs* previousRegisters = &m_current->m_saved_regs;
 
-    m_current                    = &process;
+    SavedRegisters& previous_registers = m_current->m_saved_registers;
+    m_current = &process;
 
     if (m_current->has_userspace()) {
-        set_usertable(m_current->m_userspace_state->address_space_manager.raw_root_ptr());
+        do_switch_user_address_space(m_current->m_userspace_state->address_space_manager.raw_root_ptr());
     }
     // Perform the switch - who knows when this function will return?
-    do_context_switch(previousRegisters, &m_current->m_saved_regs);
+    do_context_switch(previous_registers, m_current->m_saved_registers);
 }
 
 // endregion

@@ -19,10 +19,7 @@
 #include "process/elf.h"
 
 #include "library/debug.h"
-#include "mm.h"
 #include "mm/memory_manager.h"
-#include "process/process_entry.h"
-#include "utils.h"
 
 using DBG = DebugScope<"Elf", true>;
 

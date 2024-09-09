@@ -98,3 +98,6 @@ core::expected<long> core::syscall::message(long entity_handle, u64 id, void* bu
 }
 core::expected<long> core::syscall::fork() { return syscall_to_result<long>(sc::SysCall::Fork); }
 void core::syscall::wait(uSize microseconds) { syscall(sc::SysCall::Sleep, microseconds); }
+core::expected<long> core::syscall::exec(bek::str_view path) {
+    return syscall_to_result<long>(sc::SysCall::Exec, path.data(), path.size());
+}
