@@ -199,10 +199,10 @@ extern "C" [[noreturn]] void kernel_boot(u64 dev_tree_address) {
     }
     auto& init_exec = init_exec_r.value();
 
-    bek::vector<bek::shared_ptr<EntityHandle>> init_handles{
-        bek::adopt_shared(new ProcessDebugSerial()),
-        bek::adopt_shared(new NullHandle()),
-        bek::adopt_shared(new ProcessDebugSerial()),
+    bek::vector<Process::LocalEntityHandle> init_handles{
+        {bek::adopt_shared(new ProcessDebugSerial()), 0},
+        {bek::adopt_shared(new NullHandle()), 0},
+        {bek::adopt_shared(new ProcessDebugSerial()), 0},
     };
 
     auto proc_r = Process::spawn_user_process(bek::string{"init"}, init_exec, root, bek::move(init_handles));

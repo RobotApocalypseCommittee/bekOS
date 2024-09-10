@@ -43,7 +43,12 @@ expected<long> handle_syscall(u64 syscall_no, u64 arg1, u64 arg2, u64 arg3, u64 
 
 class Process : public bek::RefCounted<Process> {
 public:
+    struct LocalEntityHandle {
+        bek::shared_ptr<EntityHandle> handle;
+        u8 group;
+    };
     using RawFn = void (*)(void*);
+
     bek::str_view name() const { return m_name.view(); }
     long pid() const { return m_pid; }
     ProcessState set_state(ProcessState new_state) {
@@ -71,6 +76,7 @@ public:
     expected<long> sys_message_device(int entity_handle, u64 id, uPtr buffer, uSize size);
     expected<long> sys_fork(InterruptContext& ctx);
     expected<long> sys_execute(uPtr executable_path, uSize path_len, uPtr args_array, uSize args_n);
+    expected<long> sys_create_pipe(uPtr pipe_handle_arr, u64 raw_flags);
 
     template <typename Fn>
     auto with_space_manager(Fn&& fn) {
@@ -82,7 +88,7 @@ public:
     static expected<bek::shared_ptr<Process>> spawn_kernel_process(bek::string name, RawFn fn, void* arg);
     static expected<bek::shared_ptr<Process>> spawn_user_process(bek::string name, fs::EntryRef executable,
                                                                  fs::EntryRef cwd,
-                                                                 bek::vector<bek::shared_ptr<EntityHandle>> handles);
+                                                                 bek::vector<LocalEntityHandle> handles);
 
     Process(const Process&) = delete;
     Process& operator=(const Process&) = delete;
@@ -91,9 +97,11 @@ public:
 
 private:
     Process(bek::string name, Process* parent, mem::VirtualRegion kernel_stack);
-    expected<bek::shared_ptr<EntityHandle>> get_open_entity(int entity_id);
+    expected<bek::shared_ptr<EntityHandle>> get_open_entity(long entity_id);
     [[nodiscard]] ErrorCode execute_executable(fs::EntryRef executable, fs::EntryRef cwd,
-                                               bek::vector<bek::shared_ptr<EntityHandle>> handles);
+                                               bek::vector<LocalEntityHandle> handles);
+
+    long allocate_entity_handle_slot(bek::shared_ptr<EntityHandle> handle, u8 group);
 
     // Basic properties.
     bek::string m_name;
@@ -111,7 +119,7 @@ private:
         mem::UserPtr user_stack_top;
         fs::EntryRef cwd;
         SpaceManager address_space_manager;
-        bek::vector<bek::shared_ptr<EntityHandle>> open_entities;
+        bek::vector<LocalEntityHandle> open_entities;
     };
     // TODO: Lock these.
     bek::optional<UserspaceState> m_userspace_state;

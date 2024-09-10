@@ -37,7 +37,7 @@ public:
         Configure = 1u << 4,
     };
 
-    enum class Kind { File, Serial, Device, Null };
+    enum class Kind { File, Serial, Device, Null, Pipe };
 
     [[nodiscard]] virtual Kind kind() const = 0;
 

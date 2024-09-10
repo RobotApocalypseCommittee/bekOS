@@ -59,13 +59,13 @@ expected<UserBuffer> Process::create_user_buffer(uPtr ptr, uSize size, bool for_
     return UserBuffer(ptr, size);
 }
 
-expected<bek::shared_ptr<EntityHandle>> Process::get_open_entity(int entity_id) {
+expected<bek::shared_ptr<EntityHandle>> Process::get_open_entity(long entity_id) {
     // TODO: Lock
     if (entity_id < 0) return EBADF;
     if (m_userspace_state->open_entities.size() <= static_cast<uSize>(entity_id)) {
         return EBADF;
     }
-    auto entity_ptr = m_userspace_state->open_entities[entity_id];
+    auto entity_ptr = m_userspace_state->open_entities[entity_id].handle;
     if (!entity_ptr) {
         return EBADF;
     }
@@ -93,7 +93,7 @@ expected<bek::shared_ptr<Process>> Process::spawn_kernel_process(bek::string nam
 
 expected<bek::shared_ptr<Process>> Process::spawn_user_process(bek::string name, fs::EntryRef executable,
                                                                fs::EntryRef cwd,
-                                                               bek::vector<bek::shared_ptr<EntityHandle>> handles) {
+                                                               bek::vector<LocalEntityHandle> handles) {
     auto kernel_stack = mem::PageAllocator::the().allocate_region(KERNEL_STACK_PAGES);
     if (!kernel_stack) return ENOMEM;
     auto proc = bek::adopt_shared(new Process(bek::move(name), nullptr, *kernel_stack));
@@ -117,7 +117,7 @@ expected<bek::shared_ptr<Process>> Process::spawn_user_process(bek::string name,
 }
 
 ErrorCode Process::execute_executable(fs::EntryRef executable, fs::EntryRef cwd,
-                                      bek::vector<bek::shared_ptr<EntityHandle>> handles) {
+                                      bek::vector<LocalEntityHandle> handles) {
     DBG::dbgln("Trying to execute {}."_sv, executable->name());
     if (has_userspace()) DBG::dbgln("Warn: May not support overwriting userspace process."_sv);
 
@@ -144,6 +144,13 @@ ErrorCode Process::execute_executable(fs::EntryRef executable, fs::EntryRef cwd,
     m_saved_registers = SavedRegisters::create_for_user_execute(elf->get_entry_point().ptr, m_kernel_stack.end().get(),
                                                                 stack_region.end().ptr);
     return ESUCCESS;
+}
+
+long Process::allocate_entity_handle_slot(bek::shared_ptr<EntityHandle> handle, u8 group) {
+    // TODO: Lock
+    VERIFY(m_userspace_state);
+    m_userspace_state->open_entities.push_back({bek::move(handle), group});
+    return m_userspace_state->open_entities.size() - 1;
 }
 
 // region ProcessManager

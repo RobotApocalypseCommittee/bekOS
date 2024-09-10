@@ -26,6 +26,7 @@
 #include "library/debug.h"
 #include "mm/page_allocator.h"
 #include "peripherals/timer.h"
+#include "process/pipe.h"
 #include "process/process.h"
 
 using DBG = DebugScope<"Process", true>;
@@ -70,6 +71,8 @@ expected<long> handle_syscall(u64 syscall_no, u64 arg1, u64 arg2, u64 arg3, u64 
             return 0;
         case sc::SysCall::Exec:
             return current_process.sys_execute(arg1, arg2, arg3, arg4);
+        case sc::SysCall::CreatePipe:
+            return current_process.sys_create_pipe(arg1, arg2);
         case sc::SysCall::Exit:
             current_process.quit_process(arg1);
             ASSERT_UNREACHABLE();
@@ -128,8 +131,7 @@ expected<long> Process::sys_open(uPtr path_str, uSize path_len, sc::OpenFlags fl
     auto f = open_file(result.release_value());
 
     // TODO: Lock
-    auto entity_fd = static_cast<long>(m_userspace_state->open_entities.size());
-    m_userspace_state->open_entities.push_back(bek::move(f));
+    auto entity_fd = allocate_entity_handle_slot(f, 0);
 
     return entity_fd;
 }
@@ -163,11 +165,11 @@ expected<long> Process::sys_close(int entity_handle) {
         return EBADF;
     }
     auto& entity_ptr = m_userspace_state->open_entities[entity_handle];
-    if (!entity_ptr) {
+    if (!entity_ptr.handle) {
         return EBADF;
     } else {
         bek::shared_ptr<EntityHandle> temp{};
-        bek::swap(entity_ptr, temp);
+        bek::swap(entity_ptr.handle, temp);
     }
 
     return 0;
@@ -374,8 +376,7 @@ expected<long> Process::sys_open_device(uPtr path_str, uPtr path_len) {
     }
 
     // TODO: Lock
-    auto entity_fd = static_cast<long>(m_userspace_state->open_entities.size());
-    m_userspace_state->open_entities.push_back(bek::move(handle));
+    auto entity_fd = allocate_entity_handle_slot(handle, 0);
 
     return entity_fd;
 }
@@ -454,4 +455,20 @@ expected<long> Process::sys_execute(uPtr executable_path, uSize path_len, uPtr a
 
     do_assume_process_state(m_saved_registers, 0);
     ASSERT_UNREACHABLE();
+}
+expected<long> Process::sys_create_pipe(uPtr pipe_handles_struct, u64 raw_flags) {
+    auto flags = sc::CreatePipeHandleFlags::from(raw_flags);
+    auto pipe = bek::adopt_shared(new Pipe());
+
+    auto pipe_handles_buffer =
+        EXPECTED_TRY(create_user_buffer(pipe_handles_struct, sizeof(sc::CreatePipeHandles), true));
+
+    auto read_handle = bek::adopt_shared(new PipeHandle(pipe, true, flags.read_blocking));
+    auto write_handle = bek::adopt_shared(new PipeHandle(pipe, false, flags.write_blocking));
+
+    sc::CreatePipeHandles handles = {allocate_entity_handle_slot(read_handle, flags.read_group),
+                                     allocate_entity_handle_slot(write_handle, flags.write_group)};
+
+    EXPECTED_TRY(pipe_handles_buffer.write_object(handles));
+    return 0l;
 }

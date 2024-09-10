@@ -44,6 +44,8 @@ enum class SysCall : u64 {
     // Memory Operations
     Allocate,
     Deallocate,
+    // IPC
+    CreatePipe,
     // Process
     GetPid,
     Fork,
@@ -83,6 +85,20 @@ enum class SeekLocation {
 inline constexpr int INVALID_ENTITY_ID = __INT32_MAX__;
 inline constexpr uSize INVALID_OFFSET_VAL = (-1ull);
 inline constexpr uSize INVALID_ADDRESS_VAL = (-1ul);
+
+struct CreatePipeHandles {
+    long read_handle;
+    long write_handle;
+};
+
+struct CreatePipeHandleFlags {
+    u8 read_group;
+    u8 write_group;
+    bool read_blocking;
+    bool write_blocking;
+    operator u64() const { return bek::bit_cast<u32>(*this); }  // NOLINT(*-explicit-constructor)
+    static CreatePipeHandleFlags from(u64 v) { return bek::bit_cast<CreatePipeHandleFlags>(static_cast<u32>(v)); }
+};
 
 enum class AllocateFlags { None = 0 };
 

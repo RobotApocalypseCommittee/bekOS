@@ -314,20 +314,30 @@ int main(int argc, char** argv) {
     }
     fb.flush();
 
+    auto pipe_result = core::syscall::create_pipe({0, 0, false, true});
+    if (pipe_result.has_error()) {
+        dbgln("create_pipe failed: {}"_sv, (u32)pipe_result.error());
+        return 0;
+    }
+
     auto fork_result = core::syscall::fork();
     if (fork_result.has_error()) {
         dbgln("Fork failed: {}"_sv, (u32)fork_result.error());
     } else if (fork_result.value() == 0) {
-        dbgln("Fork - child process!"_sv);
-        /*while (true) {
-            core::syscall::wait(1'000'000);
-            dbgln("Ping!"_sv);
-        }*/
+        core::BufferedFile new_out{static_cast<int>(pipe_result.value().write_handle), sc::OpenFlags::Write,
+                                   core::BufferedFile::LINE_BUFFERED};
+
+        core::fprintln(new_out, "Fork - child process!"_sv);
+
         auto exec_result = core::syscall::exec("/bin/stub"_sv);
         if (exec_result.has_error()) {
             dbgln("Exec failed: {}"_sv, (u32)fork_result.error());
         } else {
-            dbgln("What the fuck"_sv);
+            dbgln("Very very bad."_sv);
+        }
+        while (true) {
+            core::syscall::wait(1'000'000);
+            dbgln("Ping!"_sv);
         }
     } else {
         dbgln("Fork - parent process. Child process: {}."_sv, fork_result.value());
@@ -335,6 +345,12 @@ int main(int argc, char** argv) {
 
     while (true) {
         auto ch = kbd.get_update();
+        if (!ch) {
+            auto read_pipe_res = core::syscall::read(pipe_result.value().read_handle, sc::INVALID_OFFSET_VAL, &ch, 1);
+            if (read_pipe_res.has_error() && read_pipe_res.error() != EAGAIN) {
+                dbgln("Failed to read from pipe: {}"_sv, (u32)read_pipe_res.error());
+            }
+        }
         if (ch) {
             if (ch == '\n' || c >= end_column) {
                 c = 0;

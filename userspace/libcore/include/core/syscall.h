@@ -107,6 +107,8 @@ expected<long> fork();
 
 expected<long> exec(bek::str_view path);
 
+expected<sc::CreatePipeHandles> create_pipe(sc::CreatePipeHandleFlags flags);
+
 void wait(uSize microseconds);
 
 }  // namespace core::syscall

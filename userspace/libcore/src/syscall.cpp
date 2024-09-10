@@ -101,3 +101,12 @@ void core::syscall::wait(uSize microseconds) { syscall(sc::SysCall::Sleep, micro
 core::expected<long> core::syscall::exec(bek::str_view path) {
     return syscall_to_result<long>(sc::SysCall::Exec, path.data(), path.size());
 }
+core::expected<sc::CreatePipeHandles> core::syscall::create_pipe(sc::CreatePipeHandleFlags flags) {
+    sc::CreatePipeHandles handles{};
+    auto r = syscall_to_error_code(sc::SysCall::CreatePipe, &handles, flags);
+    if (r == ESUCCESS) {
+        return handles;
+    } else {
+        return r;
+    }
+}
