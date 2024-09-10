@@ -23,7 +23,7 @@ target_include_directories(bekos_libcore
         PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 target_compile_options(bekos_libcore
-        PUBLIC -static -nostdlib -nostdinc -nostdinc++ -fno-exceptions -fno-rtti
+        PUBLIC -static -nostdlib -nostdinc -nostdinc++ -fno-exceptions -fno-rtti -mgeneral-regs-only
         PRIVATE -Wall -Wextra)
 
 target_link_options(bekos_libcore
