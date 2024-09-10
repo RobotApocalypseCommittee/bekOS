@@ -21,6 +21,9 @@
 inline constexpr uSize PIPE_DEFAULT_SIZE = 4096;
 Pipe::Pipe() : m_data(PIPE_DEFAULT_SIZE), m_read_idx{}, m_write_idx{} {}
 
+// NOTE: When read_idx == write_idx, the read head is behind the write head (nothing to read, lots to write)
+// So we can only write until write_idx + 1 == read_idx.
+
 expected<uSize> Pipe::write(TransactionalBuffer& buffer, bool blocking) {
     // Total space available to write.
     auto write_space =

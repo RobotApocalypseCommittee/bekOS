@@ -109,6 +109,8 @@ expected<long> exec(bek::str_view path);
 
 expected<sc::CreatePipeHandles> create_pipe(sc::CreatePipeHandleFlags flags);
 
+expected<long> duplicate(long old_slot, long new_slot, u8 group);
+
 void wait(uSize microseconds);
 
 }  // namespace core::syscall

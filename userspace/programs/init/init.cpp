@@ -290,7 +290,7 @@ int main(int argc, char** argv) {
     }
     auto& font = font_r.value();
 
-    bek::str_view string = "Hello, world!"_sv;
+    bek::str_view string = "Hello, world!\n"_sv;
 
     u8* start = fb.framebuffer();
     auto stride = fb.stride();
@@ -305,7 +305,7 @@ int main(int argc, char** argv) {
         if (ch == '\n' || c >= end_column) {
             c = 0;
             r++;
-            start = fb.framebuffer() + stride * r;
+            start = fb.framebuffer() + stride * r * 16;
             if (ch == '\n') continue;
         }
         font.blit_char(ch, start, stride, fg, bg);
@@ -316,20 +316,39 @@ int main(int argc, char** argv) {
 
     auto pipe_result = core::syscall::create_pipe({0, 0, false, true});
     if (pipe_result.has_error()) {
-        dbgln("create_pipe failed: {}"_sv, (u32)pipe_result.error());
+        dbgln("create_pipe for stdout failed: {}"_sv, (u32)pipe_result.error());
         return 0;
     }
+    auto stdout_handles = pipe_result.value();
 
+    pipe_result = core::syscall::create_pipe({0, 0, true, true});
+    if (pipe_result.has_error()) {
+        dbgln("create_pipe for stdin failed: {}"_sv, (u32)pipe_result.error());
+        return 0;
+    }
+    auto stdin_handles = pipe_result.value();
+
+    core::stdout.flush();
+    core::stdin.flush();
     auto fork_result = core::syscall::fork();
     if (fork_result.has_error()) {
         dbgln("Fork failed: {}"_sv, (u32)fork_result.error());
     } else if (fork_result.value() == 0) {
-        core::BufferedFile new_out{static_cast<int>(pipe_result.value().write_handle), sc::OpenFlags::Write,
-                                   core::BufferedFile::LINE_BUFFERED};
+        // We now equip our new stdin and stdout.
+        core::syscall::close(stdout_handles.read_handle);
+        core::syscall::close(stdin_handles.write_handle);
 
-        core::fprintln(new_out, "Fork - child process!"_sv);
+        if (auto dup_r = core::syscall::duplicate(stdin_handles.read_handle, 1, 0); dup_r.has_error()) {
+            dbgln("Dup failed: {}"_sv, (u32)dup_r.error());
+        }
+        if (auto dup_r = core::syscall::duplicate(stdout_handles.write_handle, 0, 0); dup_r.has_error()) {
+            dbgln("Dup failed: {}"_sv, (u32)dup_r.error());
+        }
+        if (auto dup_r = core::syscall::duplicate(stdout_handles.write_handle, 2, 0); dup_r.has_error()) {
+            dbgln("Dup failed: {}"_sv, (u32)dup_r.error());
+        }
 
-        auto exec_result = core::syscall::exec("/bin/stub"_sv);
+        auto exec_result = core::syscall::exec("/bin/shell"_sv);
         if (exec_result.has_error()) {
             dbgln("Exec failed: {}"_sv, (u32)fork_result.error());
         } else {
@@ -345,29 +364,41 @@ int main(int argc, char** argv) {
 
     while (true) {
         auto ch = kbd.get_update();
-        if (!ch) {
-            auto read_pipe_res = core::syscall::read(pipe_result.value().read_handle, sc::INVALID_OFFSET_VAL, &ch, 1);
-            if (read_pipe_res.has_error() && read_pipe_res.error() != EAGAIN) {
-                dbgln("Failed to read from pipe: {}"_sv, (u32)read_pipe_res.error());
+        // If true, we send to child stdin.
+        if (ch) {
+            if (auto write_r = core::syscall::write(stdin_handles.write_handle, sc::INVALID_OFFSET_VAL, &ch, 1);
+                write_r.has_error()) {
+                dbgln("Write to stdin pipe failed: {}"_sv, (u32)write_r.error());
             }
         }
-        if (ch) {
-            if (ch == '\n' || c >= end_column) {
-                c = 0;
-                r++;
-                start = fb.framebuffer() + stride * r * 16;
-                if (ch == '\n') continue;
-            } else if (ch == '\b') {
-                if (c > 0) {
-                    c--;
-                    start -= 16 * 4;
-                    font.blit_char(' ', start, stride, fg, bg);
-                    continue;
+        // Next, we see if there's a chars we need to read!
+        char temp_buffer[100];
+        auto read_pipe_res =
+            core::syscall::read(stdout_handles.read_handle, sc::INVALID_OFFSET_VAL, &temp_buffer, sizeof(temp_buffer));
+        if (read_pipe_res.has_error() && read_pipe_res.error() != EAGAIN) {
+            dbgln("Failed to read from pipe: {}"_sv, (u32)read_pipe_res.error());
+        } else if (read_pipe_res.has_value() && read_pipe_res.value() != 0) {
+            dbgln("Read {} chars from pipe: {}"_sv, read_pipe_res.value(),
+                  bek::str_view{temp_buffer, static_cast<uSize>(read_pipe_res.value())});
+            for (uSize i = 0; i < read_pipe_res.value(); i++) {
+                char ch = temp_buffer[i];
+                if (ch == '\n' || c >= end_column) {
+                    c = 0;
+                    r++;
+                    start = fb.framebuffer() + stride * r * 16;
+                    if (ch == '\n') continue;
+                } else if (ch == '\b') {
+                    if (c > 0) {
+                        c--;
+                        start -= 16 * 4;
+                        font.blit_char(' ', start, stride, fg, bg);
+                        continue;
+                    }
                 }
+                font.blit_char(ch, start, stride, fg, bg);
+                start += 4 * 16;
+                c += 1;
             }
-            font.blit_char(ch, start, stride, fg, bg);
-            start += 4 * 16;
-            c += 1;
             fb.flush();
         }
         asm volatile("nop");

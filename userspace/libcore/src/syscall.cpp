@@ -110,3 +110,6 @@ core::expected<sc::CreatePipeHandles> core::syscall::create_pipe(sc::CreatePipeH
         return r;
     }
 }
+core::expected<long> core::syscall::duplicate(long old_slot, long new_slot, u8 group) {
+    return syscall_to_result<long>(sc::SysCall::Duplicate, old_slot, new_slot, group);
+}

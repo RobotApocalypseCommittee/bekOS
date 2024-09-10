@@ -37,6 +37,7 @@ enum class SysCall : u64 {
     Seek,
     Stat,
     GetDirEntries,
+    Duplicate,
     // Device Operations
     ListDevices,
     OpenDevice,
@@ -61,7 +62,7 @@ enum class OpenFlags {
     Write = 0x02,
     CreateIfMissing = 0x04,
     CreateOnly = 0x08,
-    DIRECTORY,
+    DIRECTORY = 0x10,
 };
 
 // BEK_ENUM_BITWISE_OPS(OpenFlags)

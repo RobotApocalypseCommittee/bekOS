@@ -73,6 +73,8 @@ expected<long> handle_syscall(u64 syscall_no, u64 arg1, u64 arg2, u64 arg3, u64 
             return current_process.sys_execute(arg1, arg2, arg3, arg4);
         case sc::SysCall::CreatePipe:
             return current_process.sys_create_pipe(arg1, arg2);
+        case sc::SysCall::Duplicate:
+            return current_process.sys_duplicate(arg1, arg2, arg3);
         case sc::SysCall::Exit:
             current_process.quit_process(arg1);
             ASSERT_UNREACHABLE();
@@ -144,7 +146,9 @@ expected<long> Process::sys_read(int entity_handle, uSize offset, uPtr buffer, u
 
     // TODO: Verify ptr range
     auto mut_buffer = EXPECTED_TRY(create_user_buffer(buffer, len, false));
-    return handle->read(offset, mut_buffer).map_value([](auto x) { return static_cast<long>(x); });
+    auto x = handle->read(offset, mut_buffer).map_value([](auto x) { return static_cast<long>(x); });
+    if (x.has_value()) DBG::dbgln("Read succeeded: {}"_sv, x.value());
+    return x;
 }
 expected<long> Process::sys_write(int entity_handle, uSize offset, uPtr buffer, uSize len) {
     auto handle = EXPECTED_TRY(get_open_entity(entity_handle));
@@ -285,7 +289,7 @@ expected<long> Process::sys_allocate(uPtr address, uSize size, sc::AllocateFlags
     auto x = EXPECTED_TRY(m_userspace_state->address_space_manager.place_region(
         hint, MemoryOperation::Read | MemoryOperation::Write, bek::string{"Allocate"}, bek::move(space)));
 
-    DBG::dbgln("Allocated space for user. Address space:"_sv);
+    DBG::dbgln("Allocated space in {} ({}). Address space:"_sv, name(), pid());
     m_userspace_state->address_space_manager.debug_print();
     return static_cast<long>(x.start.get());
 }
@@ -414,6 +418,7 @@ expected<long> Process::sys_fork(InterruptContext& ctx) {
     if (auto r = ProcessManager::the().register_process(proc); r != ESUCCESS) {
         return r;
     }
+    DBG::dbgln("Forking process {}: forked address space:"_sv, proc->name());
     proc->m_userspace_state->address_space_manager.debug_print();
     proc->set_state(ProcessState::Running);
     return proc->pid();
@@ -471,4 +476,21 @@ expected<long> Process::sys_create_pipe(uPtr pipe_handles_struct, u64 raw_flags)
 
     EXPECTED_TRY(pipe_handles_buffer.write_object(handles));
     return 0l;
+}
+
+expected<long> Process::sys_duplicate(long handle_slot, long new_handle_slot, u8 group) {
+    auto handle = EXPECTED_TRY(get_open_entity(handle_slot));
+
+    if (new_handle_slot == sc::INVALID_ENTITY_ID) {
+        return allocate_entity_handle_slot(handle, group);
+    } else {
+        if (new_handle_slot < 0) return EINVAL;
+        // FIXME: Extend
+        if (new_handle_slot >= m_userspace_state->open_entities.size()) return EINVAL;
+
+        auto& old_handle = m_userspace_state->open_entities[new_handle_slot];
+        old_handle.group = group;
+        old_handle.handle = bek::move(handle);
+        return new_handle_slot;
+    }
 }

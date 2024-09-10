@@ -77,6 +77,7 @@ public:
     expected<long> sys_fork(InterruptContext& ctx);
     expected<long> sys_execute(uPtr executable_path, uSize path_len, uPtr args_array, uSize args_n);
     expected<long> sys_create_pipe(uPtr pipe_handle_arr, u64 raw_flags);
+    expected<long> sys_duplicate(long handle_slot, long new_handle_slot, u8 group);
 
     template <typename Fn>
     auto with_space_manager(Fn&& fn) {

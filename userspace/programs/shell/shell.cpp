@@ -16,12 +16,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "core/dir.h"
 #include "core/error.h"
 #include "core/io.h"
 #include "core/syscall.h"
 #include "library/hashtable.h"
 
-constexpr inline bool LOCAL_ECHO = true;
+// Does the host terminal echo for us?
+constexpr inline bool LOCAL_ECHO = false;
 
 using CmdFn = core::expected<bool> (*)(bek::vector<bek::str_view>& command);
 
@@ -58,8 +60,12 @@ bek::expected<bek::vector<bek::str_view>, bek::string> parse_command(bek::string
                 start_idx++;
             } else {
                 components.push_back(bek::str_view{&str.data()[start_idx], i - start_idx});
+                start_idx = i;
             }
         }
+    }
+    if (start_idx != str.size()) {
+        components.push_back(bek::str_view{&str.data()[start_idx], str.size() - start_idx});
     }
     return components;
 }
@@ -82,6 +88,7 @@ ErrorCode loop() {
     bool should_quit = false;
     while (!should_quit) {
         auto cmd = EXPECTED_TRY(prompt_for_command());
+        core::fprintln(core::stdout, "{}"_sv, cmd.view());
 
         auto parse_res = parse_command(cmd);
         if (parse_res.has_error()) {
@@ -112,6 +119,20 @@ core::expected<bool> builtin_help(bek::vector<bek::str_view>& command) {
     return false;
 }
 
+core::expected<bool> builtin_ls(bek::vector<bek::str_view>& command) {
+    if (command.size() > 2) {
+        core::fprintln(core::stderr, "sh: warn: {} takes no arguments."_sv, command[0]);
+    }
+    auto path = command.size() == 2 ? command[1] : "."_sv;
+    auto eh = EXPECTED_TRY(core::syscall::open(path, sc::OpenFlags::DIRECTORY, sc::INVALID_ENTITY_ID, nullptr));
+    auto stream = EXPECTED_TRY(core::DirectoryStream::create(eh));
+
+    for (auto& e : stream) {
+        core::fprintln(core::stdout, "    {}"_sv, e.name.view());
+    }
+    return false;
+}
+
 int main(int argc, char** argv) {
     auto pid = core::syscall::get_pid();
     if (pid.has_error()) return pid.error();
@@ -121,6 +142,7 @@ int main(int argc, char** argv) {
     builtin_commands.insert({"q"_sv, builtin_quit});
     builtin_commands.insert({"quit"_sv, builtin_quit});
     builtin_commands.insert({"help"_sv, builtin_help});
+    builtin_commands.insert({"ls"_sv, builtin_ls});
 
     return loop();
 }

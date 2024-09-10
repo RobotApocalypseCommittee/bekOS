@@ -45,6 +45,7 @@ public:
     SupportedOperations get_supported_operations() const override { return m_is_reader ? Read : Write; }
     expected<uSize> read(u64 offset, TransactionalBuffer& buffer) override {
         return m_is_reader ? m_pipe->read(buffer, m_is_blocking) : ENOTSUP;
+        ;
     }
     expected<uSize> write(u64 offset, TransactionalBuffer& buffer) override {
         return !m_is_reader ? m_pipe->write(buffer, m_is_blocking) : ENOTSUP;

@@ -120,6 +120,7 @@ ErrorCode Process::execute_executable(fs::EntryRef executable, fs::EntryRef cwd,
                                       bek::vector<LocalEntityHandle> handles) {
     DBG::dbgln("Trying to execute {}."_sv, executable->name());
     if (has_userspace()) DBG::dbgln("Warn: May not support overwriting userspace process."_sv);
+    auto name = bek::string{executable->name()};
 
     auto elf = EXPECTED_TRY(ElfFile::parse_file(bek::move(executable)));
     SpaceManager new_space = EXPECTED_TRY(SpaceManager::create());
@@ -135,7 +136,9 @@ ErrorCode Process::execute_executable(fs::EntryRef executable, fs::EntryRef cwd,
     bek::memset(stack->kernel_mapped_region().start.get(), 0, stack->size());
 
     m_userspace_state = UserspaceState{stack_region.end(), bek::move(cwd), bek::move(new_space), bek::move(handles)};
+    m_name = bek::move(name);
 
+    DBG::dbgln("Executing process {}. Address space:"_sv, this->name());
     m_userspace_state->address_space_manager.debug_print();
 
     if (&ProcessManager::the().current_process() == this) {
