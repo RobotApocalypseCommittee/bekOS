@@ -31,7 +31,7 @@
 
 using DBG = DebugScope<"Process", false>;
 
-constexpr inline uSize KERNEL_STACK_PAGES = 2;
+constexpr inline uSize KERNEL_STACK_PAGES = 3;
 constexpr inline uSize DEFAULT_USER_STACK = 4 * PAGE_SIZE;
 constexpr inline uSize MAX_USER_STACK = 1024 * PAGE_SIZE;
 
@@ -48,8 +48,9 @@ void Process::quit_process(int exit_code) {
     // TODO: Exit Status
     DBG::dbgln("Process {} ({}) quit with code {}."_sv, name(), pid(), exit_code);
     m_running_state = ProcessState::AwaitingDeath;
+    m_exit_code = exit_code;
     ProcessManager::the().schedule();
-    // TODO: WHat to do if failes.
+    // TODO: What to do if fails.
 }
 expected<UserBuffer> Process::create_user_buffer(uPtr ptr, uSize size, bool for_writing) {
     if (!m_userspace_state->address_space_manager.check_region(
@@ -105,7 +106,9 @@ expected<bek::shared_ptr<Process>> Process::spawn_user_process(bek::string name,
     // Don't manually free Kernel Stack from now on - owned by process.
 
     // This function creates the saved registers structure as well.
-    if (auto r = proc->execute_executable(bek::move(executable), bek::move(cwd), bek::move(handles)); r != ESUCCESS) {
+    if (auto r = proc->execute_executable(bek::move(executable), bek::move(cwd), bek::move(handles),
+                                          bek::vector<bek::string>(), bek::vector<bek::string>());
+        r != ESUCCESS) {
         return r;
     }
 
@@ -116,8 +119,8 @@ expected<bek::shared_ptr<Process>> Process::spawn_user_process(bek::string name,
     return proc;
 }
 
-ErrorCode Process::execute_executable(fs::EntryRef executable, fs::EntryRef cwd,
-                                      bek::vector<LocalEntityHandle> handles) {
+ErrorCode Process::execute_executable(fs::EntryRef executable, fs::EntryRef cwd, bek::vector<LocalEntityHandle> handles,
+                                      bek::vector<bek::string> arguments, bek::vector<bek::string> environ) {
     DBG::dbgln("Trying to execute {}."_sv, executable->name());
     if (has_userspace()) DBG::dbgln("Warn: May not support overwriting userspace process."_sv);
     auto name = bek::string{executable->name()};
@@ -133,9 +136,50 @@ ErrorCode Process::execute_executable(fs::EntryRef executable, fs::EntryRef cwd,
     auto stack = EXPECTED_TRY(
         new_space.allocate_placed_region(stack_region, MemoryOperation::Read | MemoryOperation::Write, "stack"_sv));
 
+    // Now we need to copy items onto stack.
+    auto stack_offset = static_cast<iSize>(stack->size());
+    auto stack_bottom_ptr = stack->kernel_mapped_region().start;
     bek::memset(stack->kernel_mapped_region().start.get(), 0, stack->size());
 
-    m_userspace_state = UserspaceState{stack_region.end(), bek::move(cwd), bek::move(new_space), bek::move(handles)};
+    auto put_string_on_stack = [&](const bek::string& str) {
+        auto needed_size = str.size() + 1;
+        if (stack_offset < needed_size) {
+            DBG::dbgln("Error: No space on user stack to put string \"{}\"."_sv, str.view());
+            return ENOMEM;
+        } else {
+            stack_offset -= needed_size;
+            bek::memcopy(stack_bottom_ptr.offset(stack_offset).ptr, str.data(), needed_size);
+            return ESUCCESS;
+        }
+    };
+
+    bek::vector<mem::UserPtr> init_stack_ptr_array;
+    init_stack_ptr_array.reserve(arguments.size() + environ.size() + 2);
+
+    for (const auto& arg : arguments) {
+        EXPECT_SUCCESS(put_string_on_stack(arg));
+        init_stack_ptr_array.push_back(stack_region.start.offset(stack_offset));
+    }
+    init_stack_ptr_array.push_back(mem::UserPtr{});
+    for (const auto& env : environ) {
+        EXPECT_SUCCESS(put_string_on_stack(env));
+        init_stack_ptr_array.push_back(stack_region.start.offset(stack_offset));
+    }
+    init_stack_ptr_array.push_back(mem::UserPtr{});
+
+    auto needed_size = init_stack_ptr_array.size() * sizeof(uPtr);
+    // FIXME: Stack pointer alignment should be arch-dependent constant.
+    needed_size += stack_offset % 16;
+    if (stack_offset < needed_size) {
+        DBG::dbgln("Error: No space on user stack to put the init array."_sv);
+        return ENOMEM;
+    }
+    stack_offset -= needed_size;
+    bek::memcopy(stack_bottom_ptr.offset(stack_offset).ptr, init_stack_ptr_array.data(),
+                 init_stack_ptr_array.size() * sizeof(uPtr));
+
+    m_userspace_state = UserspaceState{stack_region.start.offset(stack_offset), bek::move(cwd), bek::move(new_space),
+                                       bek::move(handles)};
     m_name = bek::move(name);
 
     DBG::dbgln("Executing process {}. Address space:"_sv, this->name());
@@ -145,7 +189,7 @@ ErrorCode Process::execute_executable(fs::EntryRef executable, fs::EntryRef cwd,
         ProcessManager::the().enter_critical();
     }
     m_saved_registers = SavedRegisters::create_for_user_execute(elf->get_entry_point().ptr, m_kernel_stack.end().get(),
-                                                                stack_region.end().ptr);
+                                                                stack_region.start.offset(stack_offset).ptr);
     return ESUCCESS;
 }
 
@@ -315,6 +359,13 @@ void ProcessManager::switch_context(Process& process) {
     }
     // Perform the switch - who knows when this function will return?
     do_context_switch(previous_registers, m_current->m_saved_registers);
+}
+ErrorCode ProcessManager::reap_process(Process& proc) {
+    VERIFY(m_processes[proc.pid()].get() == &proc);
+    VERIFY(proc.m_children.size() == 0);
+    VERIFY(proc.ref_count() == 1);
+    m_processes[proc.pid()] = nullptr;
+    return ESUCCESS;
 }
 
 // endregion

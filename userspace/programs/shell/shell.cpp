@@ -60,7 +60,7 @@ bek::expected<bek::vector<bek::str_view>, bek::string> parse_command(bek::string
                 start_idx++;
             } else {
                 components.push_back(bek::str_view{&str.data()[start_idx], i - start_idx});
-                start_idx = i;
+                start_idx = i + 1;
             }
         }
     }
@@ -88,13 +88,18 @@ ErrorCode loop() {
     bool should_quit = false;
     while (!should_quit) {
         auto cmd = EXPECTED_TRY(prompt_for_command());
-        core::fprintln(core::stdout, "{}"_sv, cmd.view());
+        // core::fprintln(core::stdout, "{}"_sv, cmd.view());
 
         auto parse_res = parse_command(cmd);
         if (parse_res.has_error()) {
             core::fprintln(core::stderr, "Invalid command: {}."_sv, parse_res.error().view());
             continue;
         }
+
+        for (auto& a : parse_res.value()) {
+            core::fprint(core::stdout, "{},"_sv, a);
+        }
+        core::fprintln(core::stdout, ""_sv);
 
         should_quit = EXPECTED_TRY(dispatch_command(parse_res.value()));
     }
@@ -133,6 +138,31 @@ core::expected<bool> builtin_ls(bek::vector<bek::str_view>& command) {
     return false;
 }
 
+core::expected<bool> builtin_stub(bek::vector<bek::str_view>& command) {
+    auto fork_result = core::syscall::fork();
+    if (fork_result.has_error()) {
+        core::fprintln(core::stderr, "Fork failed: {}"_sv, fork_result.error());
+    } else if (fork_result.value() == 0) {
+        auto exec_result = core::syscall::exec("/bin/stub"_sv, bek::span(command), {});
+        if (exec_result.has_error()) {
+            core::fprintln(core::stderr, "Could not run stub: {}."_sv, exec_result.error());
+            core::syscall::exit(-1);
+        } else {
+            core::fprintln(core::stderr, "Execute succeeded, and we're still running?"_sv);
+        }
+    } else {
+        int status;
+        auto wait_result = core::syscall::wait(fork_result.value(), status);
+        if (wait_result.has_error()) {
+            core::fprintln(core::stderr, "Could not wait(): {}."_sv, wait_result.error());
+            return true;
+        } else {
+            core::fprintln(core::stdout, "stub exited with {}."_sv, status);
+        }
+    }
+    return false;
+}
+
 int main(int argc, char** argv) {
     auto pid = core::syscall::get_pid();
     if (pid.has_error()) return pid.error();
@@ -143,6 +173,9 @@ int main(int argc, char** argv) {
     builtin_commands.insert({"quit"_sv, builtin_quit});
     builtin_commands.insert({"help"_sv, builtin_help});
     builtin_commands.insert({"ls"_sv, builtin_ls});
+    builtin_commands.insert({"stub"_sv, builtin_stub});
 
-    return loop();
+    auto result = loop();
+    core::fprintln(core::stdout, "Goodbye: {}."_sv, result);
+    return result;
 }

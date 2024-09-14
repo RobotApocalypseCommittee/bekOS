@@ -75,9 +75,11 @@ public:
     expected<long> sys_open_device(uPtr path_str, uPtr path_len);
     expected<long> sys_message_device(int entity_handle, u64 id, uPtr buffer, uSize size);
     expected<long> sys_fork(InterruptContext& ctx);
-    expected<long> sys_execute(uPtr executable_path, uSize path_len, uPtr args_array, uSize args_n);
+    expected<long> sys_execute(uPtr executable_path, uSize path_len, uPtr args_array, uSize args_n, uPtr env_array,
+                               uSize env_n);
     expected<long> sys_create_pipe(uPtr pipe_handle_arr, u64 raw_flags);
     expected<long> sys_duplicate(long handle_slot, long new_handle_slot, u8 group);
+    expected<long> sys_wait(long pid, uPtr status_ptr, u64 flags);
 
     template <typename Fn>
     auto with_space_manager(Fn&& fn) {
@@ -100,7 +102,8 @@ private:
     Process(bek::string name, Process* parent, mem::VirtualRegion kernel_stack);
     expected<bek::shared_ptr<EntityHandle>> get_open_entity(long entity_id);
     [[nodiscard]] ErrorCode execute_executable(fs::EntryRef executable, fs::EntryRef cwd,
-                                               bek::vector<LocalEntityHandle> handles);
+                                               bek::vector<LocalEntityHandle> handles,
+                                               bek::vector<bek::string> arguments, bek::vector<bek::string> environ);
 
     long allocate_entity_handle_slot(bek::shared_ptr<EntityHandle> handle, u8 group);
 
@@ -143,6 +146,8 @@ public:
 
     /// Inserts process into process table, allocating PID if necessary.
     ErrorCode register_process(bek::shared_ptr<Process> proc);
+
+    ErrorCode reap_process(Process& proc);
 
     void enter_critical();
     void exit_critical();

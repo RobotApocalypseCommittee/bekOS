@@ -52,6 +52,7 @@ enum class SysCall : u64 {
     Fork,
     Exec,
     Exit,
+    Wait,
     // Miscellaneous
     Sleep,
 };

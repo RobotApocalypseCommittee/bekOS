@@ -22,7 +22,7 @@
 
 void bek_basic_format(bek::OutputStream& out, const ErrorCode& code) {
     switch (code) {
-#define __EMIT_ERROR_CODE(CODE) \
+#define __EMIT_ERROR_CODE(CODE, DESCRIPTION) \
     case CODE:                  \
         out.write(#CODE##_sv);  \
         break;

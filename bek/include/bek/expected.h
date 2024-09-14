@@ -72,9 +72,9 @@ public:
         }
     }
 
-    expected(expected&&)                 = default;
-    expected(const expected&)            = default;
-    expected& operator=(expected&&)      = default;
+    expected(expected&&) = default;
+    expected(const expected&) = default;
+    expected& operator=(expected&&) = default;
     expected& operator=(const expected&) = default;
 
 private:
@@ -90,6 +90,29 @@ private:
             return _temp.error();    \
         }                            \
         _temp.release_value();       \
+    })
+
+#define EXPECT_SUCCESS(EXPRESSION)                               \
+    do {                                                         \
+        if (ErrorCode _temp = (EXPRESSION); _temp != ESUCCESS) { \
+            return _temp;                                        \
+        }                                                        \
+    } while (0)
+
+#define EXPECT_SUCCESS_MESSAGE(EXPRESSION, FAILURE_MSG)      \
+    if (ErrorCode _temp = (EXPRESSION); _temp != ESUCCESS) { \
+        DBG::dbgln(FAILURE_MSG ": {}"_sv, _temp.error());    \
+        return _temp;                                        \
+    }
+
+#define EXPECTED_TRY_MESSAGE(EXPRESSION, FAILURE_MSG)         \
+    ({                                                        \
+        auto&& _temp = (EXPRESSION);                          \
+        if (_temp.has_error()) {                              \
+            DBG::dbgln(FAILURE_MSG ": {}"_sv, _temp.error()); \
+            return _temp.error();                             \
+        }                                                     \
+        _temp.release_value();                                \
     })
 
 #endif  // BEK_EXPECTED_H

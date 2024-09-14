@@ -32,6 +32,8 @@ public:
 
     span(const T* begin, const T* end) : array(begin), length(end - begin) {}
 
+    span() : array(nullptr), length(0) {}
+
     explicit span(const vector<T>& v) : array(v.data()), length(v.size()) {}
     template <uSize N>
     span(const T (&arr)[N]) : array(&arr[0]), length(N) {}

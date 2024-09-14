@@ -70,11 +70,13 @@ expected<long> handle_syscall(u64 syscall_no, u64 arg1, u64 arg2, u64 arg3, u64 
             timing::spindelay_us(arg1);
             return 0;
         case sc::SysCall::Exec:
-            return current_process.sys_execute(arg1, arg2, arg3, arg4);
+            return current_process.sys_execute(arg1, arg2, arg3, arg4, arg5, arg6);
         case sc::SysCall::CreatePipe:
             return current_process.sys_create_pipe(arg1, arg2);
         case sc::SysCall::Duplicate:
             return current_process.sys_duplicate(arg1, arg2, arg3);
+        case sc::SysCall::Wait:
+            return current_process.sys_wait(arg1, arg2, arg3);
         case sc::SysCall::Exit:
             current_process.quit_process(arg1);
             ASSERT_UNREACHABLE();
@@ -415,16 +417,19 @@ expected<long> Process::sys_fork(InterruptContext& ctx) {
 
     proc->m_saved_registers =
         SavedRegisters::create_for_return_from_fork(ctx, proc->m_kernel_stack.end().ptr, current_user_stack);
+
     if (auto r = ProcessManager::the().register_process(proc); r != ESUCCESS) {
         return r;
     }
+    m_children.push_back(proc.get());
     DBG::dbgln("Forking process {}: forked address space:"_sv, proc->name());
     proc->m_userspace_state->address_space_manager.debug_print();
     proc->set_state(ProcessState::Running);
     return proc->pid();
 }
 
-expected<long> Process::sys_execute(uPtr executable_path, uSize path_len, uPtr args_array, uSize args_n) {
+expected<long> Process::sys_execute(uPtr executable_path, uSize path_len, uPtr args_array, uSize args_n, uPtr env_array,
+                                    uSize env_n) {
     {
         using namespace fs;
         // Caution - path needs stable reference to path string.
@@ -435,8 +440,31 @@ expected<long> Process::sys_execute(uPtr executable_path, uSize path_len, uPtr a
         EntryRef root = m_userspace_state->cwd;
         auto entry = EXPECTED_TRY(fullPathLookup(root, the_path, nullptr));
 
+        bek::vector<bek::string> arguments;
+        bek::vector<bek::string> environ;
+        if (args_array && args_n) {
+            bek::vector<bek::pair<uPtr, uSize>> arguments_ptrs(args_n);
+            auto args_array_buffer = EXPECTED_TRY(create_user_buffer(args_array, args_n * 2 * sizeof(uPtr), false));
+            EXPECTED_TRY(args_array_buffer.read_to(arguments_ptrs.data(), args_array_buffer.size(), 0));
+            arguments.reserve(args_n);
+            for (auto& arg_view : arguments_ptrs) {
+                arguments.push_back(EXPECTED_TRY(read_string_from_user(arg_view.first, arg_view.second)));
+            }
+        }
+
+        if (env_array && env_n) {
+            bek::vector<bek::pair<uPtr, uSize>> env_ptrs(env_n);
+            auto env_array_buffer = EXPECTED_TRY(create_user_buffer(env_array, env_n * 2 * sizeof(uPtr), false));
+            EXPECTED_TRY(env_array_buffer.read_to(env_ptrs.data(), env_array_buffer.size(), 0));
+            environ.reserve(args_n);
+            for (auto& env_view : env_ptrs) {
+                environ.push_back(EXPECTED_TRY(read_string_from_user(env_view.first, env_view.second)));
+            }
+        }
+
         auto exec_result =
-            execute_executable(entry, m_userspace_state->cwd, bek::move(m_userspace_state->open_entities));
+            execute_executable(entry, m_userspace_state->cwd, bek::move(m_userspace_state->open_entities),
+                               bek::move(arguments), bek::move(environ));
 
         // execute_executable enters critical if altering current process's saved regs.
         VERIFY(ProcessManager::the().is_critical());
@@ -492,5 +520,49 @@ expected<long> Process::sys_duplicate(long handle_slot, long new_handle_slot, u8
         old_handle.group = group;
         old_handle.handle = bek::move(handle);
         return new_handle_slot;
+    }
+}
+expected<long> Process::sys_wait(long pid, uPtr status_ptr, u64 flags) {
+    bek::optional<UserBuffer> status_buffer =
+        status_ptr ? bek::optional{EXPECTED_TRY(create_user_buffer(status_ptr, sizeof(int), true))} : bek::nullopt;
+    if (pid > 0) {
+        for (auto child : m_children) {
+            if (child->pid() == pid) {
+                while (child->m_running_state != ProcessState::AwaitingDeath) {
+                    // Bloop
+                }
+
+                if (status_buffer) {
+                    auto exit_code = child->m_exit_code ? *child->m_exit_code : -1;
+                    status_buffer->write_from(&exit_code, sizeof(exit_code), 0);
+                }
+                for (auto& current_child : m_children) {
+                    if (current_child->pid() == pid) {
+                        m_children.extract(current_child);
+                    }
+                }
+                ProcessManager::the().reap_process(*child);
+                return pid;
+            }
+        }
+        return ECHILD;
+    } else if (pid == -1) {
+        while (m_children.size() > 0) {
+            for (auto& child : m_children) {
+                if (child->m_running_state == ProcessState::AwaitingDeath) {
+                    if (status_buffer) {
+                        auto exit_code = child->m_exit_code ? *child->m_exit_code : -1;
+                        status_buffer->write_from(&exit_code, sizeof(exit_code), 0);
+                    }
+                    auto child_pid = child->pid();
+                    m_children.extract(child);
+                    ProcessManager::the().reap_process(*child);
+                    return child_pid;
+                }
+            }
+        }
+        return ECHILD;
+    } else {
+        return EINVAL;
     }
 }
