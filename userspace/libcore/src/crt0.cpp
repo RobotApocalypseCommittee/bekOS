@@ -30,7 +30,7 @@ unsigned long core_atexit_function_count = 0;
 AtExitFuncEntry core_atexit_functions[ATEXIT_MAXIMUM_FUNCTIONS];
 
 extern "C" {
-[[noreturn, gnu::used]] void _start(int, char**);
+[[noreturn, gnu::used]] void _start(void);
 int main(int, char**);
 
 [[gnu::weak]] extern void (*const __init_array_start)();  // NOLINT(*-reserved-identifier)
@@ -44,7 +44,11 @@ void __cxa_pure_virtual() {  // NOLINT(*-reserved-identifier)
 [[maybe_unused]] [[maybe_unused]] void* __dso_handle = nullptr;
 }  // extern "C"
 
-extern "C" [[gnu::used, gnu::weak]] void _entry(int argc, char** argv) {
+extern "C" [[gnu::used, gnu::weak]] void _entry(char** argv) {
+    int argc = 0;
+    for (; argv[argc]; argc++)
+        ;
+
     _init();
     using uPtr = unsigned long;
     uPtr init_ptr = reinterpret_cast<uPtr>(&__init_array_start);

@@ -10,5 +10,7 @@ syscall3:
 syscall4:
 .globl syscall5
 syscall5:
+.globl syscall6
+syscall6:
     svc #0
     ret

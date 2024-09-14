@@ -16,20 +16,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_CORE_ERROR_H
-#define BEKOS_CORE_ERROR_H
+#include "core/error.h"
 
-#include "api/error_codes.h"
-#include "bek/expected.h"
-#include "bek/format_core.h"
-
-namespace core {
-
-template <typename T, typename E = ErrorCode>
-using expected = bek::expected<T, E>;
-
+bek::str_view errno_description(ErrorCode c) {
+    switch (c) {
+#define __EMIT_ERROR_CODE(NAME, DESCRIPTION) \
+    case NAME:                               \
+        return "[" #NAME ": " #DESCRIPTION "]"##_sv;
+        __ENUMERATE_ERROR_CODES
+        default:
+            return "INVALID ERROR CODE!"_sv;
+    }
 }
 
-void bek_basic_format(bek::OutputStream&, const ErrorCode&);
-
-#endif  // BEKOS_CORE_ERROR_H
+void bek_basic_format(bek::OutputStream& out, const ErrorCode& code) { out.write(errno_description(code)); }

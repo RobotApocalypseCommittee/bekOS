@@ -20,6 +20,7 @@
 #define BEKOS_CORE_SYSCALL_H
 
 #include "api/syscalls.h"
+#include "bek/span.h"
 #include "bek/str.h"
 #include "bek/types.h"
 #include "error.h"
@@ -33,6 +34,7 @@ u64 syscall2(u64 sc, u64 a1, u64 a2);
 u64 syscall3(u64 sc, u64 a1, u64 a2, u64 a3);
 u64 syscall4(u64 sc, u64 a1, u64 a2, u64 a3, u64 a4);
 u64 syscall5(u64 sc, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5);
+u64 syscall6(u64 sc, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5, u64 a6);
 }
 
 ALWAYS_INLINE u64 syscall(sc::SysCall sc) { return syscall0(static_cast<u64>(sc)); }
@@ -44,6 +46,9 @@ ALWAYS_INLINE u64 syscall(sc::SysCall sc, u64 a1, u64 a2, u64 a3, u64 a4) {
 }
 ALWAYS_INLINE u64 syscall(sc::SysCall sc, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5) {
     return syscall5(static_cast<u64>(sc), a1, a2, a3, a4, a5);
+}
+ALWAYS_INLINE u64 syscall(sc::SysCall sc, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5, u64 a6) {
+    return syscall6(static_cast<u64>(sc), a1, a2, a3, a4, a5, a6);
 }
 
 /// Syscall: Opens a file at path and provides entity descriptor.
@@ -105,14 +110,15 @@ expected<int> get_pid();
 
 expected<long> fork();
 
-expected<long> exec(bek::str_view path);
+core::expected<long> exec(bek::str_view path, bek::span<bek::str_view> arguments, bek::span<bek::str_view> environ);
 
 expected<sc::CreatePipeHandles> create_pipe(sc::CreatePipeHandleFlags flags);
 
 expected<long> duplicate(long old_slot, long new_slot, u8 group);
 
-void wait(uSize microseconds);
+void sleep(uSize microseconds);
 
+expected<long> wait(long pid, int& status);
 }  // namespace core::syscall
 
 #endif  // BEKOS_CORE_SYSCALL_H

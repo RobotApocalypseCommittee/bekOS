@@ -97,9 +97,12 @@ core::expected<long> core::syscall::message(long entity_handle, u64 id, void* bu
     return syscall_to_result<long>(sc::SysCall::CommandDevice, entity_handle, id, buffer, length);
 }
 core::expected<long> core::syscall::fork() { return syscall_to_result<long>(sc::SysCall::Fork); }
-void core::syscall::wait(uSize microseconds) { syscall(sc::SysCall::Sleep, microseconds); }
-core::expected<long> core::syscall::exec(bek::str_view path) {
-    return syscall_to_result<long>(sc::SysCall::Exec, path.data(), path.size());
+void core::syscall::sleep(uSize microseconds) { syscall(sc::SysCall::Sleep, microseconds); }
+
+core::expected<long> core::syscall::exec(bek::str_view path, bek::span<bek::str_view> arguments,
+                                         bek::span<bek::str_view> environ) {
+    return syscall_to_result<long>(sc::SysCall::Exec, path.data(), path.size(), arguments.data(), arguments.size(),
+                                   environ.data(), environ.size());
 }
 core::expected<sc::CreatePipeHandles> core::syscall::create_pipe(sc::CreatePipeHandleFlags flags) {
     sc::CreatePipeHandles handles{};
@@ -112,4 +115,7 @@ core::expected<sc::CreatePipeHandles> core::syscall::create_pipe(sc::CreatePipeH
 }
 core::expected<long> core::syscall::duplicate(long old_slot, long new_slot, u8 group) {
     return syscall_to_result<long>(sc::SysCall::Duplicate, old_slot, new_slot, group);
+}
+core::expected<long> core::syscall::wait(long pid, int& status) {
+    return syscall_to_result<long>(sc::SysCall::Wait, pid, &status);
 }

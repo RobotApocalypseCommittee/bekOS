@@ -16,7 +16,8 @@ add_library(bekos_libcore STATIC
         src/assertions.cpp
         src/io.cpp
         src/process.cpp
-        src/device.cpp)
+        src/device.cpp
+        src/error.cpp)
 
 target_include_directories(bekos_libcore
         PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/kernel/include
