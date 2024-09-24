@@ -20,10 +20,10 @@
 #define BEKOS_ARM_GIC_H
 
 #include "bek/buffer.h"
+#include "bek/optional.h"
 #include "bek/types.h"
 #include "bek/vector.h"
 #include "library/function.h"
-#include "library/optional.h"
 #include "peripherals/device_tree.h"
 #include "peripherals/interrupt_controller.h"
 

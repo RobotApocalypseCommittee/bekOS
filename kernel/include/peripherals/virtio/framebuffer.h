@@ -19,7 +19,7 @@
 #ifndef BEKOS_VIRTIO_FRAMEBUFFER_H
 #define BEKOS_VIRTIO_FRAMEBUFFER_H
 
-#include "library/own_ptr.h"
+#include "bek/own_ptr.h"
 #include "peripherals/framebuffer.h"
 #include "peripherals/virtio.h"
 

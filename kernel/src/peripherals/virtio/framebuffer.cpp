@@ -18,7 +18,7 @@
 
 #include <peripherals/virtio/framebuffer.h>
 
-#include "library/array.h"
+#include "bek/array.h"
 #include "library/debug.h"
 #include "mm/barriers.h"
 

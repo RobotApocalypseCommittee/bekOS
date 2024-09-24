@@ -21,9 +21,9 @@
 
 #include "api/syscalls.h"
 #include "bek/buffer.h"
+#include "bek/optional.h"
 #include "bek/str.h"
 #include "error.h"
-#include "library/optional.h"
 
 namespace core {
 

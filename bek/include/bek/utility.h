@@ -19,8 +19,8 @@
 #ifndef BEK_UTILITY_H
 #define BEK_UTILITY_H
 
-#include "traits.h"
 #include "types.h"
+#include "traits.h"
 
 namespace bek {
 

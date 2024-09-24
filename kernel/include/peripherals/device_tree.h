@@ -21,14 +21,14 @@
 
 #include "bek/buffer.h"
 #include "bek/format_core.h"
+#include "bek/optional.h"
+#include "bek/own_ptr.h"
 #include "bek/span.h"
 #include "bek/str.h"
 #include "bek/types.h"
 #include "bek/vector.h"
 #include "device.h"
 #include "library/hashtable.h"
-#include "library/optional.h"
-#include "library/own_ptr.h"
 #include "mm/addresses.h"
 
 namespace dev_tree {

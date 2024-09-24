@@ -22,7 +22,6 @@
 #include "bek/assertions.h"
 #include "bek/buffer.h"
 #include "bek/types.h"
-#include "optional.h"
 
 namespace bek {
 

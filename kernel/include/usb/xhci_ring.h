@@ -21,10 +21,10 @@
 
 #include <usb/usb.h>
 
+#include "bek/array.h"
 #include "bek/format_core.h"
-#include "library/array.h"
+#include "bek/optional.h"
 #include "library/function.h"
-#include "library/optional.h"
 #include "mm/addresses.h"
 #include "mm/dma_utils.h"
 namespace xhci {

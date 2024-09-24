@@ -19,8 +19,7 @@
 #ifndef BEKOS_FUNCTION_H
 #define BEKOS_FUNCTION_H
 
-#include <library/own_ptr.h>
-
+#include "bek/own_ptr.h"
 #include "bek/traits.h"
 #include "bek/utility.h"
 

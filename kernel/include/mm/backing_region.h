@@ -20,9 +20,9 @@
 #define BEKOS_BACKING_REGION_H
 
 #include "arch/a64/translation_tables.h"
+#include "bek/own_ptr.h"
 #include "library/intrusive_shared_ptr.h"
 #include "library/kernel_error.h"
-#include "library/own_ptr.h"
 
 class UserspaceRegion;
 

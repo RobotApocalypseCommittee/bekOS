@@ -21,8 +21,8 @@
 
 #include "addresses.h"
 #include "bek/buffer.h"
+#include "bek/optional.h"
 #include "bek/types.h"
-#include "library/optional.h"
 namespace mem {
 
 /// Allocator for a contiguous region of pages. Stores allocation data within its own get_region.

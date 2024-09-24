@@ -22,8 +22,8 @@
 #include <library/function.h>
 
 #include "bek/buffer.h"
+#include "bek/optional.h"
 #include "device.h"
-#include "library/optional.h"
 #include "mm/areas.h"
 
 using InterruptHandler = bek::function<void(void), false, false>;

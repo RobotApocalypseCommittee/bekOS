@@ -22,9 +22,9 @@
 #include "arch/a64/memory_constants.h"
 #include "bek/compare.h"
 #include "bek/format_core.h"
+#include "bek/optional.h"
 #include "bek/types.h"
 #include "bek/utility.h"
-#include "library/optional.h"
 
 namespace mem {
 constexpr inline uPtr PAGE_MASK        = ~(PAGE_SIZE - 1);

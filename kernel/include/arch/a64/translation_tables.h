@@ -22,8 +22,8 @@
 #include <arch/a64/memory_constants.h>
 #include <arch/a64/sysreg_constants.h>
 
+#include "bek/optional.h"
 #include "bek/types.h"
-#include "library/optional.h"
 #include "mm/addresses.h"
 
 enum MemAttributeIndex {

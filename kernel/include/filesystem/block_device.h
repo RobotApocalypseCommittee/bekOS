@@ -20,12 +20,12 @@
 #define BEKOS_BLOCK_DEVICE_H
 
 #include "bek/buffer.h"
+#include "bek/own_ptr.h"
 #include "bek/str.h"
 #include "bek/types.h"
 #include "bek/vector.h"
 #include "library/function.h"
 #include "library/hashtable.h"
-#include "library/own_ptr.h"
 
 namespace blk {
 

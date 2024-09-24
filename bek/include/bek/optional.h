@@ -16,13 +16,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_OPTIONAL_H
-#define BEKOS_OPTIONAL_H
+#ifndef BEK_OPTIONAL_H
+#define BEK_OPTIONAL_H
 
-#include "bek/assertions.h"
-#include "bek/types.h"
-#include "bek/utility.h"
-#include "mm/kmalloc.h"
+#include "traits.h"
+#include "assertions.h"
+#include "utility.h"
+#include "allocations.h"
 
 namespace bek {
 
@@ -173,4 +173,4 @@ optional(T) -> optional<T>;
 
 }  // namespace bek
 
-#endif  // BEKOS_OPTIONAL_H
+#endif  // BEK_OPTIONAL_H

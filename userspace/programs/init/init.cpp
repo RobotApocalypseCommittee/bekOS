@@ -19,10 +19,10 @@
 #include "api/protocols/fb.h"
 #include "api/protocols/kb.h"
 #include "bek/format.h"
+#include "bek/own_ptr.h"
 #include "core/device.h"
 #include "core/io.h"
 #include "core/syscall.h"
-#include "library/own_ptr.h"
 
 template <typename... Args>
 void dbgln(bek::str_view view, Args&&... args) {

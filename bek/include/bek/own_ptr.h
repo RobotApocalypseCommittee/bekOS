@@ -15,11 +15,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef BEKOS_OWN_PTR_H
-#define BEKOS_OWN_PTR_H
+#ifndef BEK_OWN_PTR_H
+#define BEK_OWN_PTR_H
 
-#include "bek/assertions.h"
-#include "bek/utility.h"
+#include "assertions.h"
+#include "utility.h"
 
 namespace bek {
 template <typename T>
@@ -102,4 +102,4 @@ own_ptr<T> make_own(Args&&... args) {
 
 }  // namespace bek
 
-#endif  // BEKOS_OWN_PTR_H
+#endif  // BEK_OWN_PTR_H

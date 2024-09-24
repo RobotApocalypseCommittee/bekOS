@@ -21,9 +21,9 @@
 
 #include "addresses.h"
 #include "bek/buffer.h"
+#include "bek/optional.h"
 #include "bek/vector.h"
 #include "kmalloc.h"
-#include "library/optional.h"
 #include "peripherals/device_tree.h"
 
 namespace mem {

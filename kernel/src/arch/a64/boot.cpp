@@ -17,11 +17,11 @@
  */
 
 #include "arch/a64/memory_constants.h"
+#include "bek/array.h"
 #include "filesystem/block_device.h"
 #include "filesystem/fatfs.h"
 #include "interrupts/deferred_calls.h"
 #include "interrupts/int_ctrl.h"
-#include "library/array.h"
 #include "library/byte_format.h"
 #include "library/debug.h"
 #include "mm/memory_manager.h"

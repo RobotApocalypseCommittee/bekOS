@@ -19,10 +19,9 @@
 #ifndef BEKOS_USB_H
 #define BEKOS_USB_H
 
-#include <library/optional.h>
-
 #include "bek/buffer.h"
 #include "bek/format_core.h"
+#include "bek/optional.h"
 #include "bek/types.h"
 #include "bek/vector.h"
 #include "library/function.h"

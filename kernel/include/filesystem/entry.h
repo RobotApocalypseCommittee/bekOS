@@ -19,12 +19,12 @@
 #ifndef BEKOS_ENTRY_H
 #define BEKOS_ENTRY_H
 
+#include "bek/optional.h"
+#include "bek/own_ptr.h"
 #include "bek/str.h"
 #include "bek/vector.h"
 #include "library/intrusive_shared_ptr.h"
 #include "library/kernel_error.h"
-#include "library/optional.h"
-#include "library/own_ptr.h"
 #include "library/transactional_buffer.h"
 
 namespace fs {

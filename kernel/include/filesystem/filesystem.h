@@ -21,6 +21,7 @@
 
 // Info about file/directory without accessing data
 
+#include "bek/own_ptr.h"
 #include "bek/str.h"
 #include "bek/types.h"
 #include "bek/vector.h"
@@ -28,7 +29,6 @@
 #include "library/hashtable.h"
 #include "library/intrusive_shared_ptr.h"
 #include "library/kernel_error.h"
-#include "library/own_ptr.h"
 #include "path.h"
 #include "process/entity.h"
 

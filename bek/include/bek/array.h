@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_ARRAY_H
-#define BEKOS_ARRAY_H
+#ifndef BEK_ARRAY_H
+#define BEK_ARRAY_H
 
 #include "bek/assertions.h"
 #include "bek/initializer_list.h"
@@ -56,4 +56,5 @@ struct array {
 template <typename T, typename... U>
 array(T, U...) -> array<T, 1 + sizeof...(U)>;
 }  // namespace bek
-#endif  // BEKOS_ARRAY_H
+
+#endif  // BEK_ARRAY_H
