@@ -53,6 +53,7 @@ enum class SysCall : u64 {
     Exec,
     Exit,
     Wait,
+    ChangeWorkingDirectory,
     // Miscellaneous
     Sleep,
 };

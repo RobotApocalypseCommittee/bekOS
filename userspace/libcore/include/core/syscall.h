@@ -119,6 +119,9 @@ expected<long> duplicate(long old_slot, long new_slot, u8 group);
 void sleep(uSize microseconds);
 
 expected<long> wait(long pid, int& status);
+
+ErrorCode chdir(bek::str_view path);
+
 }  // namespace core::syscall
 
 #endif  // BEKOS_CORE_SYSCALL_H

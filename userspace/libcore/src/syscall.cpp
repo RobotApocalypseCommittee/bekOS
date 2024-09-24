@@ -119,3 +119,6 @@ core::expected<long> core::syscall::duplicate(long old_slot, long new_slot, u8 g
 core::expected<long> core::syscall::wait(long pid, int& status) {
     return syscall_to_result<long>(sc::SysCall::Wait, pid, &status);
 }
+ErrorCode core::syscall::chdir(bek::str_view path) {
+    return syscall_to_error_code(sc::SysCall::ChangeWorkingDirectory, path.data(), path.size());
+}

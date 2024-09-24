@@ -77,6 +77,8 @@ expected<long> handle_syscall(u64 syscall_no, u64 arg1, u64 arg2, u64 arg3, u64 
             return current_process.sys_duplicate(arg1, arg2, arg3);
         case sc::SysCall::Wait:
             return current_process.sys_wait(arg1, arg2, arg3);
+        case sc::SysCall::ChangeWorkingDirectory:
+            return current_process.sys_chdir(arg1, arg2);
         case sc::SysCall::Exit:
             current_process.quit_process(arg1);
             ASSERT_UNREACHABLE();
@@ -565,4 +567,13 @@ expected<long> Process::sys_wait(long pid, uPtr status_ptr, u64 flags) {
     } else {
         return EINVAL;
     }
+}
+expected<long> Process::sys_chdir(uPtr path_str, uSize path_len) {
+    auto path_string = EXPECTED_TRY(read_string_from_user(path_str, path_len));
+    auto the_path = EXPECTED_TRY(fs::path::parse_path(path_string));
+
+    // TODO: Lock userspace state.
+    fs::EntryRef root = m_userspace_state->cwd;
+    m_userspace_state->cwd = EXPECTED_TRY(fullPathLookup(root, the_path, nullptr));
+    return ESUCCESS;
 }

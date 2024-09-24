@@ -80,6 +80,7 @@ public:
     expected<long> sys_create_pipe(uPtr pipe_handle_arr, u64 raw_flags);
     expected<long> sys_duplicate(long handle_slot, long new_handle_slot, u8 group);
     expected<long> sys_wait(long pid, uPtr status_ptr, u64 flags);
+    expected<long> sys_chdir(uPtr path_str, uSize path_len);
 
     template <typename Fn>
     auto with_space_manager(Fn&& fn) {
