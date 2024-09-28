@@ -23,7 +23,7 @@
 #include "library/debug.h"
 #include "process/process.h"
 
-using DBG = DebugScope<"FB", true>;
+using DBG = DebugScope<"FB", DebugLevel::WARN>;
 using namespace protocol::fb;
 
 Device::Kind FramebufferDevice::kind() const { return Device::Kind::Framebuffer; }

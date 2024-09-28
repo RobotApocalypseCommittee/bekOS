@@ -38,35 +38,147 @@ struct FixedString {
 template <unsigned N>
 FixedString(char const (&)[N]) -> FixedString<N - 1>;
 
-template <FixedString prefix, bool>
-struct DebugScope;
+enum class DebugLevel { DEBUG, INFO, WARN, ERROR };
 
-template <FixedString prefix>
-struct DebugScope<prefix, true> {
+namespace detail {
+template <DebugLevel min_level, DebugLevel level>
+concept ShouldEmitDebug = min_level <= level;
+
+constexpr bek::str_view ansi_code_start(DebugLevel level) {
+#ifndef NO_COLOUR
+    switch (level) {
+        case DebugLevel::DEBUG:
+            return "\u001b[37m"_sv;
+        case DebugLevel::INFO:
+            return ""_sv;
+        case DebugLevel::WARN:
+            return "\u001b[93m"_sv;
+        case DebugLevel::ERROR:
+            return "\u001b[91m"_sv;
+        default:
+            return ""_sv;
+    }
+#else
+    return ""_sv;
+#endif
+}
+
+constexpr bek::str_view ansi_code_reset(DebugLevel level) {
+#ifndef NO_COLOUR
+    return "\u001b[0m"_sv;
+#else
+    return ""_sv;
+#endif
+}
+
+}  // namespace detail
+
+template <FixedString prefix, DebugLevel min_level>
+struct DebugScope {
+    constexpr static DebugLevel level = min_level;
     template <typename... Types>
+    static void dbg(bek::str_view format_str, Types const&... parameters) {}
+
+    template <typename... Types>
+    static void dbgln(bek::str_view format_str, Types const&... parameters) {}
+
+    template <typename... Types>
+        requires detail::ShouldEmitDebug<min_level, DebugLevel::DEBUG>
     static void dbg(bek::str_view format_str, Types const&... parameters) {
         if (debug_stream) {
+            debug_stream->write(detail::ansi_code_start(DebugLevel::DEBUG));
             bek::format_to(*debug_stream, "[{}] "_sv, static_cast<const char*>(prefix));
             bek::format_to(*debug_stream, format_str, parameters...);
+            debug_stream->write(detail::ansi_code_reset(DebugLevel::DEBUG));
         }
     }
 
     template <typename... Types>
+        requires detail::ShouldEmitDebug<min_level, DebugLevel::DEBUG>
     static void dbgln(bek::str_view format_str, Types const&... parameters) {
         dbg(format_str, parameters...);
         if (debug_stream) {
             debug_stream->write('\n');
         }
     }
-};
-
-template <FixedString prefix>
-struct DebugScope<prefix, false> {
-    template <typename... Types>
-    static void dbg(bek::str_view format_str, Types const&... parameters) {}
 
     template <typename... Types>
-    static void dbgln(bek::str_view format_str, Types const&... parameters) {}
+    static void info(bek::str_view format_str, Types const&... parameters) {}
+
+    template <typename... Types>
+    static void infoln(bek::str_view format_str, Types const&... parameters) {}
+
+    template <typename... Types>
+        requires detail::ShouldEmitDebug<min_level, DebugLevel::INFO>
+    static void info(bek::str_view format_str, Types const&... parameters) {
+        if (debug_stream) {
+            debug_stream->write(detail::ansi_code_start(DebugLevel::INFO));
+            bek::format_to(*debug_stream, "[{}] "_sv, static_cast<const char*>(prefix));
+            bek::format_to(*debug_stream, format_str, parameters...);
+            debug_stream->write(detail::ansi_code_reset(DebugLevel::INFO));
+        }
+    }
+
+    template <typename... Types>
+        requires detail::ShouldEmitDebug<min_level, DebugLevel::INFO>
+    static void infoln(bek::str_view format_str, Types const&... parameters) {
+        info(format_str, parameters...);
+        if (debug_stream) {
+            debug_stream->write('\n');
+        }
+    }
+
+    template <typename... Types>
+    static void warn(bek::str_view format_str, Types const&... parameters) {}
+
+    template <typename... Types>
+    static void warnln(bek::str_view format_str, Types const&... parameters) {}
+
+    template <typename... Types>
+        requires detail::ShouldEmitDebug<min_level, DebugLevel::WARN>
+    static void warn(bek::str_view format_str, Types const&... parameters) {
+        if (debug_stream) {
+            debug_stream->write(detail::ansi_code_start(DebugLevel::WARN));
+            bek::format_to(*debug_stream, "[{}] "_sv, static_cast<const char*>(prefix));
+            bek::format_to(*debug_stream, format_str, parameters...);
+            debug_stream->write(detail::ansi_code_reset(DebugLevel::WARN));
+        }
+    }
+
+    template <typename... Types>
+        requires detail::ShouldEmitDebug<min_level, DebugLevel::WARN>
+    static void warnln(bek::str_view format_str, Types const&... parameters) {
+        warn(format_str, parameters...);
+        if (debug_stream) {
+            debug_stream->write('\n');
+        }
+    }
+
+    template <typename... Types>
+    static void err(bek::str_view format_str, Types const&... parameters) {}
+
+    template <typename... Types>
+    static void errln(bek::str_view format_str, Types const&... parameters) {}
+
+    template <typename... Types>
+        requires detail::ShouldEmitDebug<min_level, DebugLevel::ERROR>
+    static void err(bek::str_view format_str, Types const&... parameters) {
+        if (debug_stream) {
+            debug_stream->write(detail::ansi_code_start(DebugLevel::ERROR));
+            bek::format_to(*debug_stream, "[{}] "_sv, static_cast<const char*>(prefix));
+            bek::format_to(*debug_stream, format_str, parameters...);
+            debug_stream->write(detail::ansi_code_reset(DebugLevel::ERROR));
+        }
+    }
+
+    template <typename... Types>
+        requires detail::ShouldEmitDebug<min_level, DebugLevel::ERROR>
+    static void errln(bek::str_view format_str, Types const&... parameters) {
+        err(format_str, parameters...);
+        if (debug_stream) {
+            debug_stream->write('\n');
+        }
+    }
 };
 
 #else

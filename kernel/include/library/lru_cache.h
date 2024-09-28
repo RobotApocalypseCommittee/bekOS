@@ -32,7 +32,7 @@ public:
     using PurgeFn = bek::function<void(Key, ValPtr)>;
 
 private:
-    using DBG = DebugScope<"LRU", true>;
+    using DBG = DebugScope<"LRU", DebugLevel::WARN>;
     struct Item {
         u64 last_use_counter;
         ValPtr v;

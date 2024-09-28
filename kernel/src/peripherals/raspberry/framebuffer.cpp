@@ -26,7 +26,7 @@ constexpr inline u8 font[] = {
 #include "font.h"
 };
 
-using DBG = DebugScope<"FB(RPi)", true>;
+using DBG = DebugScope<"FB(RPi)", DebugLevel::WARN>;
 
 struct framebuffer_allocation_msg {
     PropertyTagSetFBSize setPhys;

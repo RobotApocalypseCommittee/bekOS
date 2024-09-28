@@ -23,7 +23,7 @@
 #include "library/debug.h"
 #include "mm/barriers.h"
 
-using DBG = DebugScope<"BlkDev", true>;
+using DBG = DebugScope<"BlkDev", DebugLevel::WARN>;
 
 namespace blk {
 static BlockDeviceRegistry* g_registry = nullptr;

@@ -24,7 +24,7 @@
 #include "usb/xhci_registers.h"
 
 using namespace xhci;
-using DBG = DebugScope<"xHCI", true>;
+using DBG = DebugScope<"xHCI", DebugLevel::WARN>;
 
 enum class DeviceSpeed { Low, High, Full, Super };
 

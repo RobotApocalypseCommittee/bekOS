@@ -21,7 +21,7 @@
 #include "filesystem/filesystem.h"
 #include "library/debug.h"
 
-using DBG = DebugScope<"FS", false>;
+using DBG = DebugScope<"FS", DebugLevel::WARN>;
 
 u64 fs::Entry::get_hash() {
     if (m_hash == 0) {

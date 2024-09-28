@@ -22,7 +22,7 @@
 #include "bek/time.h"
 #include "library/debug.h"
 
-using DBG = DebugScope<"FAT", true>;
+using DBG = DebugScope<"FAT", DebugLevel::DEBUG>;
 
 enum class ClusterType { NextPointer, EndOfChain, Free, Corrupt, Reserved };
 

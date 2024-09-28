@@ -39,7 +39,6 @@
 static constexpr uPtr qemu_pl011_address = VA_START + 0x900'0000;
 static constexpr uPtr qemu_clock_freq    = 0x16e3600;
 
-using PROBE_DBG = DebugScope<"Probe", true>;
 
 dev_tree::DevStatus probe_simple_bus(dev_tree::Node& node, dev_tree::device_tree& tree, dev_tree::probe_ctx& ctx) {
     if (node.compatible.size() == 0) return dev_tree::DevStatus::Unrecognised;
@@ -120,7 +119,7 @@ uPtr g_current_embedded_table_phys;
 
 bek::OutputStream* debug_stream  = nullptr;
 
-using DBG = DebugScope<"Kern", true>;
+using DBG = DebugScope<"Kern", DebugLevel::INFO>;
 
 extern "C" [[noreturn]] void kernel_boot(u64 dev_tree_address) {
     // 1. Setup Debug UART
@@ -144,9 +143,9 @@ extern "C" [[noreturn]] void kernel_boot(u64 dev_tree_address) {
 
     auto memory_space =
         mem::process_memory_regions(dev_tree::get_memory_regions(dtb), reserved_regions);
-    DBG::dbgln("Memory Space:"_sv);
+    DBG::infoln("Memory Space:"_sv);
     for (auto& region : memory_space) {
-        DBG::dbgln("    {}"_sv, region);
+        DBG::infoln("    {}"_sv, region);
     }
 
     // 5. Using Physical map of space, initialise the memory manager.
@@ -163,7 +162,7 @@ extern "C" [[noreturn]] void kernel_boot(u64 dev_tree_address) {
     deferred::initialise();
     enable_interrupts();
     if (auto r = timing::initialise(); r != ESUCCESS) {
-        DBG::dbgln("Failed to initialise timing: {}"_sv, r);
+        DBG::errln("Failed to initialise timing: {}"_sv, r);
         PANIC("Critical Startup Failure");
     }
 
@@ -171,9 +170,9 @@ extern "C" [[noreturn]] void kernel_boot(u64 dev_tree_address) {
     auto r = ProcessManager::initialise_and_adopt(bek::string{"ktask"}, get_kernel_stack());
 
     if (r == ESUCCESS) {
-        DBG::dbgln("Running in process, PID {}!"_sv, ProcessManager::the().current_process().pid());
+        DBG::infoln("Running in process, PID {}!"_sv, ProcessManager::the().current_process().pid());
     } else {
-        DBG::dbgln("Failed to transition into process: {}"_sv, r);
+        DBG::errln("Failed to transition into process: {}"_sv, r);
     }
 
     // 9. Find block devices
@@ -181,7 +180,7 @@ extern "C" [[noreturn]] void kernel_boot(u64 dev_tree_address) {
         auto mount_result = fs::FilesystemRegistry::try_mount_root();
         if (mount_result == ESUCCESS) break;
         if (tries == 5 || !(mount_result == ENODEV || mount_result == EINVAL)) {
-            DBG::dbgln("Failed to mount root: {}"_sv, mount_result);
+            DBG::errln("Failed to mount root: {}"_sv, mount_result);
             PANIC("Could not successfully mount root.");
         }
         timing::spindelay_us(1'000'000);
@@ -194,7 +193,7 @@ extern "C" [[noreturn]] void kernel_boot(u64 dev_tree_address) {
     auto init_exec_r = fs::fullPathLookup({}, "/init"_sv, nullptr);
 
     if (init_exec_r.has_error()) {
-        DBG::dbgln("Could not find init executable: {}."_sv, init_exec_r.error());
+        DBG::errln("Could not find init executable: {}."_sv, init_exec_r.error());
         PANIC("init execute failed.");
     }
     auto& init_exec = init_exec_r.value();
@@ -208,7 +207,7 @@ extern "C" [[noreturn]] void kernel_boot(u64 dev_tree_address) {
     auto proc_r = Process::spawn_user_process(bek::string{"init"}, init_exec, root, bek::move(init_handles));
 
     if (proc_r.has_error()) {
-        DBG::dbgln("Could not spawn init process: {}"_sv, proc_r.error());
+        DBG::errln("Could not spawn init process: {}"_sv, proc_r.error());
         PANIC("Could not spawn init process");
     }
 

@@ -21,7 +21,7 @@
 
 #include "library/debug.h"
 
-using DBG = DebugScope<"ERR", true>;
+using DBG = DebugScope<"ERR", DebugLevel::DEBUG>;
 
 struct ExceptionSyndrome {
     struct AbortInformation {
@@ -137,18 +137,18 @@ extern "C" void unknown_int_handler(unsigned long type, unsigned long esr, unsig
                                     unsigned long far) {
     // print out interruption type
     ExceptionSyndrome syndrome{esr};
-    DBG::dbgln("{} exception at {}: {}"_sv, str_int_type(type), str_int_level(type),
+    DBG::errln("{} exception at {}: {}"_sv, str_int_type(type), str_int_level(type),
                syndrome.exception_class_description());
     // decode data abort cause
     if (syndrome.is_data_abort() || syndrome.is_instruction_abort()) {
         auto abort_info = syndrome.abort_information();
-        DBG::dbgln("   {} (at level {}) ({})"_sv, abort_info.fault_kind(), abort_info.table_level(),
+        DBG::errln("   {} (at level {}) ({})"_sv, abort_info.fault_kind(), abort_info.table_level(),
                    abort_info.was_write() ? "write"_sv : "read"_sv);
     }
 
     // dump registers
-    DBG::dbgln("   ESR_EL1  {:XL} ELR_EL1 {:XL}"_sv, esr, elr);
-    DBG::dbgln("   SPSR_EL1 {:XL} FAR_EL1 {:XL}"_sv, spsr, far);
+    DBG::errln("   ESR_EL1  {:XL} ELR_EL1 {:XL}"_sv, esr, elr);
+    DBG::errln("   SPSR_EL1 {:XL} FAR_EL1 {:XL}"_sv, spsr, far);
 
     // no return from exception for now
     while (1)

@@ -22,7 +22,7 @@
 #include "library/debug.h"
 #include "mm/barriers.h"
 
-using DBG = DebugScope<"VirtGpu", true>;
+using DBG = DebugScope<"VirtGpu", DebugLevel::WARN>;
 using namespace protocol::fb;
 
 struct [[gnu::packed]] ControlHeader {
@@ -203,7 +203,7 @@ void virtio::GraphicsDevice::create_gpu_dev(bek::own_ptr<MMIOTransport> transpor
     DBG::dbgln("Number scanouts: {}"_sv, gpu_regs.num_scanouts());
 
     if (!transport->setup_vqueue(0)) {
-        DBG::dbgln("Could not setup vqueue."_sv);
+        DBG::errln("Could not setup vqueue."_sv);
         return;
     }
 
@@ -216,33 +216,31 @@ void virtio::GraphicsDevice::create_gpu_dev(bek::own_ptr<MMIOTransport> transpor
     if (!transport->queue_transfer(
             0, {transfer, 2}, Callback([data = bek::move(data), tp = bek::move(transport)](uSize transferred) mutable {
                 if (data->header.type != ControlHeader::RESP_OK_DISPLAY_INFO) {
-                    DBG::dbgln("Failed to get display info."_sv);
+                    DBG::errln("Failed to get display info."_sv);
                     return;
                 }
-                DBG::dbgln("Display Info:"_sv);
+                DBG::infoln("Display Info:"_sv);
                 uSize selected_id = 16;
                 for (uSize i = 0; i < 16; i++) {
                     if (data->displays[i].enabled) {
-                        DBG::dbgln("    Scanout {}: {}"_sv, i, data->displays[i]);
+                        DBG::infoln("    Scanout {}: {}"_sv, i, data->displays[i]);
 
                         selected_id = bek::min(selected_id, i);
                     }
                 }
                 if (selected_id == 16) {
                     // No valid display
-                    DBG::dbgln("No valid scanout."_sv);
+                    DBG::errln("No valid scanout."_sv);
                     return;
                 }
 
-                auto [free_mem, total_mem] = mem::get_kmalloc_usage();
-                DBG::dbgln("Memory: {} of {} bytes used ({}%)."_sv, total_mem - free_mem, total_mem,
-                           ((total_mem - free_mem) * 100) / total_mem);
+                mem::log_kmalloc_usage();
                 auto* display = new GraphicsDevice(bek::move(tp), selected_id, data->displays[selected_id].rect.width,
                                                    data->displays[selected_id].rect.height);
                 display->initialise();
                 DeviceRegistry::the().register_device("generic.framebuffer.virtio"_sv, bek::adopt_shared(display));
             }))) {
-        DBG::dbgln("Could not schedule transfer."_sv);
+        DBG::errln("Could not schedule transfer."_sv);
     }
 }
 
@@ -272,7 +270,7 @@ bool virtio::GraphicsDevice::initialise() {
     m_transport->queue_transfer(
         0, transfers.span(), virtio::Callback([this, create_request = bek::move(create_request)](uSize transferred) {
             if (create_request->header.type != ControlHeader::RESP_OK_NODATA) {
-                DBG::dbgln("Create Resource Failed with response {}"_sv, (u32)create_request->header.type);
+                DBG::errln("Create Resource Failed with response {}"_sv, (u32)create_request->header.type);
                 return;
             } else {
                 DBG::dbgln("Created Resource"_sv);
@@ -305,7 +303,7 @@ bool virtio::GraphicsDevice::initialise() {
                             0, transfers.span(),
                             virtio::Callback([scanout_request = bek::move(scanout_request)](uSize transferred) {
                                 if (scanout_request->header.type != ControlHeader::RESP_OK_NODATA) {
-                                    DBG::dbgln("Set Scanout failed with response {}"_sv,
+                                    DBG::errln("Set Scanout failed with response {}"_sv,
                                                (u32)scanout_request->header.type);
                                     return;
                                 }
@@ -322,7 +320,7 @@ ErrorCode virtio::GraphicsDevice::flush_rect(protocol::fb::Rect r) {
         r.height > m_information.height || (r.x + r.width) > m_information.width ||
         (r.y + r.height) > m_information.height) {
         // Rectangle is incorrect size.
-        DBG::dbgln("Cannot flush rect of size {}x{} @ ({}, {}) to framebuffer of size {}x{}."_sv, r.width, r.height,
+        DBG::errln("Cannot flush rect of size {}x{} @ ({}, {}) to framebuffer of size {}x{}."_sv, r.width, r.height,
                    r.x, r.y, m_information.width, m_information.height);
         return EINVAL;
     }
@@ -349,7 +347,7 @@ ErrorCode virtio::GraphicsDevice::flush_rect(protocol::fb::Rect r) {
         if (!m_transport->queue_transfer(0, transfers.span(), virtio::Callback([&](uSize transferred) {
                                              transfer_request.sync_before_read();
                                              if (transfer_request->header.type != ControlHeader::RESP_OK_NODATA) {
-                                                 DBG::dbgln("CMD_TRANSFER_TO_HOST_2D failed with response {}"_sv,
+                                                 DBG::errln("CMD_TRANSFER_TO_HOST_2D failed with response {}"_sv,
                                                             (u32)transfer_request->header.type);
                                                  error_waiting = EFAIL;
                                              } else {
@@ -357,7 +355,7 @@ ErrorCode virtio::GraphicsDevice::flush_rect(protocol::fb::Rect r) {
                                              }
                                              complete.set();
                                          }))) {
-            DBG::dbgln("Failed to queue CMD_TRANSFER_TO_HOST_2D"_sv);
+            DBG::errln("Failed to queue CMD_TRANSFER_TO_HOST_2D"_sv);
             return EFAIL;
         }
 
@@ -389,7 +387,7 @@ ErrorCode virtio::GraphicsDevice::flush_rect(protocol::fb::Rect r) {
                                              }
                                              complete.set();
                                          }))) {
-            DBG::dbgln("Failed to queue CMD_RESOURCE_FLUSH"_sv);
+            DBG::errln("Failed to queue CMD_RESOURCE_FLUSH"_sv);
             return EFAIL;
         }
 

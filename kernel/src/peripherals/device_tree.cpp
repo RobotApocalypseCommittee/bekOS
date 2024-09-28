@@ -28,7 +28,7 @@ using namespace dev_tree;
 #define EX_BYTE_32(x, n) static_cast<u32>(reinterpret_cast<u8*>(&x)[n])
 #define EX_BYTE_64(x, n) static_cast<u64>(reinterpret_cast<u8*>(&x)[n])
 
-using DBG = DebugScope<"DevTree", true>;
+using DBG = DebugScope<"DevTree", DebugLevel::WARN>;
 
 constexpr const unsigned int DTB_MAGIC = 0xd00dfeed;
 
@@ -310,7 +310,7 @@ u64 dev_tree::read_from_buffer(bek::buffer b, u32& offset, u32 cells) {
 bek::pair<Node*, DevStatus> dev_tree::get_node_by_phandle(const device_tree& tree, u32 phandle) {
     auto it = tree.phandles.find(phandle);
     if (!it) {
-        DBG::dbgln("Could not find node with phandle {}."_sv, phandle);
+        DBG::errln("Could not find node with phandle {}."_sv, phandle);
         return {nullptr, DevStatus::Failure};
     }
     auto& node = **it;
@@ -387,8 +387,7 @@ bek::optional<mem::PhysicalRegion> dev_tree::map_region_to_root(const Node& node
         }
         if (!found_mapping) {
             // Not part of any range.
-            DBG::dbgln("Map Region: {:Xl} ({:X}) not contained in any range in {}"_sv,
-                       region.start.ptr, region.size, parent->name);
+            DBG::errln("Map Region: {:Xl} ({:X}) not contained in any range in {}"_sv, region.start.ptr, region.size, parent->name);
             return {};
         }
     }
@@ -451,7 +450,7 @@ bek::vector<range_t> dev_tree::get_dma_to_phys_ranges(const Node& node) {
         auto next_range_arr = get_ranges(*parent, false);
         // Q: if a device is DMA-capable, can it be not-memory-mapped? (e.g. SPI outwards, DMA in).
         if (!next_range_arr || !next_range_arr->can_dereference_iterator()) {
-            DBG::dbgln("Map Address: {} has absent or malformed ranges property."_sv, parent->name);
+            DBG::errln("Map Address: {} has absent or malformed ranges property."_sv, parent->name);
             return {};
         }
 
@@ -511,8 +510,7 @@ bek::vector<mem::PhysicalRegion> dev_tree::get_regions_from_reg(const Node& node
                                                         reg.size})) {
             regions.push_back(*reg_mapped);
         } else {
-            DBG::dbgln("Could not map register {:Xl} of device {}"_sv, reg.parent_address,
-                       node.name);
+            DBG::errln("Could not map register {:Xl} of device {}"_sv, reg.parent_address, node.name);
         }
     }
     return regions;
@@ -553,7 +551,7 @@ bek::vector<mem::PhysicalRegion> dev_tree::get_reserved_regions(const device_tre
     return regions;
 }
 
-using PROBE_DBG = DebugScope<"Probe", true>;
+using PROBE_DBG = DebugScope<"Probe", DebugLevel::WARN>;
 
 struct dev_tree::probe_ctx {
     bek::span<ProbeFn*> probe_functions;
@@ -572,14 +570,14 @@ dev_tree::DevStatus dev_tree::probe_node(dev_tree::Node& node, dev_tree::device_
             } else if (res == dev_tree::DevStatus::Success) {
                 PROBE_DBG::dbgln("Device {} Success."_sv, node.name);
             } else if (res == dev_tree::DevStatus::Failure) {
-                PROBE_DBG::dbgln("Device {} Failure."_sv, node.name);
+                PROBE_DBG::errln("Device {} Failure."_sv, node.name);
             }
 
             return res;
         }
     }
 
-    PROBE_DBG::dbgln("Device {} Unrecognised."_sv, node.name);
+    PROBE_DBG::infoln("Device {} Unrecognised."_sv, node.name);
 
     node.nodeStatus = dev_tree::DevStatus::Unrecognised;
     return dev_tree::DevStatus::Unrecognised;
@@ -602,7 +600,7 @@ void dev_tree::probe_nodes(device_tree& tree, bek::span<ProbeFn*> probe_function
                 probe_node(*node, tree, ctx);
             }
         } else {
-            PROBE_DBG::dbgln("All Nodes Probed."_sv);
+            PROBE_DBG::infoln("All Nodes Probed."_sv);
             break;
         }
     }

@@ -26,7 +26,7 @@
 #include "peripherals/virtio/framebuffer.h"
 #include "peripherals/virtio/virtio_regs.h"
 
-using DBG = DebugScope<"Virtio", true>;
+using DBG = DebugScope<"Virtio", DebugLevel::WARN>;
 
 namespace virtio {
 
@@ -171,7 +171,7 @@ dev_tree::DevStatus MMIOTransport::probe_devtree(dev_tree::Node& node, dev_tree:
     // Look for interrupt parent.
     auto int_parent_phandle = dev_tree::get_inheritable_property_u32(node, "interrupt-parent"_sv);
     if (!int_parent_phandle) {
-        DBG::dbgln("Could not get interrupt-parent phandle."_sv);
+        DBG::errln("Could not get interrupt-parent phandle."_sv);
         return dev_tree::DevStatus::Failure;
     }
     auto [p_int_parent, result_status] = dev_tree::get_node_by_phandle(tree, *int_parent_phandle);
@@ -183,18 +183,18 @@ dev_tree::DevStatus MMIOTransport::probe_devtree(dev_tree::Node& node, dev_tree:
 
     auto int_buf = node.get_property("interrupts"_sv);
     if (!int_buf) {
-        DBG::dbgln("Could not get interrupts."_sv);
+        DBG::errln("Could not get interrupts."_sv);
         return dev_tree::DevStatus::Failure;
     }
     auto int_handle = interrupt_parent->register_interrupt(*int_buf);
     if (!int_handle) {
-        DBG::dbgln("Could not get interrupt handle."_sv);
+        DBG::errln("Could not get interrupt handle."_sv);
         return dev_tree::DevStatus::Failure;
     }
 
     auto regs = get_regions_from_reg(node);
     if (regs.size() != 1) {
-        DBG::dbgln("Fail: regs must have one region."_sv);
+        DBG::errln("Fail: regs must have one region."_sv);
         return dev_tree::DevStatus::Failure;
     }
 
@@ -203,17 +203,17 @@ dev_tree::DevStatus MMIOTransport::probe_devtree(dev_tree::Node& node, dev_tree:
     mem::PCIeDeviceArea area = mem::MemoryManager::the().map_for_io(regs[0]);
     BaseRegs registers{area};
     if (registers.MAGIC() != magic_number) {
-        DBG::dbgln("Fail: Magic Incorrect."_sv);
+        DBG::errln("Fail: Magic Incorrect."_sv);
         return dev_tree::DevStatus::Failure;
     }
 
     if (registers.VERSION() != 2) {
-        DBG::dbgln("Fail: Version {} unsupported."_sv, registers.VERSION());
+        DBG::errln("Fail: Version {} unsupported."_sv, registers.VERSION());
         return dev_tree::DevStatus::Failure;
     }
 
     if (registers.DEVICE_ID() == 0) {
-        DBG::dbgln("Fail: DeviceID is 0"_sv);
+        DBG::errln("Fail: DeviceID is 0"_sv);
         return dev_tree::DevStatus::Failure;
     }
 
@@ -230,7 +230,7 @@ dev_tree::DevStatus MMIOTransport::probe_devtree(dev_tree::Node& node, dev_tree:
     auto dev_id = registers.DEVICE_ID();
     if (dev_id >= (sizeof(driver_probes) / sizeof(*driver_probes)) ||
         driver_probes[dev_id] == nullptr) {
-        DBG::dbgln("Unsupported virtio device id {}."_sv, dev_id);
+        DBG::errln("Unsupported virtio device id {}."_sv, dev_id);
         registers.set_sts_failed();
         return dev_tree::DevStatus::Failure;
     }
@@ -254,8 +254,7 @@ bek::optional<u64> MMIOTransport::configure_features(u64 required, u64 supported
 
     // Ensure required features are present.
     if ((device_feats & required) != required) {
-        DBG::dbgln("Fail: Required features not present. Difference: {:b}"_sv,
-                   (device_feats & required) ^ required);
+        DBG::errln("Fail: Required features not present. Difference: {:b}"_sv, (device_feats & required) ^ required);
         m_regs.set_sts_failed();
         return {};
     }
@@ -274,7 +273,7 @@ bek::optional<u64> MMIOTransport::configure_features(u64 required, u64 supported
     m_regs.set_sts_feat_ok();
 
     if (!m_regs.get_sts_feat_ok()) {
-        DBG::dbgln("Device failed to accept subset of features. Requested: {:b}"_sv, device_feats);
+        DBG::errln("Device failed to accept subset of features. Requested: {:b}"_sv, device_feats);
         m_regs.set_sts_failed();
         return {};
     }
@@ -286,18 +285,18 @@ bool MMIOTransport::setup_vqueue(u32 queue_idx) {
 
     m_regs.QUEUE_SEL(queue_idx);
     if (m_regs.QUEUE_READY()) {
-        DBG::dbgln("Err: Queue {} is already ready."_sv, queue_idx);
+        DBG::errln("Err: Queue {} is already ready."_sv, queue_idx);
         return false;
     }
     auto max_num = m_regs.QUEUE_NUM_MAX();
     if (max_num == 0) {
-        DBG::dbgln("Err: Queue {} is not available."_sv, queue_idx);
+        DBG::errln("Err: Queue {} is not available."_sv, queue_idx);
         return false;
     }
 
     // We're gonna choose a smaller size sensibly.
     if (max_num > sensible_max_queue_num) {
-        DBG::dbgln("Choosing queue size {} instead of max {}."_sv, sensible_max_queue_num, max_num);
+        DBG::infoln("Choosing queue size {} instead of max {}."_sv, sensible_max_queue_num, max_num);
         max_num = sensible_max_queue_num;
     }
 
@@ -321,7 +320,7 @@ bool MMIOTransport::queue_transfer(u32 queue_idx, bek::span<TransferElement> ele
     VERIFY(elements.size());
     m_regs.QUEUE_SEL(queue_idx);
     if (m_regs.QUEUE_READY() != 1) {
-        DBG::dbgln("Err: Queue {} is not ready for transfers."_sv, queue_idx);
+        DBG::errln("Err: Queue {} is not ready for transfers."_sv, queue_idx);
         return false;
     }
     SplitVQ* queue = nullptr;
@@ -331,13 +330,12 @@ bool MMIOTransport::queue_transfer(u32 queue_idx, bek::span<TransferElement> ele
         }
     }
     if (!queue) {
-        DBG::dbgln("Err: Queue {} is not registered with transport."_sv, queue_idx);
+        DBG::errln("Err: Queue {} is not registered with transport."_sv, queue_idx);
         return false;
     }
 
     if (queue->free_descriptors < elements.size()) {
-        DBG::dbgln("Err: Transfer requires {} descriptors, and only {} free in queue {}."_sv,
-                   elements.size(), queue->free_descriptors, queue_idx);
+        DBG::errln("Err: Transfer requires {} descriptors, and only {} free in queue {}."_sv, elements.size(), queue->free_descriptors, queue_idx);
         return false;
     }
 
@@ -358,7 +356,7 @@ bool MMIOTransport::queue_transfer(u32 queue_idx, bek::span<TransferElement> ele
             last_desc  = &desc;
         } else {
             // This is very unlikely (actually unreachable).
-            DBG::dbgln("Err: Could not allocate descriptor for queue {}."_sv, queue_idx);
+            DBG::errln("Err: Could not allocate descriptor for queue {}."_sv, queue_idx);
             return false;
         }
     }

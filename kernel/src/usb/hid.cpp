@@ -21,7 +21,7 @@
 #include "api/protocols/kb.h"
 #include "library/debug.h"
 
-using DBG = DebugScope<"HID", true>;
+using DBG = DebugScope<"HID", DebugLevel::WARN>;
 using namespace usb;
 
 bek::shared_ptr<HidKeyboard> HidKeyboard::probe(const Interface& interface, usb::Device& dev) {
@@ -71,7 +71,7 @@ void HidKeyboard::on_set_protocol(bool success) {
 void HidKeyboard::on_interrupt(mem::own_dma_buffer buf, bool success) {
     VERIFY(buf.size() == 8);
     if (!success) {
-        DBG::dbgln("Interrupt failed. Will not schedule another."_sv);
+        DBG::errln("Interrupt failed. Will not schedule another."_sv);
         return;
     }
 

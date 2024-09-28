@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2023 Bekos Contributors
+ * Copyright (C) 2024 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 
 #include "library/debug.h"
 
-using DBG = DebugScope<"USB", true>;
+using DBG = DebugScope<"USB", DebugLevel::WARN>;
 
 namespace usb {
 bek::vector<Interface> parse_configuration(bek::buffer data) {
@@ -47,7 +47,7 @@ bek::vector<Interface> parse_configuration(bek::buffer data) {
                 interfaces.back().endpoints.push_back(ep_desc.to_endpoint());
             } break;
             default:
-                DBG::dbgln("Unknown descriptor with type 0x{:x}."_sv, static_cast<u8>(header.kind));
+                DBG::warnln("Unknown descriptor with type 0x{:x}."_sv, static_cast<u8>(header.kind));
                 break;
         }
         VERIFY(header.length);

@@ -22,7 +22,7 @@
 #include "usb/descriptors.h"
 #include "usb/hid.h"
 
-using DBG = DebugScope<"USB", true>;
+using DBG = DebugScope<"USB", DebugLevel::WARN>;
 using namespace usb;
 
 TransferRequest make_descriptor_request(DescriptorBase::DescriptorType type, uSize length,

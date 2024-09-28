@@ -21,7 +21,7 @@
 #include "library/debug.h"
 #include "peripherals/clock.h"
 
-using DBG = DebugScope<"UART", true>;
+using DBG = DebugScope<"UART", DebugLevel::WARN>;
 
 extern bek::OutputStream* debug_stream;
 

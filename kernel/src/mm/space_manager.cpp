@@ -21,7 +21,7 @@
 #include "library/debug.h"
 #include "mm/page_allocator.h"
 
-using DBG = DebugScope<"SpaceManager", true>;
+using DBG = DebugScope<"SpaceManager", DebugLevel::INFO>;
 
 constexpr inline uPtr virt_addr_start = 0x0000000000500000;
 
@@ -98,9 +98,9 @@ expected<mem::UserRegion> SpaceManager::place_region(bek::optional<uPtr> locatio
     return desired_region;
 }
 void SpaceManager::debug_print() const {
-    DBG::dbgln("--- User Address Space ---"_sv);
+    DBG::infoln("--- User Address Space ---"_sv);
     for (auto& region : m_regions) {
-        DBG::dbgln("{} {} {}"_sv, region.user_region.start, region.user_region.end(), region.name.view());
+        DBG::infoln("{} {} {}"_sv, region.user_region.start, region.user_region.end(), region.name.view());
     }
 }
 ErrorCode SpaceManager::deallocate_userspace_region(const bek::shared_ptr<mem::BackingRegion>& region) {

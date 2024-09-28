@@ -29,7 +29,7 @@
 #include "process/pipe.h"
 #include "process/process.h"
 
-using DBG = DebugScope<"Process", true>;
+using DBG = DebugScope<"Process", DebugLevel::WARN>;
 
 expected<long> handle_syscall(u64 syscall_no, u64 arg1, u64 arg2, u64 arg3, u64 arg4, u64 arg5, u64 arg6, u64 arg7,
                               InterruptContext& ctx) {
@@ -424,7 +424,7 @@ expected<long> Process::sys_fork(InterruptContext& ctx) {
         return r;
     }
     m_children.push_back(proc.get());
-    DBG::dbgln("Forking process {}: forked address space:"_sv, proc->name());
+    DBG::infoln("Forking process {}: forked address space:"_sv, proc->name());
     proc->m_userspace_state->address_space_manager.debug_print();
     proc->set_state(ProcessState::Running);
     return proc->pid();

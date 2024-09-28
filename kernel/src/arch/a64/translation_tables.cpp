@@ -21,7 +21,7 @@
 #include "library/debug.h"
 #include "mm/page_allocator.h"
 
-using DBG = DebugScope<"PGTBL", true>;
+using DBG = DebugScope<"PGTBL", DebugLevel::WARN>;
 
 #define L0_SHIFT (39)
 #define L1_SHIFT (30)

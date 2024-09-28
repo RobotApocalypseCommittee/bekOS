@@ -21,7 +21,7 @@
 #include "filesystem/block_device.h"
 #include "library/debug.h"
 
-using DBG = DebugScope<"VirtioBlock", true>;
+using DBG = DebugScope<"VirtioBlock", DebugLevel::WARN>;
 
 namespace virtio {
 constexpr inline u64 blk_feat_required = standard_feat_required;
@@ -57,7 +57,7 @@ void BlockDevice::create_block_dev(bek::own_ptr<MMIOTransport> transport) {
                block_regs.capacity() / 2);
 
     if (!transport->setup_vqueue(0)) {
-        DBG::dbgln("Could not setup vqueue."_sv);
+        DBG::errln("Could not setup vqueue."_sv);
         return;
     }
 
@@ -105,7 +105,7 @@ blk::TransferResult BlockDevice::schedule_read(uSize byte_offset, bek::mut_buffe
                                                       buffer.size());
                                          cb(status == 0 ? blk::TransferResult::Success : blk::TransferResult::Failure);
                 }))) {
-        DBG::dbgln("Could not setup transfer."_sv);
+        DBG::errln("Could not setup transfer."_sv);
         return blk::TransferResult::Failure;
     }
     return blk::TransferResult::Success;

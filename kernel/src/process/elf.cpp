@@ -21,7 +21,7 @@
 #include "library/debug.h"
 #include "mm/memory_manager.h"
 
-using DBG = DebugScope<"Elf", true>;
+using DBG = DebugScope<"Elf", DebugLevel::WARN>;
 
 struct elf_file_header {
     enum word_width_t : u8 { W32BIT = 1, W64BIT = 2 };
@@ -114,30 +114,30 @@ expected<bek::own_ptr<ElfFile>> ElfFile::parse_file(fs::EntryRef file) {
     }
     if (bek::mem_compare(header.magic_number, ELF_MAGIC, 4)) {
         // Not a valid ELF file.
-        DBG::dbgln("ELF Header magic number invalid."_sv);
+        DBG::warnln("ELF Header magic number invalid."_sv);
         return ENOEXEC;
     }
 
     if (header.endianness != elf_file_header::LITTLE_ENDIAN || header.word_width != elf_file_header::W64BIT) {
-        DBG::dbgln("ELF is not 64-bit, little endian."_sv);
+        DBG::warnln("ELF is not 64-bit, little endian."_sv);
         return ENOTSUP;
     }
 
     if (header.machine != ELF_MACHINE_AARCH64) {
-        DBG::dbgln("ELF file architecture is {}, not A64"_sv, header.machine);
+        DBG::warnln("ELF file architecture is {}, not A64"_sv, header.machine);
         return ENOTSUP;
     }
 
     if (header.obj_type != elf_file_header::ET_EXEC) {
-        DBG::dbgln("ELF file object type is {}, not ET_EXEC."_sv, (uSize)header.obj_type);
+        DBG::warnln("ELF file object type is {}, not ET_EXEC."_sv, (uSize)header.obj_type);
         return ENOEXEC;
     }
 
     // TODO: Check a whole bunch of stuff
 
-    DBG::dbgln("ELF file has {} headers."_sv, header.program_header_entry_count);
+    DBG::infoln("ELF file has {} headers."_sv, header.program_header_entry_count);
     if (header.program_header_entry_size != sizeof(elf_program_header)) {
-        DBG::dbgln("ELF file program headers are size {}. Should be {}."_sv, header.program_header_entry_size,
+        DBG::errln("ELF file program headers are size {}. Should be {}."_sv, header.program_header_entry_size,
                    sizeof(elf_program_header));
         return ENOTSUP;
     }
@@ -165,26 +165,26 @@ expected<bek::own_ptr<ElfFile>> ElfFile::parse_file(fs::EntryRef file) {
 
             // Ensure doesn't go beyond bounds.
             if (prog_hdr.offset + prog_hdr.file_size > file->size()) {
-                DBG::dbgln("Error: ELF file program header refers to data beyond ELF file."_sv);
+                DBG::warnln("Error: ELF file program header refers to data beyond ELF file."_sv);
                 return ENOEXEC;
             }
 
             if (prog_hdr.memory_size < prog_hdr.file_size) {
-                DBG::dbgln("Error: ELF file program header too small in memory for data."_sv);
+                DBG::warnln("Error: ELF file program header too small in memory for data."_sv);
                 return ENOEXEC;
             }
         } else if (prog_hdr.type == elf_program_header::PT_INTERP) {
-            DBG::dbgln("Error: Executable is meant to be loaded with a dynamic linker."_sv);
+            DBG::warnln("Error: Executable is meant to be loaded with a dynamic linker."_sv);
             return ENOTSUP;
         }
     }
     if (!maximal_region) {
-        DBG::dbgln("Error: Executable has no loadable program sections."_sv);
+        DBG::warnln("Error: Executable has no loadable program sections."_sv);
         return ENOEXEC;
     }
 
     if (header.entry_point >= USER_ADDR_MAX) {
-        DBG::dbgln("Invalid entry point: {}"_sv, header.entry_point);
+        DBG::warnln("Invalid entry point: {}"_sv, header.entry_point);
         return ENOTSUP;
     }
     mem::UserPtr entry_point{header.entry_point};
@@ -218,7 +218,7 @@ expected<uPtr> ElfFile::load_into(SpaceManager& space) {
 
             if ((operations & (MemoryOperation::Write | MemoryOperation::Execute)) ==
                 (MemoryOperation::Write | MemoryOperation::Execute)) {
-                DBG::dbgln("Warn: *Severe Danger* region is mapped both writeable and executable."_sv);
+                DBG::warnln("Warn: *Severe Danger* region is mapped both writeable and executable."_sv);
             }
 
             bek::string name = create_region_name(m_file->name(), operations);

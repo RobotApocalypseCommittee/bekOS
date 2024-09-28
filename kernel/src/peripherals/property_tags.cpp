@@ -25,7 +25,7 @@
 #include "library/debug.h"
 #include "mm/kmalloc.h"
 
-using DBG = DebugScope<"PropTag", true>;
+using DBG = DebugScope<"PropTag", DebugLevel::WARN>;
 
 struct PropertyTagsBuffer {
     u32 buffer_size;
@@ -68,8 +68,7 @@ bool property_tags::request_tags(void* tags, u32 tags_size) {
     u32 result = m_mailbox.read();
     read_barrier();
     if (buffer->buffer_code != BUFFER_CODE_RESPONSE_SUCCESS || result != bus_addr) {
-        DBG::dbgln("Tag submission failure: response code = {:X}, result = {:X}"_sv,
-                   buffer->buffer_code, result);
+        DBG::warnln("Tag submission failure: response code = {:X}, result = {:X}"_sv, buffer->buffer_code, result);
         kfree(buffer, buffer_size);
         return false;
     }

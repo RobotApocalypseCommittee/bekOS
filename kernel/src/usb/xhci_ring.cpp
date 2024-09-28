@@ -21,7 +21,7 @@
 #include "bek/assertions.h"
 #include "library/debug.h"
 
-using DBG = DebugScope<"xHCI", true>;
+using DBG = DebugScope<"xHCI", DebugLevel::WARN>;
 
 xhci::EventTRB xhci::EventTRB::fromTRB(xhci::TRB trb) {
     EventTRB event{};

@@ -21,7 +21,7 @@
 #include "library/intrusive_list.h"
 #include "peripherals/timer.h"
 
-using DBG = DebugScope<"Timing", true>;
+using DBG = DebugScope<"Timing", DebugLevel::WARN>;
 
 inline constexpr u64 operation_ns_estimate = 10;
 inline constexpr u64 nanoseconds_per_s = 1'000'000'000;

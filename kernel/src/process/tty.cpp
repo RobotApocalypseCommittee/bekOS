@@ -21,7 +21,7 @@
 #include "library/debug.h"
 #include "process/process.h"
 
-using DBG = DebugScope<"TTY", true>;
+using DBG = DebugScope<"TTY", DebugLevel::INFO>;
 
 expected<uSize> ProcessDebugSerial::write(u64 offset, TransactionalBuffer& buffer) {
     if (offset && offset != sc::INVALID_OFFSET_VAL) return ESPIPE;
@@ -34,6 +34,6 @@ expected<uSize> ProcessDebugSerial::write(u64 offset, TransactionalBuffer& buffe
     if (str[str.size() - 1] == '\n') {
         str = str.substr(0, str.size() - 1);
     }
-    DBG::dbgln("({}) {}"_sv, proc_id, str);
+    DBG::infoln("({}) {}"_sv, proc_id, str);
     return buffer.size();
 }

@@ -22,7 +22,7 @@
 #include "mm/memory_manager.h"
 #include "usb/xhci.h"
 
-using DBG = DebugScope<"PCIe", true>;
+using DBG = DebugScope<"PCIe", DebugLevel::WARN>;
 
 namespace pcie {
 

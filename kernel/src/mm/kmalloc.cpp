@@ -27,7 +27,7 @@
 
 constexpr bool is_aligned(uPtr ptr, uSize alignment) { return ptr % alignment == 0; }
 
-using DBG = DebugScope<"kmalloc", false>;
+using DBG = DebugScope<"kmalloc", DebugLevel::WARN>;
 
 class BitmapAllocator {
 public:
@@ -296,10 +296,9 @@ bek::pair<uSize, uSize> mem::get_kmalloc_usage() {
     return {global_kernel_allocator->free_bytes(), global_kernel_allocator->total_bytes()};
 }
 void mem::log_kmalloc_usage() {
-    using LOG_DBG = DebugScope<"kmalloc", true>;
     auto [free_mem, total_mem] = mem::get_kmalloc_usage();
-    LOG_DBG::dbgln("Memory: {} of {} bytes used ({}%)."_sv, total_mem - free_mem, total_mem,
-                   ((total_mem - free_mem) * 100) / total_mem);
+    DBG::warnln("Memory: {} of {} bytes used ({}%)."_sv, total_mem - free_mem, total_mem,
+                ((total_mem - free_mem) * 100) / total_mem);
 }
 
 void* operator new(uSize count) { return mem::allocate(count).pointer; }

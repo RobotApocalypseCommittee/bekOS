@@ -29,7 +29,7 @@
 #include "peripherals/timer.h"
 #include "process/elf.h"
 
-using DBG = DebugScope<"Process", false>;
+using DBG = DebugScope<"Process", DebugLevel::WARN>;
 
 constexpr inline uSize KERNEL_STACK_PAGES = 3;
 constexpr inline uSize DEFAULT_USER_STACK = 4 * PAGE_SIZE;
@@ -45,8 +45,7 @@ Process::Process(bek::string name, Process* parent, mem::VirtualRegion kernel_st
       m_running_state{ProcessState::Unready} {}
 
 void Process::quit_process(int exit_code) {
-    // TODO: Exit Status
-    DBG::dbgln("Process {} ({}) quit with code {}."_sv, name(), pid(), exit_code);
+    DBG::warnln("Process {} ({}) quit with code {}."_sv, name(), pid(), exit_code);
     m_running_state = ProcessState::AwaitingDeath;
     m_exit_code = exit_code;
     ProcessManager::the().schedule();
@@ -122,7 +121,7 @@ expected<bek::shared_ptr<Process>> Process::spawn_user_process(bek::string name,
 ErrorCode Process::execute_executable(fs::EntryRef executable, fs::EntryRef cwd, bek::vector<LocalEntityHandle> handles,
                                       bek::vector<bek::string> arguments, bek::vector<bek::string> environ) {
     DBG::dbgln("Trying to execute {}."_sv, executable->name());
-    if (has_userspace()) DBG::dbgln("Warn: May not support overwriting userspace process."_sv);
+    if (has_userspace()) DBG::warnln("Warn: May not support overwriting userspace process."_sv);
     auto name = bek::string{executable->name()};
 
     auto elf = EXPECTED_TRY(ElfFile::parse_file(bek::move(executable)));
@@ -144,7 +143,7 @@ ErrorCode Process::execute_executable(fs::EntryRef executable, fs::EntryRef cwd,
     auto put_string_on_stack = [&](const bek::string& str) {
         auto needed_size = str.size() + 1;
         if (stack_offset < needed_size) {
-            DBG::dbgln("Error: No space on user stack to put string \"{}\"."_sv, str.view());
+            DBG::errln("Error: No space on user stack to put string \"{}\"."_sv, str.view());
             return ENOMEM;
         } else {
             stack_offset -= needed_size;
@@ -171,7 +170,7 @@ ErrorCode Process::execute_executable(fs::EntryRef executable, fs::EntryRef cwd,
     // FIXME: Stack pointer alignment should be arch-dependent constant.
     needed_size += stack_offset % 16;
     if (stack_offset < needed_size) {
-        DBG::dbgln("Error: No space on user stack to put the init array."_sv);
+        DBG::errln("Error: No space on user stack to put the init array."_sv);
         return ENOMEM;
     }
     stack_offset -= needed_size;

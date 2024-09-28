@@ -21,7 +21,7 @@
 #include "bek/format.h"
 #include "library/debug.h"
 
-using DBG = DebugScope<"DevMgmt", true>;
+using DBG = DebugScope<"DevMgmt", DebugLevel::INFO>;
 
 static DeviceRegistry* g_device_registry = nullptr;
 
@@ -41,7 +41,7 @@ bek::str_view DeviceRegistry::register_device(bek::str_view name_prefix, bek::sh
     }
     auto it = m_devices.insert({bek::move(generated_name), bek::move(device)});
     VERIFY(it.second);
-    DBG::dbgln("Registered Device: {}"_sv, it.first->first.view());
+    DBG::infoln("Registered Device: {}"_sv, it.first->first.view());
     return it.first->first.view();
 }
 
