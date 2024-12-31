@@ -1,20 +1,18 @@
-/*
- * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024 Bekos Contributors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+// bekOS is a basic OS for the Raspberry Pi
+// Copyright (C) 2024 Bekos Contributors
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #ifndef BEKOS_PROCESS_H
 #define BEKOS_PROCESS_H
@@ -81,6 +79,12 @@ public:
     expected<long> sys_duplicate(long handle_slot, long new_handle_slot, u8 group);
     expected<long> sys_wait(long pid, uPtr status_ptr, u64 flags);
     expected<long> sys_chdir(uPtr path_str, uSize path_len);
+    expected<long> sys_interlink_advertise(uPtr address_str, uSize address_len, u8 group);
+    expected<long> sys_interlink_connect(uPtr address_str, uSize address_len, u8 group);
+    expected<long> sys_interlink_accept(long interlink_ed, u8 group, bool blocking);
+    expected<long> sys_interlink_send(long pipe_ed, uPtr packet_ptr, uSize packet_len);
+    expected<long> sys_interlink_receive(long pipe_ed, uPtr buffer_ptr, uPtr buffer_len, u64 flags);
+
 
     template <typename Fn>
     auto with_space_manager(Fn&& fn) {
@@ -99,14 +103,16 @@ public:
     Process(Process&&) = delete;
     Process& operator=(Process&&) = delete;
 
+    expected<bek::shared_ptr<EntityHandle>> get_open_entity(long entity_id);
+
+    long allocate_entity_handle_slot(bek::shared_ptr<EntityHandle> handle, u8 group);
+
 private:
     Process(bek::string name, Process* parent, mem::VirtualRegion kernel_stack);
-    expected<bek::shared_ptr<EntityHandle>> get_open_entity(long entity_id);
+
     [[nodiscard]] ErrorCode execute_executable(fs::EntryRef executable, fs::EntryRef cwd,
                                                bek::vector<LocalEntityHandle> handles,
                                                bek::vector<bek::string> arguments, bek::vector<bek::string> environ);
-
-    long allocate_entity_handle_slot(bek::shared_ptr<EntityHandle> handle, u8 group);
 
     // Basic properties.
     bek::string m_name;

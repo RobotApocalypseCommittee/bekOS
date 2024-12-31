@@ -1,20 +1,18 @@
-/*
- * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024 Bekos Contributors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+// bekOS is a basic OS for the Raspberry Pi
+// Copyright (C) 2024 Bekos Contributors
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #ifndef BEKOS_SYSCALLS_H
 #define BEKOS_SYSCALLS_H
@@ -54,6 +52,12 @@ enum class SysCall : u64 {
     Exit,
     Wait,
     ChangeWorkingDirectory,
+    // Internal Socket
+    InterlinkAdvertise,
+    InterlinkConnect,
+    InterlinkAccept,
+    InterlinkSend,
+    InterlinkReceive,
     // Miscellaneous
     Sleep,
 };
@@ -152,7 +156,7 @@ struct FileListItem {
     constexpr static uSize whole_size(uSize name_len) { return sizeof(FileListItem) - sizeof(_name) + name_len + 1; }
 
     bek::str_view name_view() const {
-        auto len = bek::strlen(_name, next_offset - offset_of_name());
+        auto len = bek::strlen(_name, next_offset ? next_offset - offset_of_name() : 1024);
         return {_name, len};
     }
 };

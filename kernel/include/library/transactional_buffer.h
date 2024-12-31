@@ -1,20 +1,18 @@
-/*
- * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024 Bekos Contributors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+// bekOS is a basic OS for the Raspberry Pi
+// Copyright (C) 2024 Bekos Contributors
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #ifndef BEKOS_TRANSACTIONAL_BUFFER_H
 #define BEKOS_TRANSACTIONAL_BUFFER_H
@@ -82,6 +80,26 @@ public:
 
 private:
     T m_obj;
+};
+
+class TransactionalBufferSubset: public TransactionalBuffer {
+public:
+    explicit TransactionalBufferSubset(TransactionalBuffer& buffer, uSize offset, uSize length) : m_buffer(buffer), m_offset(offset), m_length(length) {
+        VERIFY(m_offset <= buffer.size());
+        VERIFY(m_offset + m_length <= buffer.size());
+    }
+    uSize size() const override { return m_length; };
+    [[nodiscard]] expected<uSize> write_from(const void* buffer, uSize length, uSize offset) override {
+        return m_buffer.write_from(buffer, length, offset + m_offset);
+    };
+    [[nodiscard]] expected<uSize> read_to(void* buffer, uSize length, uSize offset) override {
+        return m_buffer.read_to(buffer, length, offset + m_offset);
+    }
+
+private:
+    TransactionalBuffer& m_buffer;
+    u64 m_offset;
+    u64 m_length;
 };
 
 #endif  // BEKOS_TRANSACTIONAL_BUFFER_H

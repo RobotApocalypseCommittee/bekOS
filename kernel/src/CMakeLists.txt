@@ -49,6 +49,8 @@ add_executable(kernel
         peripherals/timing.cpp
         library/kernel_error.cpp
         process/pipe.cpp
+        process/interlink.cpp
+        library/ringbuffer.cpp
 )
 
 if (BEKOS_ARCHITECTURE STREQUAL "a64")

@@ -1,20 +1,18 @@
-/*
- * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024 Bekos Contributors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+// bekOS is a basic OS for the Raspberry Pi
+// Copyright (C) 2024 Bekos Contributors
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #ifndef BEKOS_ENTITY_H
 #define BEKOS_ENTITY_H
@@ -34,10 +32,9 @@ public:
         Write = 1u << 1,
         Seek = 1u << 2,
         Message = 1u << 3,
-        Configure = 1u << 4,
     };
 
-    enum class Kind { File, Serial, Device, Null, Pipe };
+    enum class Kind { File, Serial, Device, Null, Pipe, InterlinkServer, InterlinkConnection };
 
     [[nodiscard]] virtual Kind kind() const = 0;
 
@@ -60,10 +57,7 @@ public:
         (void)id, (void)buffer;
         return ENOTSUP;
     }
-    virtual expected<long> configure(u64 config_item, TransactionalBuffer& buffer) const {
-        (void)config_item, (void)buffer;
-        return ENOTSUP;
-    }
+
     virtual SupportedOperations get_supported_operations() const = 0;
     virtual ~EntityHandle() = default;
 

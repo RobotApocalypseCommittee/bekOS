@@ -1,25 +1,24 @@
-/*
- * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024 Bekos Contributors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+// bekOS is a basic OS for the Raspberry Pi
+// Copyright (C) 2024 Bekos Contributors
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "api/syscalls.h"
 
 #include <bek/types.h>
 #include <library/kernel_error.h>
+#include <process/interlink.h>
 
 #include "arch/process_entry.h"
 #include "interrupts/int_ctrl.h"
@@ -83,6 +82,16 @@ expected<long> handle_syscall(u64 syscall_no, u64 arg1, u64 arg2, u64 arg3, u64 
             current_process.quit_process(arg1);
             ASSERT_UNREACHABLE();
             break;
+        case sc::SysCall::InterlinkAdvertise:
+            return current_process.sys_interlink_advertise(arg1, arg2, arg3);
+        case sc::SysCall::InterlinkConnect:
+            return current_process.sys_interlink_connect(arg1, arg2, arg3);
+        case sc::SysCall::InterlinkAccept:
+            return current_process.sys_interlink_accept(arg1, arg2, arg3);
+        case sc::SysCall::InterlinkSend:
+            return current_process.sys_interlink_send(arg1, arg2, arg3);
+        case sc::SysCall::InterlinkReceive:
+            return current_process.sys_interlink_receive(arg1, arg2, arg3, 0);
         default:
             return ENOTSUP;
     }
@@ -512,7 +521,7 @@ expected<long> Process::sys_duplicate(long handle_slot, long new_handle_slot, u8
     auto handle = EXPECTED_TRY(get_open_entity(handle_slot));
 
     if (new_handle_slot == sc::INVALID_ENTITY_ID) {
-        return allocate_entity_handle_slot(handle, group);
+        return allocate_entity_handle_slot(bek::move(handle), group);
     } else {
         if (new_handle_slot < 0) return EINVAL;
         // FIXME: Extend
@@ -577,3 +586,55 @@ expected<long> Process::sys_chdir(uPtr path_str, uSize path_len) {
     m_userspace_state->cwd = EXPECTED_TRY(fullPathLookup(root, the_path, nullptr));
     return ESUCCESS;
 }
+
+#pragma region Interlink
+
+expected<long> Process::sys_interlink_advertise(uPtr address_str, uSize address_len, u8 group) {
+    auto address_string = EXPECTED_TRY(read_string_from_user(address_str, address_len));
+    auto server = EXPECTED_TRY(interlink::advertise(bek::move(address_string)));
+    auto slot = allocate_entity_handle_slot(server->take_handle(), group);
+    return slot;
+}
+expected<long> Process::sys_interlink_connect(uPtr address_str, uSize address_len, u8 group) {
+    auto address_string = EXPECTED_TRY(read_string_from_user(address_str, address_len));
+    auto server = EXPECTED_TRY(interlink::lookup(address_string));
+    auto connection = EXPECTED_TRY(server->connect());
+    return allocate_entity_handle_slot(
+        bek::adopt_shared(new interlink::ConnectionHandle(connection, interlink::ConnectionHandle::CLIENT)), group);
+}
+expected<long> Process::sys_interlink_accept(long interlink_ed, u8 group, bool blocking) {
+    auto handle = EXPECTED_TRY(get_open_entity(interlink_ed));
+    if (handle->kind() != EntityHandle::Kind::InterlinkServer) {
+        return ENOTSUP;
+    }
+    auto& server = static_cast<interlink::ServerHandle&>(*handle).server();
+    auto accept_result = server.accept();
+    while (blocking && accept_result.has_error() && accept_result.error() == EAGAIN) {
+        accept_result = server.accept();
+    }
+    auto conn = EXPECTED_TRY(bek::move(accept_result));
+    return allocate_entity_handle_slot(
+        bek::adopt_shared(new interlink::ConnectionHandle(conn, interlink::ConnectionHandle::SERVER)), group);
+}
+expected<long> Process::sys_interlink_send(long pipe_ed, uPtr packet_ptr, uSize packet_len) {
+    auto handle = EXPECTED_TRY(get_open_entity(pipe_ed));
+    if (handle->kind() != EntityHandle::Kind::InterlinkConnection) {
+        return ENOTSUP;
+    }
+    auto buffer = EXPECTED_TRY(create_user_buffer(packet_ptr, packet_len, false));
+    return static_cast<interlink::ConnectionHandle&>(*handle).send(buffer, false).map_value([](auto x) {
+        return static_cast<long>(x);
+    });
+}
+expected<long> Process::sys_interlink_receive(long pipe_ed, uPtr buffer_ptr, uPtr buffer_len, u64 flags) {
+    auto handle = EXPECTED_TRY(get_open_entity(pipe_ed));
+    if (handle->kind() != EntityHandle::Kind::InterlinkConnection) {
+        return ENOTSUP;
+    }
+    auto buffer = EXPECTED_TRY(create_user_buffer(buffer_ptr, buffer_len, true));
+    return static_cast<interlink::ConnectionHandle&>(*handle).receive(buffer, false).map_value([](auto x) {
+        return static_cast<long>(x);
+    });
+}
+
+#pragma endregion

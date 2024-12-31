@@ -1,20 +1,18 @@
-/*
- * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024 Bekos Contributors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+// bekOS is a basic OS for the Raspberry Pi
+// Copyright (C) 2024 Bekos Contributors
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <peripherals/gpio.h>
 #include <peripherals/interrupt_controller.h>
 #include <peripherals/uart.h>
@@ -133,7 +131,7 @@ constexpr bek::str_view str_int_level(unsigned long type) {
 /**
  * common exception handler
  */
-extern "C" void unknown_int_handler(unsigned long type, unsigned long esr, unsigned long elr, unsigned long spsr,
+extern "C" [[noreturn]] void unknown_int_handler(unsigned long type, unsigned long esr, unsigned long elr, unsigned long spsr,
                                     unsigned long far) {
     // print out interruption type
     ExceptionSyndrome syndrome{esr};
@@ -151,6 +149,6 @@ extern "C" void unknown_int_handler(unsigned long type, unsigned long esr, unsig
     DBG::errln("   SPSR_EL1 {:XL} FAR_EL1 {:XL}"_sv, spsr, far);
 
     // no return from exception for now
-    while (1)
+    while (true)
         ;
 }

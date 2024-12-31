@@ -1,20 +1,18 @@
-/*
- * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024 Bekos Contributors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+// bekOS is a basic OS for the Raspberry Pi
+// Copyright (C) 2024 Bekos Contributors
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "mm/space_manager.h"
 
@@ -124,6 +122,28 @@ expected<bek::shared_ptr<mem::UserOwnedAllocation>> SpaceManager::allocate_place
     auto allocation = EXPECTED_TRY(mem::UserOwnedAllocation::create_contiguous(region.size / PAGE_SIZE));
     EXPECTED_TRY(place_region(region.start.ptr, allowed_operations, bek::string{name}, allocation));
     return allocation;
+}
+expected<bek::shared_ptr<mem::BackingRegion>> SpaceManager::get_shareable_region(mem::UserRegion user_region) {
+    for (auto& region : m_regions) {
+        if (region.user_region.contains(user_region)) {
+            if (region.user_region.start != user_region.start || region.user_region.size != user_region.size) {
+                DBG::infoln("Could not find exact match for a shareable region."_sv);
+                return EINVAL;
+            }
+            // Exact match
+            return region.backing;
+        }
+    }
+    return EINVAL;
+}
+expected<MemoryOperation> SpaceManager::get_allowed_operations(mem::UserRegion region) {
+    for (auto& other_region : m_regions) {
+        if (other_region.user_region.contains(region)) {
+            // Exact match
+            return other_region.permissions;
+        }
+    }
+    return EINVAL;
 }
 expected<SpaceManager> SpaceManager::clone_for_fork() {
     bek::vector<UserspaceRegion> regions{};
