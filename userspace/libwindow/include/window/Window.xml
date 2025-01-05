@@ -1,0 +1,64 @@
+<!--
+  ~ bekOS is a basic OS for the Raspberry Pi
+  ~ Copyright (C) 2025 Bekos Contributors
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  -->
+
+<data namespace="window">
+    <include>window/core.h</include>
+    <include>window/ipc_core.h</include>
+    <type name="OwningBitmap" passing="move"/>
+
+    <request name="create_surface">
+        <arg name="id" type="u32"/>
+        <arg name="region" type="OwningBitmap"/>
+    </request>
+    <request name="create_window">
+        <arg name="id" type="u32"/>
+        <arg name="requested_size" type="Rect"/>
+    </request>
+    <event name="window_state_change">
+        <arg name="id" type="u32"/>
+        <arg name="size" type="Rect"/>
+    </event>
+    <request name="flip_window">
+        <arg name="window_id" type="u32"/>
+        <arg name="surface_id" type="u32"/>
+    </request>
+
+    <request name="begin_window_operation">
+        <arg name="operation" type="u32"/>
+    </request>
+
+
+    <event name="mouse_move">
+        <arg name="position" type="Vec"/>
+        <arg name="buttons" type="u32"/>
+    </event>
+    <event name="mouse_click">
+        <arg name="position" type="Vec"/>
+        <arg name="buttons" type="u32"/>
+    </event>
+    <event name="keydown">
+        <arg name="codepoint" type="u32"/>
+    </event>
+    <event name="keyup">
+        <arg name="codepoint" type="u32"/>
+    </event>
+
+    <event name="ping" type="sync">
+        <response name="pong"/>
+    </event>
+</data>
