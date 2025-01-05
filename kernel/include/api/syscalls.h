@@ -1,5 +1,5 @@
 // bekOS is a basic OS for the Raspberry Pi
-// Copyright (C) 2024 Bekos Contributors
+// Copyright (C) 2025 Bekos Contributors
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -60,6 +60,7 @@ enum class SysCall : u64 {
     InterlinkReceive,
     // Miscellaneous
     Sleep,
+    GetTicks,
 };
 
 enum class OpenFlags {

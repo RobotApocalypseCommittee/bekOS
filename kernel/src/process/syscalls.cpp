@@ -1,5 +1,5 @@
 // bekOS is a basic OS for the Raspberry Pi
-// Copyright (C) 2024 Bekos Contributors
+// Copyright (C) 2025 Bekos Contributors
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -92,6 +92,8 @@ expected<long> handle_syscall(u64 syscall_no, u64 arg1, u64 arg2, u64 arg3, u64 
             return current_process.sys_interlink_send(arg1, arg2, arg3);
         case sc::SysCall::InterlinkReceive:
             return current_process.sys_interlink_receive(arg1, arg2, arg3, 0);
+        case sc::SysCall::GetTicks:
+            return timing::nanoseconds_since_start();
         default:
             return ENOTSUP;
     }
