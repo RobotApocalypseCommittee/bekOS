@@ -1,20 +1,18 @@
-/*
- * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024 Bekos Contributors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+// bekOS is a basic OS for the Raspberry Pi
+// Copyright (C) 2025 Bekos Contributors
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <bek/allocations.h>
 
@@ -215,6 +213,42 @@ void free(void* ptr) {
 
     if (try_free_huge(ptr)) return;
     free_small(ptr);
+}
+
+uSize get_size_of_allocation(void* ptr) {
+    if (ptr == nullptr) return 0;
+    VERIFY(g_heap_start <= ptr && ptr <= g_heap_end);
+    // Try huge block
+    {
+        HugeBlockHeader* prev_hb = nullptr;
+        HugeBlockHeader* next_hb = g_huge_block_head;
+        while (next_hb) {
+            if (ptr == next_hb->data()) {
+                return next_hb->size - sizeof(HugeBlockHeader);
+            }
+            prev_hb = next_hb;
+            next_hb = prev_hb->next;
+        }
+    }
+    // Is a small block
+    auto* header = reinterpret_cast<BlockHeader*>(reinterpret_cast<u8*>(ptr) - sizeof(BlockHeader));
+    // Small sanity check.
+    VERIFY(8 <= header->data_size() && header->data_size() < SIZE_FOR_SEPARATE_LARGE_BLOCK);
+    return header->data_size();
+}
+
+void* realloc(void* ptr, uSize size) {
+    if (ptr == nullptr) return mem::allocate(size).pointer;
+    if (auto data_size = get_size_of_allocation(ptr); size > data_size) {
+        auto new_alloc = mem::allocate(size);
+        if (new_alloc.pointer) {
+            bek::memcopy(new_alloc.pointer, ptr, data_size);
+        }
+        free(ptr);
+        return new_alloc.pointer;
+    } else {
+        return ptr;
+    }
 }
 
 void mem::free(void* ptr, uSize size, uSize align) {

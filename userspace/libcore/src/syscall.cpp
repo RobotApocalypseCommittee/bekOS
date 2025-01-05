@@ -1,20 +1,18 @@
-/*
- * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024 Bekos Contributors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+// bekOS is a basic OS for the Raspberry Pi
+// Copyright (C) 2025 Bekos Contributors
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "core/syscall.h"
 
@@ -98,6 +96,7 @@ core::expected<long> core::syscall::message(long entity_handle, u64 id, void* bu
 }
 core::expected<long> core::syscall::fork() { return syscall_to_result<long>(sc::SysCall::Fork); }
 void core::syscall::sleep(uSize microseconds) { syscall(sc::SysCall::Sleep, microseconds); }
+u64 core::syscall::get_ticks() { return syscall(sc::SysCall::GetTicks); }
 
 core::expected<long> core::syscall::exec(bek::str_view path, bek::span<bek::str_view> arguments,
                                          bek::span<bek::str_view> environ) {
@@ -121,4 +120,23 @@ core::expected<long> core::syscall::wait(long pid, int& status) {
 }
 ErrorCode core::syscall::chdir(bek::str_view path) {
     return syscall_to_error_code(sc::SysCall::ChangeWorkingDirectory, path.data(), path.size());
+}
+core::expected<long> core::syscall::interlink::advertise(bek::str_view address, u8 group) {
+    return syscall_to_result<long>(sc::SysCall::InterlinkAdvertise, address.data(), address.size(), group);
+}
+core::expected<long> core::syscall::interlink::connect(bek::str_view address, u8 group) {
+    return syscall_to_result<long>(sc::SysCall::InterlinkConnect, address.data(), address.size(), group);
+}
+core::expected<long> core::syscall::interlink::accept(long socket_ed, u8 group, bool blocking) {
+    return syscall_to_result<long>(sc::SysCall::InterlinkAccept, socket_ed, group, blocking);
+}
+core::expected<long> core::syscall::interlink::send(long socket_ed, void* data, uSize length) {
+    return syscall_to_result<long>(sc::SysCall::InterlinkSend, socket_ed, data, length);
+}
+core::expected<long> core::syscall::interlink::send(long socket_ed, sc::interlink::MessageHeader& message) {
+    return send(socket_ed, &message, message.total_size);
+}
+core::expected<long> core::syscall::interlink::receive(long socket_ed, sc::interlink::MessageHeader* buffer,
+                                                       uSize max_length) {
+    return syscall_to_result<long>(sc::SysCall::InterlinkReceive, socket_ed, buffer, max_length);
 }
