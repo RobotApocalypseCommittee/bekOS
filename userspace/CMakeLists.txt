@@ -1,3 +1,5 @@
 add_subdirectory(libcore)
 add_subdirectory(libc)
+add_subdirectory(libipc)
+add_subdirectory(libwindow)
 add_subdirectory(programs)
