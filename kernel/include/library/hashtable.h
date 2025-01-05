@@ -1,27 +1,26 @@
-/*
- * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024 Bekos Contributors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+// bekOS is a basic OS for the Raspberry Pi
+// Copyright (C) 2025 Bekos Contributors
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #ifndef BEKOS_HASHTABLE_H
 #define BEKOS_HASHTABLE_H
 
-#include "bek/optional.h"
 #include "bek/types.h"
+#include "bek/optional.h"
 #include "bek/utility.h"
+#include "bek/memory.h"
 #include "mm/kmalloc.h"
 
 namespace bek {
@@ -163,7 +162,7 @@ private:
             // Need to expand + rehash
             auto new_buckets = reinterpret_cast<Pair*>(kmalloc(new_size * sizeof(Pair)));
             auto new_filled  = reinterpret_cast<Fill*>(kmalloc(new_size * sizeof(Fill)));
-            memset(new_filled, 0, new_size * sizeof(bool));
+            bek::memset(new_filled, 0, new_size * sizeof(bool));
 
             // Swap
             auto old_buckets  = buckets;
