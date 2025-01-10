@@ -23,7 +23,7 @@
 #include "bek/optional.h"
 #include "bek/traits.h"
 #include "library/hashtable.h"
-#include "library/intrusive_shared_ptr.h"
+#include <bek/intrusive_shared_ptr.h>
 #include "library/iteration_decision.h"
 #include "library/user_buffer.h"
 #include "process/entity.h"

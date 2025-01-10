@@ -1,20 +1,18 @@
-/*
- * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024 Bekos Contributors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+// bekOS is a basic OS for the Raspberry Pi
+// Copyright (C) 2024-2025 Bekos Contributors
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "usb/xhci.h"
 
@@ -531,7 +529,7 @@ bool Controller::initialise() {
 
     DBG::dbgln("Setting up Interrupters"_sv);
     // TODO: Figure out MSI-X
-    auto max_interrupters = capability_registers.max_interrupters();
+    //auto max_interrupters = capability_registers.max_interrupters();
     if (function->interrupt_type() == pcie::InterruptType::Pin) {
         // Only initialise the primary interrupt.
         m_primary_interrupter =
@@ -539,7 +537,7 @@ bool Controller::initialise() {
         m_primary_interrupter->setup();
         m_primary_interrupter->enable();
     } else {
-        ASSERT(false);
+        PANIC("Does not support MSI-X");
     }
 
     // TODO: Register interrupt handler (PCIe something something).

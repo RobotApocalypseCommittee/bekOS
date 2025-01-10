@@ -1,20 +1,18 @@
-/*
- * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024 Bekos Contributors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+// bekOS is a basic OS for the Raspberry Pi
+// Copyright (C) 2024-2025 Bekos Contributors
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "peripherals/virtio.h"
 
@@ -113,7 +111,7 @@ struct SplitVQ {
             free_descriptors--;
             auto idx = next_free_desc;
             // Important - replace with invalid value.
-            next_free_desc = bek::exchange(descriptors[idx].next, (u16)descriptors.size());
+            next_free_desc = bek::exchange(descriptors[idx].next, static_cast<u16>(descriptors.size()));
             return idx;
         } else {
             return {};
@@ -160,7 +158,7 @@ struct SplitVQ {
     u32 next_free_desc;
     u32 id;
     u32 free_descriptors;
-    u32 last_seen_used_idx;
+    u32 last_seen_used_idx{};
 };
 
 dev_tree::DevStatus MMIOTransport::probe_devtree(dev_tree::Node& node, dev_tree::device_tree& tree,
@@ -213,8 +211,8 @@ dev_tree::DevStatus MMIOTransport::probe_devtree(dev_tree::Node& node, dev_tree:
     }
 
     if (registers.DEVICE_ID() == 0) {
-        DBG::errln("Fail: DeviceID is 0"_sv);
-        return dev_tree::DevStatus::Failure;
+        DBG::infoln("Fail: DeviceID is 0 (unrecognised)"_sv);
+        return dev_tree::DevStatus::Unrecognised;
     }
 
     // Reset Device
@@ -294,7 +292,7 @@ bool MMIOTransport::setup_vqueue(u32 queue_idx) {
         return false;
     }
 
-    // We're gonna choose a smaller size sensibly.
+    // We're going to choose a smaller size sensibly.
     if (max_num > sensible_max_queue_num) {
         DBG::infoln("Choosing queue size {} instead of max {}."_sv, sensible_max_queue_num, max_num);
         max_num = sensible_max_queue_num;
@@ -315,8 +313,7 @@ mem::PCIeDeviceArea MMIOTransport::device_config_area() const {
     return (m_regs.base.size() > 0x100) ? m_regs.base.subdivide(0x100, m_regs.base.size() - 0x100)
                                         : mem::PCIeDeviceArea{mem::DeviceArea{0, 0, 0}};
 }
-bool MMIOTransport::queue_transfer(u32 queue_idx, bek::span<TransferElement> elements,
-                                   Callback cb) {
+bool MMIOTransport::queue_transfer(u32 queue_idx, bek::span<TransferElement> elements, Callback cb) {
     VERIFY(elements.size());
     m_regs.QUEUE_SEL(queue_idx);
     if (m_regs.QUEUE_READY() != 1) {
@@ -335,12 +332,13 @@ bool MMIOTransport::queue_transfer(u32 queue_idx, bek::span<TransferElement> ele
     }
 
     if (queue->free_descriptors < elements.size()) {
-        DBG::errln("Err: Transfer requires {} descriptors, and only {} free in queue {}."_sv, elements.size(), queue->free_descriptors, queue_idx);
+        DBG::errln("Err: Transfer requires {} descriptors, and only {} free in queue {}."_sv, elements.size(),
+                   queue->free_descriptors, queue_idx);
         return false;
     }
 
     SplitVQDescriptor* last_desc = nullptr;
-    u16 start_idx                = 0;
+    u16 start_idx = 0;
     for (auto& element : elements) {
         if (auto idx = queue->allocate_descriptor()) {
             if (last_desc) {
@@ -349,11 +347,11 @@ bool MMIOTransport::queue_transfer(u32 queue_idx, bek::span<TransferElement> ele
             } else {
                 start_idx = *idx;
             }
-            auto& desc   = queue->descriptors[*idx];
+            auto& desc = queue->descriptors[*idx];
             desc.address = element.data.dma_ptr().get();
-            desc.length  = element.data.size();
+            desc.length = element.data.size();
             desc.flags = (element.direction == TransferElement::OUT) ? 0 : SplitVQDescriptor::WRITE;
-            last_desc  = &desc;
+            last_desc = &desc;
         } else {
             // This is very unlikely (actually unreachable).
             DBG::errln("Err: Could not allocate descriptor for queue {}."_sv, queue_idx);
@@ -370,6 +368,7 @@ bool MMIOTransport::queue_transfer(u32 queue_idx, bek::span<TransferElement> ele
 
     return true;
 }
+MMIOTransport::~MMIOTransport() = default;
 void MMIOTransport::on_notification() {
     if (m_regs.INTERRUPT_STATUS() & 1) {
         // Used buffer.

@@ -40,7 +40,8 @@ public:
         }
     }
 
-    vector(const vector& v) __attribute((deprecated("Do you want to copy vector?"))) {
+    vector(const vector& v) //__attribute((deprecated("Do you want to copy vector?")))
+    {
         m_size     = v.m_size;
         m_capacity = v.m_capacity;
         if (m_capacity) {
@@ -95,13 +96,7 @@ public:
     }
 
     void reserve(uSize n) {
-        if (n > m_capacity) {
-            uSize new_capacity = m_capacity ? m_capacity : 1;
-            while (new_capacity < n) {
-                new_capacity *= 2u;
-            }
-            expand_storage(new_capacity);
-        }
+        ensure_capacity(n);
     }
 
     void expand(uSize n) {
@@ -112,9 +107,7 @@ public:
     void push_back(const T& item) { push_back(T(item)); }
 
     void push_back(T&& item) {
-        if (m_capacity == m_size) {
-            expand_storage(m_capacity ? m_capacity * 2: 1u);
-        }
+        ensure_capacity(m_size + 1);
         new (&array[m_size]) T(bek::move(item));
         m_size++;
     }
@@ -123,9 +116,7 @@ public:
 
     void insert(uSize i, T&& item) {
         VERIFY(i < size());
-        if (m_capacity == m_size) {
-            expand_storage(m_capacity ? m_capacity * 2: 1u);
-        }
+        ensure_capacity(m_size + 1);
         for (uSize idx = m_size - 1; i <= idx; idx--) {
             new (&array[idx + 1]) T(bek::move(array[idx]));
             array[idx].~T();
@@ -200,6 +191,16 @@ public:
     }
 
 private:
+    ALWAYS_INLINE void ensure_capacity(uSize capacity) {
+        uSize new_capacity = m_capacity ? m_capacity : 1u;
+        while (new_capacity < capacity) {
+            new_capacity *= 2;
+        }
+        if (new_capacity != m_capacity) {
+            expand_storage(new_capacity);
+        }
+    }
+
     void expand_storage(uSize new_capacity) {
         auto* new_array = reinterpret_cast<T*>(mem::allocate(new_capacity * sizeof(T)).pointer);
         if (array) {
@@ -212,9 +213,9 @@ private:
                 }
             }
             mem::free(array, m_capacity * sizeof(T));
-            array      = new_array;
-            m_capacity = new_capacity;
         }
+        array = new_array;
+        m_capacity = new_capacity;
     }
 
     uSize m_size{};

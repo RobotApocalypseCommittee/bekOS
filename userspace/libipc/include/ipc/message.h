@@ -54,7 +54,7 @@ concept Serializable = requires (const T& obj, Message& msg)
 {
   typename Serializer<T>;
   Serializer<T>::encode(obj, msg);
-  { Serializer<T>::decode(msg) } -> core::expected<T>;
+  { Serializer<T>::decode(msg) } -> bek::same_as<core::expected<T>>;
 };
 
 class Message {
@@ -111,13 +111,13 @@ struct enum_traits {
 
 template <typename T>
 struct ByteWiseSerializer {
-  void encode(const T& o, Message& msg) {
+  static void encode(const T& o, Message& msg) {
     auto x = o;
     auto* x_bytes = reinterpret_cast<u8*>(&x);
     msg.encode_bytes({x_bytes, x_bytes + sizeof(T)});
   }
 
-  core::expected<T> decode(Message& msg) {
+  static core::expected<T> decode(Message& msg) {
     return msg.decode_bytes(sizeof(T)).map_value([](bek::span<u8> m) {
       T o;
       bek::memcopy(&o, m.data(), sizeof(T));
@@ -127,7 +127,7 @@ struct ByteWiseSerializer {
 };
 
 template <bek::integral T>
-struct Serializer<T>: ByteWiseSerializer<T> {};
+struct Serializer<T>: public ByteWiseSerializer<T> {};
 
 }
 

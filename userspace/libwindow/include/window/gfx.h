@@ -27,8 +27,6 @@ namespace window {
 
 struct FontContext;
 
-bek::own_ptr<FontContext> create_blank_context();
-
 class OwningBitmap {
 public:
     static core::expected<OwningBitmap> create(u32 width, u32 height);

@@ -1,5 +1,5 @@
 // bekOS is a basic OS for the Raspberry Pi
-// Copyright (C) 2024 Bekos Contributors
+// Copyright (C) 2024-2025 Bekos Contributors
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 
 #include "api/syscalls.h"
 #include "bek/types.h"
-#include "library/intrusive_shared_ptr.h"
+#include <bek/intrusive_shared_ptr.h>
 #include "library/transactional_buffer.h"
 
 /// An Entity is owned by a process, and may be a file, directory, device, stream etc

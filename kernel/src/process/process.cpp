@@ -1,20 +1,18 @@
-/*
- * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024 Bekos Contributors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+// bekOS is a basic OS for the Raspberry Pi
+// Copyright (C) 2024-2025 Bekos Contributors
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "process/process.h"
 
@@ -166,7 +164,7 @@ ErrorCode Process::execute_executable(fs::EntryRef executable, fs::EntryRef cwd,
     }
     init_stack_ptr_array.push_back(mem::UserPtr{});
 
-    auto needed_size = init_stack_ptr_array.size() * sizeof(uPtr);
+    iSize needed_size = init_stack_ptr_array.size() * sizeof(uPtr);
     // FIXME: Stack pointer alignment should be arch-dependent constant.
     needed_size += stack_offset % 16;
     if (stack_offset < needed_size) {
@@ -264,9 +262,10 @@ ErrorCode ProcessManager::register_process(bek::shared_ptr<Process> proc) {
     enter_critical();
     auto& proc_ref = *proc;
     if (proc_ref.pid() >= 0) {
+        uSize pid = proc_ref.pid();
         // Merely check the PID.
-        if ((proc_ref.pid() < m_processes.size() && m_processes[proc_ref.pid()]) ||
-            proc_ref.pid() > m_processes.size()) {
+        if ((pid < m_processes.size() && m_processes[pid]) ||
+            pid > m_processes.size()) {
             return EINVAL;
         }
     } else {
@@ -284,10 +283,12 @@ ErrorCode ProcessManager::register_process(bek::shared_ptr<Process> proc) {
         }
         proc_ref.m_pid = static_cast<long>(candidate);
     }
-    if (proc_ref.pid() < m_processes.size()) {
-        m_processes[proc_ref.pid()] = bek::move(proc);
+    ASSERT(proc_ref.pid() >= 0);
+    uSize pid = proc_ref.pid();
+    if (pid < m_processes.size()) {
+        m_processes[pid] = bek::move(proc);
     } else {
-        VERIFY(proc_ref.pid() == m_processes.size());
+        VERIFY(pid == m_processes.size());
         m_processes.push_back(bek::move(proc));
     }
     exit_critical();

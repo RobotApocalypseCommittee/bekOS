@@ -29,9 +29,15 @@ struct window::FontContext {
     SSFN::Font font;
 };
 
-bek::own_ptr<window::FontContext> window::create_blank_context() {
-    return bek::own_ptr{new FontContext()};
+window::FontContext* g_font_context = nullptr;
+
+window::FontContext& default_context() {
+    if (!g_font_context) {
+        g_font_context = new window::FontContext();
+    }
+    return *g_font_context;
 }
+
 core::expected<window::OwningBitmap> window::OwningBitmap::create(u32 width, u32 height) {
     return create(width, height, width, height);
 }
@@ -69,43 +75,55 @@ window::OwningBitmap::~OwningBitmap() {
 }
 window::OwningBitmap window::OwningBitmap::create_null() { return {nullptr, 0, 0, 0, 0}; }
 
-
+window::RenderContext window::RenderContext::create(void* buffer, u32 stride, u32 width, u32 height) {
+    return {
+        .buffer = buffer,
+        .byte_stride = stride,
+        .pixel_width = width,
+        .pixel_height = height,
+        .confinement = Rect{{0, 0}, {static_cast<i32>(width), static_cast<i32>(height)}},
+        .font_context = default_context(),
+    };
+}
 window::Renderer::Renderer(const RenderContext& context, Rect reference_region): m_context(context), m_reference_region(reference_region) {}
 void window::Renderer::paint_rect(Colour c, Rect location) {
     location.origin += m_reference_region.origin;
     VERIFY(location.is_within(m_reference_region));
     location = location.intersection(m_context.confinement);
-    for (u32 y = location.y; y < location.y + location.height; y++) {
-        auto* row_start = m_context.pixel_at(y, 0);
-        for (u32 x = location.x; x < location.x + location.width; x++) {
+    VERIFY(location.is_positive());
+    for (int y = location.y(); y < location.y() + location.height(); y++) {
+        auto* row_start = m_context.pixel_at(0, y);
+        for (int x = location.x(); x < location.x() + location.width(); x++) {
             row_start[x] = c;
         }
     }
 }
-void window::Renderer::paint_border(Colour c, Rect location, u32 thickness) {
-    VERIFY(thickness >= location.height && thickness >= location.width);
+void window::Renderer::paint_border(Colour c, Rect location, u32 thickness_u) {
+    int thickness = static_cast<int>(thickness_u);
+    VERIFY(thickness >= location.height() && thickness >= location.width());
     location.origin += m_reference_region.origin;
     VERIFY(location.is_within(m_reference_region));
     location = location.intersection(m_context.confinement);
-    u32 y = location.y;
-    for (; y < location.y + thickness; y++) {
+    VERIFY(location.is_positive());
+    int y = location.y();
+    for (; y < location.y() + thickness; y++) {
         auto* row_start = m_context.pixel_at(y, 0);
-        for (u32 x = location.x; x < location.x + location.width; x++) {
+        for (int x = location.x(); x < location.x() + location.width(); x++) {
             row_start[x] = c;
         }
     }
-    for (; y < location.y + location.height - thickness; y++) {
+    for (; y < location.y() + location.height() - thickness; y++) {
         auto* row_start = m_context.pixel_at(y, 0);
-        for (u32 x = location.x; x < location.x + thickness; x++) {
+        for (int x = location.x(); x < location.x() + thickness; x++) {
             row_start[x] = c;
         }
-        for (u32 x = location.x + location.width - thickness; x < location.x + location.width; x++) {
+        for (int x = location.x() + location.width() - thickness; x < location.x() + location.width(); x++) {
             row_start[x] = c;
         }
     }
-    for (; y < location.y + location.height; y++) {
+    for (; y < location.y() + location.height(); y++) {
         auto* row_start = m_context.pixel_at(y, 0);
-        for (u32 x = location.x; x < location.x + location.width; x++) {
+        for (int x = location.x(); x < location.x() + location.width(); x++) {
             row_start[x] = c;
         }
     }
@@ -148,7 +166,8 @@ void window::Renderer::paint_bitmap(const OwningBitmap& bitmap, Rect region, Vec
     VERIFY(bitmap_rect.is_within(Rect{{0, 0}, {static_cast<int>(bitmap.width()), static_cast<int>(bitmap.height())}}));
     region.origin += m_reference_region.origin;
     VERIFY(region.is_within(m_reference_region));
-    for (auto row = 0u; row < region.height(); row++) {
-        bek::memcopy(m_context.pixel_at(region.x, region.y + row), )
+    VERIFY(region.is_positive());
+    for (int row = 0; row < region.height(); row++) {
+        bek::memcopy(m_context.pixel_at(region.x(), region.y() + row), bitmap.pixel_at(bitmap_rect.x(), bitmap_rect.y()+row), bitmap_rect.width()*PIXEL_BYTES);
     }
 }

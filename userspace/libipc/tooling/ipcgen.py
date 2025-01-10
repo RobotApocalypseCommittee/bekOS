@@ -26,6 +26,19 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import argparse
 import dataclasses
 from pathlib import Path
@@ -105,13 +118,13 @@ def parse_file(tree: ET.ElementTree, base_name: str):
     return Interface(base_name, namespace, includes, requests, events, types)
 
 
-def argument_list(interface: Interface, msg: Message):
+def argument_list(interface: Interface, msg: Message, sending: bool):
     def argument(arg_name: str, arg_type: str):
-        match interface.types.get(arg_type, "value"):
-            case "value" | "move":
-                return f"{arg_type} {arg_name}"
-            case "reference":
-                return f"const {arg_type}& {arg_name}"
+        type_kind = interface.types.get(arg_type, "value")
+        if type_kind == "value" or (not sending and type_kind == "move"):
+            return f"{arg_type} {arg_name}"
+        else:
+            return f"const {arg_type}& {arg_name}"
 
     return ", ".join(argument(*a) for a in msg.arguments)
 
@@ -153,9 +166,9 @@ def render_class_interface(interface: Interface, is_server: bool, is_raw: bool):
     # TODO: non-RAW
     def generate_message_interface(msg: Message, sending: bool):
         if sending:
-            return f"void {msg.name}({argument_list(interface, msg)});"
+            return f"void {msg.name}({argument_list(interface, msg, sending)});"
         else:
-            return f"virtual void on_{msg.name}({argument_list(interface, msg)}) = 0;"
+            return f"virtual void on_{msg.name}({argument_list(interface, msg, sending)}) = 0;"
 
     sending_members = '\n    '.join(
         generate_message_interface(msg, True) for msg in cho(is_server, interface.events, interface.requests))
@@ -207,7 +220,7 @@ def generate_send_implementation(interface: Interface, is_server: bool, is_raw: 
     def generate_imp(msg: Message):
         arguments = '\n    '.join(f"message.encode({n});" for n, _ in msg.arguments)
         return f"""
-void {cls_name}::{msg.name}({argument_list(interface, msg)}) {{
+void {cls_name}::{msg.name}({argument_list(interface, msg, True)}) {{
     ipc::Message message{{{generate_enum_traits(interface, is_server)}::from_enum({generate_message_enum_value(interface, msg, is_server)})}};
     {arguments}
     send_message(message);

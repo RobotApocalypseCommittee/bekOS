@@ -1,5 +1,5 @@
 // bekOS is a basic OS for the Raspberry Pi
-// Copyright (C) 2024 Bekos Contributors
+// Copyright (C) 2024-2025 Bekos Contributors
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -96,9 +96,9 @@ expected<mem::UserRegion> SpaceManager::place_region(bek::optional<uPtr> locatio
     return desired_region;
 }
 void SpaceManager::debug_print() const {
-    DBG::infoln("--- User Address Space ---"_sv);
+    DBG::dbgln("--- User Address Space ---"_sv);
     for (auto& region : m_regions) {
-        DBG::infoln("{} {} {}"_sv, region.user_region.start, region.user_region.end(), region.name.view());
+        DBG::dbgln("{} {} {}"_sv, region.user_region.start, region.user_region.end(), region.name.view());
     }
 }
 ErrorCode SpaceManager::deallocate_userspace_region(const bek::shared_ptr<mem::BackingRegion>& region) {

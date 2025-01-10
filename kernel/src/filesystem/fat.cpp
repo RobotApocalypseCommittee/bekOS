@@ -1,20 +1,18 @@
-/*
- * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024 Bekos Contributors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+// bekOS is a basic OS for the Raspberry Pi
+// Copyright (C) 2024-2025 Bekos Contributors
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "filesystem/fat.h"
 
 #include "bek/assertions.h"
@@ -22,7 +20,7 @@
 #include "bek/time.h"
 #include "library/debug.h"
 
-using DBG = DebugScope<"FAT", DebugLevel::DEBUG>;
+using DBG = DebugScope<"FAT", DebugLevel::WARN>;
 
 enum class ClusterType { NextPointer, EndOfChain, Free, Corrupt, Reserved };
 
@@ -54,7 +52,7 @@ struct [[gnu::packed]] RawFATItemEntry {
     static RawFATItemEntry from(short_name fatname, const BasicFATEntry& e) {
         auto creation_time = UnixTimestamp(e.creation_timestamp).decompose();
         auto modified_time = UnixTimestamp(e.modified_timestamp).decompose();
-        auto accessed_time = UnixTimestamp(e.accessed_timestamp).decompose();
+        // auto accessed_time = UnixTimestamp(e.accessed_timestamp).decompose();
 
         return RawFATItemEntry{fatname,
                                e.raw_attributes,
@@ -164,10 +162,10 @@ expected<short_name> generate_short_name(bek::str_view full_name, bek::vector<sh
     int base_len = total_chars;
 
     int last_dot_pos = -1;
-    for (int i = 0; i < full_name.size(); i++) {
+    for (unsigned i = 0; i < full_name.size(); i++) {
         if (full_name[i] == '.') last_dot_pos = i;
     }
-    if (last_dot_pos != -1 && last_dot_pos + 1 < full_name.size()) {
+    if (last_dot_pos != -1 && static_cast<unsigned>(last_dot_pos) + 1 < full_name.size()) {
         // There is an extension!
         full_name = full_name.substr(last_dot_pos + 1, -1);
         total_chars = 0;
@@ -690,7 +688,7 @@ void FileAllocationTable::purge_fat_sector(uSize fat_sector, bek::shared_ptr<Blo
 
 expected<BasicFATEntry> FileAllocationTable::get_entry(FATEntryLocation location) {
     bek::vector<RawFATEntry> working_entry;
-    FATEntryLocation working_location{location.directory_start_cluster, location.index_in_directory};
+    // FATEntryLocation working_location{location.directory_start_cluster, location.index_in_directory};
     for (auto [e, i] : FATRawEntryList::create(*this, location.directory_start_cluster, location.index_in_directory)) {
         if (e.type() == EntryType::LongFileName) {
             if (working_entry.size() == 0 && !(e.lfn_entry.order & 0x40)) {
@@ -698,14 +696,14 @@ expected<BasicFATEntry> FileAllocationTable::get_entry(FATEntryLocation location
                 return EINVAL;
             } else {
                 if (!working_entry.size()) {
-                    working_location.index_in_directory = i;
+                    // working_location.index_in_directory = i;
                 }
                 working_entry.push_back(e);
             }
         } else if (e.type() == EntryType::Normal) {
             // This finalises an entry.
             if (!working_entry.size()) {
-                working_location.index_in_directory = i;
+                // working_location.index_in_directory = i;
             }
             working_entry.push_back(e);
             PackedFATEntry entry{bek::move(working_entry)};

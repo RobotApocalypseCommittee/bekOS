@@ -18,7 +18,7 @@
 #define BEKOS_LIBWINDOW_WIDGET_H
 
 #include <bek/vector.h>
-#include <library/intrusive_shared_ptr.h>
+#include <bek/intrusive_shared_ptr.h>
 #include <window/core.h>
 #include <window/events.h>
 #include <window/gfx.h>

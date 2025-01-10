@@ -1,20 +1,18 @@
-/*
- * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024 Bekos Contributors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+// bekOS is a basic OS for the Raspberry Pi
+// Copyright (C) 2024-2025 Bekos Contributors
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #ifndef BEKOS_FUNCTION_H
 #define BEKOS_FUNCTION_H
@@ -53,8 +51,8 @@ struct concrete_wrapper final : abstract_wrapper {
     static_assert(!uses_trivial_small_storage<Functor>);
 
     Functor m_functor;
-    concrete_wrapper(Functor&& functor) : m_functor(bek::forward<Functor&&>(functor)) {}
-    concrete_wrapper(const Functor& functor)
+    explicit concrete_wrapper(Functor&& functor) : m_functor(bek::forward<Functor&&>(functor)) {}
+    explicit concrete_wrapper(const Functor& functor)
         requires bek::copy_constructible<Functor>
         : m_functor(functor) {}
     concrete_wrapper(const concrete_wrapper&)            = delete;
@@ -138,7 +136,7 @@ public:
             m_wrapper = nullptr;
 
             m_invoker = [](void* p_fn, detail::fast_forward_t<In>... in) {
-                auto* fn = reinterpret_cast<Functor*>(p_fn);
+                auto* fn = static_cast<Functor*>(p_fn);
                 return (*fn)(forward<In>(in)...);
             };
         } else {
@@ -152,7 +150,7 @@ public:
             }
 
             m_invoker = [](void* p_fn, detail::fast_forward_t<In>... in) {
-                auto& fn = reinterpret_cast<wrapper_t*>(p_fn)->m_functor;
+                auto& fn = static_cast<wrapper_t*>(p_fn)->m_functor;
                 return fn(forward<In>(in)...);
             };
         }
@@ -167,7 +165,7 @@ public:
 
     function(const function& other)
         requires Copyable
-        : m_invoker{other.m_invoker}, m_wrapper{nullptr} {
+        : m_invoker{other.m_invoker} {
         if (other.m_wrapper) {
             m_wrapper = other.m_wrapper->clone(m_storage);
         } else {
@@ -195,7 +193,7 @@ public:
         return *this;
     }
 
-    friend void swap(function& a, function& b) { do_swap(a, b); }
+    friend void swap(function& a, function& b) noexcept { do_swap(a, b); }
 
 
     Out operator()(In... args) {
@@ -231,12 +229,15 @@ private:
         }
     }
 
-    [[nodiscard]] constexpr inline bool is_inline_wrapped() const { return m_storage.ptr() == m_wrapper; }
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+    [[nodiscard]] constexpr bool is_inline_wrapped() const { return m_storage.ptr() == m_wrapper; }
+#pragma GCC diagnostic pop
 
     static Out empty_function(void*, detail::fast_forward_t<In>...) { PANIC("Called empty bek::function"); }
 
     // Members
-    Storage m_storage;
+    Storage m_storage{};
 
     /// Type-erasing function to invoke stored functor.
     InvokerPtr m_invoker{&empty_function};
@@ -272,7 +273,7 @@ template <typename Ft, typename Fp = decltype(&Ft::operator())>
 function(Ft) -> function<typename impl_deets::deduce_function_type<Fp>::type>;
 
 template <typename Out, typename... In>
-inline void swap(function<Out(In...)>& a, function<Out(In...)>& b) {
+void swap(function<Out(In...)>& a, function<Out(In...)>& b) noexcept {
     swap(a, b);
 }
 

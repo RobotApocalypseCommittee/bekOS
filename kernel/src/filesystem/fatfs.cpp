@@ -1,20 +1,18 @@
-/*
- * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024 Bekos Contributors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+// bekOS is a basic OS for the Raspberry Pi
+// Copyright (C) 2024-2025 Bekos Contributors
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "filesystem/fatfs.h"
 
 #include "bek/optional.h"
@@ -59,7 +57,6 @@ bek::optional<FATInfo> fromBootSector(blk::BlockDevice& device) {
     // FAT 16 excludes root dir
     u32 data_begin_sector = reserved_sectors + fat_count * sectors_per_fat + root_dir_sectors;
 
-    u32 data_sectors = total_sectors - data_begin_sector;
     u32 total_clusters = total_sectors / sectors_per_cluster;
 
     FatType fat_type;
@@ -82,7 +79,7 @@ bek::optional<FATInfo> fromBootSector(blk::BlockDevice& device) {
         root_attrs.root_dir_attrs_16 = {static_cast<u16>(reserved_sectors + fat_count * sectors_per_fat),
                                         root_entries_16};
     }
-    return FATInfo{fat_type,        sector_size, sectors_per_cluster, reserved_sectors,
+    return FATInfo{fat_type, sector_size, sectors_per_cluster, reserved_sectors,
                    sectors_per_fat, root_attrs,  data_begin_sector};
 }
 

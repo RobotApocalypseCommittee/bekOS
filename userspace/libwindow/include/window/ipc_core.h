@@ -32,13 +32,13 @@ struct ipc::Serializer<window::Rect>: ByteWiseSerializer<window::Rect> {};
 
 template <>
 struct ipc::Serializer<window::OwningBitmap> {
-  void encode(const window::OwningBitmap& o, Message& msg) {
+  static void encode(const window::OwningBitmap& o, Message& msg) {
     msg.encode(o.width());
     msg.encode(o.height());
     msg.encode(o.stride());
     msg.encode_memory_region(o.buffer(), o.buffer_size());
   }
-  core::expected<window::OwningBitmap> decode(ipc::Message& msg) {
+  static core::expected<window::OwningBitmap> decode(ipc::Message& msg) {
     auto [buffer, buffer_size] = EXPECTED_TRY(msg.decode_memory_region());
     auto width = EXPECTED_TRY(msg.decode<u32>());
     auto height = EXPECTED_TRY(msg.decode<u32>());

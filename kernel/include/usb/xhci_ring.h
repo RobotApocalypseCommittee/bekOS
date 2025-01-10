@@ -1,20 +1,18 @@
-/*
- * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024 Bekos Contributors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+// bekOS is a basic OS for the Raspberry Pi
+// Copyright (C) 2024-2025 Bekos Contributors
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #ifndef BEKOS_XHCI_RING_H
 #define BEKOS_XHCI_RING_H
@@ -67,7 +65,12 @@ enum class TRBType : u8 {
 struct TRB {
     u32 data[4];
 
-    u64& parameter() { return *reinterpret_cast<u64*>(&data[0]); }
+    u64 parameter() const { return static_cast<u64>(data[0]) | static_cast<u64>(data[1]) << 32; }
+    void set_parameter(u64 parameter) {
+        data[0] = parameter & 0xFFFFFFFF;
+        data[1] = parameter >> 32;
+    }
+
     u32& status() { return data[2]; }
     TRBType trb_type() const { return static_cast<TRBType>((data[3] >> 10) & 0x3F); }
     void trb_type(TRBType t) {
@@ -79,7 +82,7 @@ struct TRB {
 
     static TRB create_address_dev_cmd(u64 in_ctx_ptr, u8 slot_id, bool make_request = true) {
         TRB trb{0, 0, 0, 0};
-        trb.parameter() = in_ctx_ptr;
+        trb.set_parameter(in_ctx_ptr);
         trb.trb_type(TRBType::AddressDevice);
         trb.data[3] |= static_cast<u32>(slot_id) << 24;
         if (!make_request) trb.data[3] |= (1u << 9);
@@ -101,7 +104,7 @@ static_assert(sizeof(TRB) == 16);
 namespace command {
 inline TRB address_device(uPtr in_ctx_dma, u8 slot_id, bool make_request = true) {
     TRB trb{0, 0, 0, 0};
-    trb.parameter() = in_ctx_dma;
+    trb.set_parameter(in_ctx_dma);
     trb.trb_type(TRBType::AddressDevice);
     trb.data[3] |= static_cast<u32>(slot_id) << 24;
     if (!make_request) trb.data[3] |= (1u << 9);

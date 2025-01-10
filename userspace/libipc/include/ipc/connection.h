@@ -23,7 +23,7 @@ namespace ipc {
 class Connection {
 public:
     explicit Connection(long fd): m_fd(fd) {}
-    virtual ~Connection();
+    virtual ~Connection() = default;
     ErrorCode poll();
 protected:
     virtual ErrorCode dispatch_message(u32 id, Message& buffer) = 0;

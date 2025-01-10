@@ -1,20 +1,18 @@
-/*
- * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024 Bekos Contributors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+// bekOS is a basic OS for the Raspberry Pi
+// Copyright (C) 2024-2025 Bekos Contributors
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "peripherals/device_tree.h"
 
@@ -30,7 +28,7 @@ using namespace dev_tree;
 
 using DBG = DebugScope<"DevTree", DebugLevel::WARN>;
 
-constexpr const unsigned int DTB_MAGIC = 0xd00dfeed;
+constexpr unsigned int DTB_MAGIC = 0xd00dfeed;
 
 constexpr inline bek::str_view ADDRESS_CELLS_TAG = "#address-cells"_sv;
 constexpr inline bek::str_view SIZE_CELLS_TAG    = "#size-cells"_sv;
@@ -149,7 +147,7 @@ private:
 bek::own_ptr<Node> parse_node(dtb_struct_pointer& cursor, dtb_string_getter strings, Node* parent,
                               bek::hashtable<u32, Node*>& phandles) {
     cursor.read_nops();
-    ASSERT(cursor.read_tag() == BEGIN_NODE);
+    VERIFY(cursor.read_tag() == BEGIN_NODE);
     auto name     = cursor.read_null_string();
     auto new_node = bek::make_own<Node>(
         Node{name, {}, parent, {}, {}, 1000, Okay, nullptr, dev_tree::DevStatus::Unprobed});
@@ -177,7 +175,7 @@ bek::own_ptr<Node> parse_node(dtb_struct_pointer& cursor, dtb_string_getter stri
         new_node->children.push_back(parse_node(cursor, strings, new_node.get(), phandles));
     }
     cursor.read_nops();
-    ASSERT(cursor.read_tag() == END_NODE);
+    VERIFY(cursor.read_tag() == END_NODE);
     return new_node;
 }
 
@@ -192,7 +190,7 @@ device_tree dev_tree::read_dtb(bek::buffer dtb) {
 
     // Check Magic Value
     if (header.magic != DTB_MAGIC) {
-        DBG::dbgln("Disaster."_sv);
+        DBG::errln("Disaster: Device Tree magic number incorrect."_sv);
         return {};
     }
     DBG::dbgln("Loading with version {}."_sv, header.version);
@@ -225,7 +223,7 @@ device_tree dev_tree::read_dtb(bek::buffer dtb) {
 bek::optional<u32> dev_tree::get_property_u32(const dev_tree::Node& t_node, bek::str_view name) {
     auto prop = t_node.get_property(name);
     if (prop.is_valid()) {
-        ASSERT(prop->size() == 4);
+        VERIFY(prop->size() == 4);
         return {prop->get_at_be<u32>(0)};
     } else {
         return {};
@@ -247,11 +245,11 @@ bek::vector<reg_t> dev_tree::get_std_regs(const Node& t_node) {
     }
 
     // We only handle max u64 addresses and sizes - otherwise nonsensical!
-    ASSERT(addr_cells == 1 || addr_cells == 2);
-    ASSERT(size_cells == 1 || size_cells == 2);
+    VERIFY(addr_cells == 1 || addr_cells == 2);
+    VERIFY(size_cells == 1 || size_cells == 2);
 
     int n = buf.size() / (4 * (addr_cells + size_cells));
-    ASSERT(buf.size() == n * 4 * (addr_cells + size_cells));
+    VERIFY(buf.size() == n * 4 * (addr_cells + size_cells));
 
     u32 offset = 0;
 
@@ -290,7 +288,7 @@ void dev_tree::bek_basic_format(bek::OutputStream& out, const reg_t& reg) {
 }
 
 u64 dev_tree::read_from_buffer(bek::buffer b, u32& offset, u32 cells) {
-    ASSERT(cells <= 2);
+    VERIFY(cells <= 2);
     u64 ret_val;
     switch (cells) {
         case 0:
@@ -353,7 +351,7 @@ bek::optional<RangeArray> dev_tree::get_ranges(const Node& node, bool dma_ranges
         parent_addr_cells = get_property_u32(*node.parent, ADDRESS_CELLS_TAG).value_or(2);
     }
 
-    ASSERT(buf->size() % (parent_addr_cells + this_addr_cells + size_cells) == 0);
+    VERIFY(buf->size() % (parent_addr_cells + this_addr_cells + size_cells) == 0);
     return RangeArray{*buf, parent_addr_cells, this_addr_cells, size_cells};
 }
 bek::optional<mem::PhysicalRegion> dev_tree::map_region_to_root(const Node& node,
@@ -568,7 +566,7 @@ dev_tree::DevStatus dev_tree::probe_node(dev_tree::Node& node, dev_tree::device_
                 PROBE_DBG::dbgln("Device {} Waiting."_sv, node.name);
                 ctx.waiting.push_back(&node);
             } else if (res == dev_tree::DevStatus::Success) {
-                PROBE_DBG::dbgln("Device {} Success."_sv, node.name);
+                PROBE_DBG::infoln("Device {} Success."_sv, node.name);
             } else if (res == dev_tree::DevStatus::Failure) {
                 PROBE_DBG::errln("Device {} Failure."_sv, node.name);
             }

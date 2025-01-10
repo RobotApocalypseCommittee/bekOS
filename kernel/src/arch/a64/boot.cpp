@@ -1,5 +1,5 @@
 // bekOS is a basic OS for the Raspberry Pi
-// Copyright (C) 2024 Bekos Contributors
+// Copyright (C) 2024-2025 Bekos Contributors
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -80,7 +80,7 @@ dev_tree::DevStatus probe_arm_system(dev_tree::Node& node, dev_tree::device_tree
     }
 }
 
-constexpr const inline bek::array standard_probes{probe_arm_system,
+constexpr inline bek::array standard_probes{probe_arm_system,
                                                   probe_simple_bus,
                                                   FixedClock::probe_devtree,
                                                   PL011::probe_devtree,
@@ -193,7 +193,7 @@ extern "C" [[noreturn]] void kernel_boot(u64 dev_tree_address) {
     VERIFY(root_r.has_value());
     auto& root = root_r.value();
 
-    auto init_exec_r = fs::fullPathLookup({}, "/init"_sv, nullptr);
+    auto init_exec_r = fs::fullPathLookup({}, "/bin/windowserver"_sv, nullptr);
 
     if (init_exec_r.has_error()) {
         DBG::errln("Could not find init executable: {}."_sv, init_exec_r.error());

@@ -42,9 +42,11 @@ struct FramebufferDevice {
 
         dbgln("Got display info"_sv);
 
-        auto fb_info = protocol::fb::MapMessage{protocol::fb::MapFramebuffer};
+        auto fb_info = protocol::fb::MapMessage{protocol::fb::MapFramebuffer, 0, 0, 0, 0, 0};
 
-        if (EXPECTED_TRY(core::syscall::message(ed, 0, &fb_info, sizeof(fb_info))) != sizeof(fb_info)) {
+        if (EXPECTED_TRY(core::syscall::message(ed, 0, &fb_info, sizeof(fb_info))) != 0) {
+            dbgln("Bad framebuffer response"_sv);
+            return EFAIL;
         }
 
         core::fprintln(core::stdout, "Opened display of {}x{}."_sv, display_info.info.width, display_info.info.height);
@@ -79,39 +81,130 @@ public:
     }
 };
 
-class WindowServerConnection: public window::WindowServerRaw {
+inline constexpr uSize KEYCODE_COUNT = 57;
+char keycode_mapping[KEYCODE_COUNT][2] = {
+    {},         {},         {},         {},         {'a', 'A'},   {'b', 'B'}, {'c', 'C'},   {'d', 'D'},   {'e', 'E'},
+    {'f', 'F'}, {'g', 'G'}, {'h', 'H'}, {'i', 'I'}, {'j', 'J'},   {'k', 'K'}, {'l', 'L'},   {'m', 'M'},   {'n', 'N'},
+    {'o', 'O'}, {'p', 'P'}, {'q', 'Q'}, {'r', 'R'}, {'s', 'S'},   {'t', 'T'}, {'u', 'U'},   {'v', 'V'},   {'w', 'W'},
+    {'x', 'X'}, {'y', 'Y'}, {'z', 'Z'}, {'1', '!'}, {'2', '@'},   {'3', '#'}, {'4', '$'},   {'5', '%'},   {'6', '^'},
+    {'7', '&'}, {'8', '*'}, {'9', '('}, {'0', ')'}, {'\n', '\n'}, {0, 0},     {'\b', '\b'}, {'\t', '\t'}, {' ', ' '},
+    {'-', '_'}, {'=', '+'}, {'[', '{'}, {']', '}'}, {'\\', '|'},  {0, 0},     {';', ':'},   {'\'', '"'},  {0, 0},
+    {',', '<'}, {'.', '>'}, {'/', '?'},
+};
+
+struct KbdDevice {
+    static core::expected<bek::own_ptr<KbdDevice>> create(bek::str_view path) {
+        auto ed = EXPECTED_TRY(core::syscall::open_device(path));
+        dbgln("Opened keyboard device: {}"_sv, ed);
+        protocols::kb::GetReportMessage message{protocols::kb::GetReport, {}};
+        EXPECTED_TRY(core::syscall::message(ed, 0, &message, sizeof(message)));
+        return bek::own_ptr{new KbdDevice(message.report, ed)};
+    }
+
+    char get_update() {
+        protocols::kb::GetReportMessage message{protocols::kb::GetReport, {}};
+        EXPECTED_TRY(core::syscall::message(m_ed, 0, &message, sizeof(message)));
+
+        auto old_report = m_last_report;
+        m_last_report = message.report;
+        for (u8 new_c_byte : message.report.keys) {
+            if (new_c_byte && new_c_byte < KEYCODE_COUNT) {
+                bool is_new = true;
+                for (u8 old_c_byte : old_report.keys) {
+                    if (old_c_byte == new_c_byte) {
+                        // Not new
+                        is_new = false;
+                    }
+                }
+                if (is_new) {
+                    bool is_shift = message.report.modifier_keys & (0x2 | 0x20);
+                    return keycode_mapping[new_c_byte][is_shift];
+                }
+            }
+        }
+        return 0;
+    }
+
+private:
+    KbdDevice(const protocols::kb::Report& last_report, long ed) : m_last_report(last_report), m_ed(ed) {}
+
+    protocols::kb::Report m_last_report;
+    long m_ed;
+};
+
+struct MouseDevice {
+    static core::expected<bek::own_ptr<MouseDevice>> create(bek::str_view path, window::Rect bounds) {
+        auto ed = EXPECTED_TRY(core::syscall::open_device(path));
+        dbgln("Opened mouse device: {}"_sv, ed);
+        return bek::own_ptr{new MouseDevice(bounds, ed)};
+    }
+
+    ErrorCode update() {
+        protocols::mouse::GetReportMessage message{protocols::mouse::GetReport, {}};
+        EXPECTED_TRY(core::syscall::message(m_ed, 0, &message, sizeof(message)));
+
+        if (message.report.sequence_number != m_last_report.sequence_number) {
+            // dbgln("New Mouse Message: ({}, {})"_sv, message.report.delta_x, message.report.delta_y);
+            if (message.report.sequence_number - m_last_report.sequence_number > 1) {
+                dbgln("Caution: missed sequence number: {} -> {}"_sv, m_last_report.sequence_number,
+                      message.report.sequence_number);
+            }
+            m_last_report = message.report;
+            m_location.x = bek::max(m_bounds.x(), bek::min(m_bounds.right(), m_location.x + message.report.delta_x));
+            m_location.y = bek::max(m_bounds.y(), bek::min(m_bounds.bottom(), m_location.y + message.report.delta_y));
+        }
+        return ESUCCESS;
+    }
+
+    window::Vec position() const { return m_location; }
+
+    bool is_clicked(u8 button) const { return m_last_report.buttons & (1 << button); }
+
+private:
+    MouseDevice(window::Rect bounds, long ed) : m_bounds(bounds), m_ed(ed) {}
+    protocols::mouse::Report m_last_report{};
+    window::Vec m_location{};
+    window::Rect m_bounds;
+    long m_ed;
+};
+
+class WindowServerConnection : public window::WindowServerRaw {
 public:
     struct Window {
         u32 id;
         bek::optional<u32> current_surface_id;
         window::Rect placement;
     };
-    using WindowServerRaw::WindowServerRaw;
+    explicit WindowServerConnection(int fd) : WindowServerRaw(fd) {}
+    ~WindowServerConnection() override = default;
+
+
+
 
     void on_create_surface(u32 id, window::OwningBitmap region) override {
         // TODO: Replacing surfaces.
-        for (auto& surf: m_surfaces) {
+        for (auto& surf : m_surfaces) {
             if (surf.first == id) return;
         }
         m_surfaces.push_back(bek::pair{id, bek::move(region)});
         dbgln("Created surface {} ({}x{})"_sv, id, m_surfaces.back().second.width(), m_surfaces.back().second.height());
     }
-    void on_create_window(u32 id, window::Rect requested_size) override {
-        for (auto& win: m_windows) {
+    void on_create_window(u32 id, window::Vec requested_size) override {
+        for (auto& win : m_windows) {
             if (win.id == id) return;
         }
         dbgln("Created window {}"_sv, id);
         m_windows.push_back(Window{
             .id = id,
             .current_surface_id = bek::nullopt,
-            .placement = {starting_coords, starting_coords, 100, 100}
+            .placement = {starting_coords, starting_coords, requested_size.x, requested_size.y},
         });
         starting_coords += 50;
     }
     void on_flip_window(u32 window_id, u32 surface_id) override {
-        for (auto& win: m_windows) {
+        for (auto& win : m_windows) {
             if (win.id != window_id) continue;
-            for (auto& surf: m_surfaces) {
+            for (auto& surf : m_surfaces) {
                 if (surf.first != surface_id) continue;
                 win.current_surface_id = surface_id;
                 win.placement.size = window::Vec(surf.second.width(), surf.second.height());
@@ -119,16 +212,14 @@ public:
         }
         dbgln("Cannot flip (invalid ids): window {}, surface {}"_sv, window_id, surface_id);
     }
-    void on_begin_window_operation(u32 operation) override;
-    void on_ping_response() override {
-        last_pong_time = current_time;
-    }
+    void on_begin_window_operation(u32 operation) override {};
+    void on_ping_response() override { last_pong_time = current_time; }
 
     void blit(window::RenderContext& ctx) {
         window::Renderer renderer{ctx, ctx.render_rect()};
-        for (auto& win: m_windows) {
+        for (auto& win : m_windows) {
             if (win.current_surface_id) {
-                for (auto& surf: m_surfaces) {
+                for (auto& surf : m_surfaces) {
                     if (surf.first == *win.current_surface_id) {
                         // Let's gooo
                         renderer.paint_bitmap(surf.second, win.placement, {0, 0});
@@ -137,10 +228,11 @@ public:
             }
         }
     }
+
 private:
     bek::vector<bek::pair<u32, window::OwningBitmap>> m_surfaces;
     bek::vector<Window> m_windows;
-    u64 last_ping_time;
+    u64 last_ping_time{0};
     u64 last_pong_time{1};
 };
 

@@ -1,5 +1,5 @@
 // bekOS is a basic OS for the Raspberry Pi
-// Copyright (C) 2024 Bekos Contributors
+// Copyright (C) 2024-2025 Bekos Contributors
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 
 #include "bek/vector.h"
 #include "entity.h"
-#include "library/intrusive_shared_ptr.h"
+#include <bek/intrusive_shared_ptr.h>
 #include "library/kernel_error.h"
 
 namespace interlink {

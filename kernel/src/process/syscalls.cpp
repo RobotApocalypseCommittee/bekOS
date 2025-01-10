@@ -28,7 +28,7 @@
 #include "process/pipe.h"
 #include "process/process.h"
 
-using DBG = DebugScope<"Process", DebugLevel::WARN>;
+using DBG = DebugScope<"Process", DebugLevel::INFO>;
 
 expected<long> handle_syscall(u64 syscall_no, u64 arg1, u64 arg2, u64 arg3, u64 arg4, u64 arg5, u64 arg6, u64 arg7,
                               InterruptContext& ctx) {
@@ -93,7 +93,7 @@ expected<long> handle_syscall(u64 syscall_no, u64 arg1, u64 arg2, u64 arg3, u64 
         case sc::SysCall::InterlinkReceive:
             return current_process.sys_interlink_receive(arg1, arg2, arg3, 0);
         case sc::SysCall::GetTicks:
-            return timing::nanoseconds_since_start();
+            return static_cast<long>(timing::nanoseconds_since_start());
         default:
             return ENOTSUP;
     }
@@ -283,7 +283,8 @@ expected<long> Process::sys_stat(int entity_handle, uPtr path_str, uSize path_le
 }
 expected<long> Process::sys_get_pid() { return m_pid; }
 expected<long> Process::sys_allocate(uPtr address, uSize size, sc::AllocateFlags flags) {
-    // This is ridiculously low?
+    // TODO: This is ridiculously low.
+    DBG::infoln("Process {} ({}) trying to allocate {} bytes."_sv, name(), pid(), size);
     constexpr uSize maximum_allocation_size = 64 * MiB;
     if (size > maximum_allocation_size) {
         return ENOMEM;
@@ -309,6 +310,7 @@ expected<long> Process::sys_allocate(uPtr address, uSize size, sc::AllocateFlags
     return static_cast<long>(x.start.get());
 }
 expected<long> Process::sys_deallocate(uPtr address, uSize size) {
+    DBG::infoln("Process {} ({}) trying to deallocate {} bytes at {}."_sv, name(), pid(), size, address);
     auto e = m_userspace_state->address_space_manager.deallocate_userspace_region(address, size);
     if (e == ESUCCESS) {
         return 0;
@@ -527,7 +529,7 @@ expected<long> Process::sys_duplicate(long handle_slot, long new_handle_slot, u8
     } else {
         if (new_handle_slot < 0) return EINVAL;
         // FIXME: Extend
-        if (new_handle_slot >= m_userspace_state->open_entities.size()) return EINVAL;
+        if (static_cast<unsigned long>(new_handle_slot) >= m_userspace_state->open_entities.size()) return EINVAL;
 
         auto& old_handle = m_userspace_state->open_entities[new_handle_slot];
         old_handle.group = group;
