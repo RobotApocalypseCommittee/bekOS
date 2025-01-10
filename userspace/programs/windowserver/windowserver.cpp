@@ -1,20 +1,24 @@
-// bekOS is a basic OS for the Raspberry Pi
-// Copyright (C) 2025 Bekos Contributors
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+/*
+ * bekOS is a basic OS for the Raspberry Pi
+ * Copyright (C) 2025 Bekos Contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 
 #include <api/protocols/fb.h>
+#include <api/protocols/kb.h>
+#include <api/protocols/mouse.h>
 #include <bek/optional.h>
 #include <bek/own_ptr.h>
 #include <core/device.h>
@@ -69,8 +73,6 @@ public:
     u16 height() const { return m_info.height; }
     u64 stride() const { return m_framebuffer.row_stride; }
     u8* framebuffer() const { return reinterpret_cast<u8*>(m_framebuffer.buffer); }
-
-
 
     void flush() {
         auto flush_msg = protocol::fb::FlushRectMessage{protocol::fb::FlushRect, {0, 0, height(), width()}};
@@ -236,61 +238,70 @@ private:
     u64 last_pong_time{1};
 };
 
+#define EXPECTED_TRY_MESSAGE(EXPRESSION, FAILURE_MSG)    \
+    ({                                                   \
+        auto&& _temp = (EXPRESSION);                     \
+        if (_temp.has_error()) {                         \
+            dbgln(FAILURE_MSG ": {}"_sv, _temp.error()); \
+            return _temp.error();                        \
+        }                                                \
+        _temp.release_value();                           \
+    })
 
-
-
-int main(int argc, char** argv) {
-    auto graphics_devices = core::Device::get_devices(DeviceProtocol::FramebufferProvider);
-    if (graphics_devices.size() != 1) {
-        core::fprintln(core::stdout, "Found {} graphics devices. Exiting."_sv, graphics_devices.size());
-        return 0;
+core::expected<bek::string> get_device_address(DeviceProtocol protocol) {
+    auto devices = core::Device::get_devices(protocol);
+    if (devices.size() != 1) {
+        dbgln("Found {} devices - need one."_sv, devices.size());
+        return EFAIL;
     }
+    return devices[0].name;
+}
 
-    auto fb_r = FramebufferDevice::create(graphics_devices[0].name.view());
-    if (fb_r.has_error()) {
-        core::fprintln(core::stdout, "Failed to initialise graphics device {}"_sv, (u32)fb_r.error());
-        return 0;
-    }
+inline constexpr uSize FREQUENCY = 60;
+inline constexpr uSize NS_PER_FRAME = 1'000'000'000 / FREQUENCY;
+inline constexpr uSize BAD_FRAME_LENGTH = NS_PER_FRAME / 2 * 3;
 
-    auto& fb = *fb_r.value();
+core::expected<int> run() {
+    auto fb_address = EXPECTED_TRY_MESSAGE(get_device_address(DeviceProtocol::FramebufferProvider),
+                                           "Could not find framebuffer provider");
+    auto fb =
+        EXPECTED_TRY_MESSAGE(FramebufferDevice::create(fb_address.view()), "Failed to initialise graphics device");
+    window::Rect confinement{{0, 0}, {fb->width(), fb->height()}};
 
-    auto font_context = window::create_blank_context();
-    window::RenderContext ctx{
-        .buffer = fb.framebuffer(),
-        .byte_stride = static_cast<u32>(fb.stride()),
-        .pixel_width = fb.width(),
-        .pixel_height = fb.height(),
-        .confinement = window::Rect{{0, 0}, {fb.width(), fb.height()}},
-        .font_context = *font_context
-    };
+    auto kb_address = EXPECTED_TRY_MESSAGE(get_device_address(DeviceProtocol::Keyboard), "Could not find keyboard");
+    auto kb = EXPECTED_TRY_MESSAGE(KbdDevice::create(kb_address.view()), "Failed to initialise keyboard device");
+
+    auto mouse_address = EXPECTED_TRY_MESSAGE(get_device_address(DeviceProtocol::Mouse), "Could not find mouse");
+    auto mouse = EXPECTED_TRY_MESSAGE(MouseDevice::create(mouse_address.view(), confinement),
+                                      "Failed to initialise mouse device");
+
+    window::RenderContext ctx =
+        window::RenderContext::create(fb->framebuffer(), fb->stride(), fb->width(), fb->height());
 
     bek::vector<bek::own_ptr<WindowServerConnection>> connections;
     dbgln("Advertising 'windowserver'"_sv);
-    auto advertise_res = core::syscall::interlink::advertise("windowserver"_sv, 0);
-
-    if (advertise_res.has_error()) {
-        dbgln("advertise() failed: "_sv, advertise_res.error());
-        return -advertise_res.error();
-    }
+    auto advertise_fd =
+        EXPECTED_TRY_MESSAGE(core::syscall::interlink::advertise("windowserver"_sv, 0), "advertise() failed");
 
     starting_coords = 50;
     u64 last_blit = core::syscall::get_ticks();
+    window::Vec last_mouse_position{};
 
     // Mainloop
     while (true) {
         current_time = core::syscall::get_ticks();
         // First, we try to accept any calls.
-        auto accept_res = core::syscall::interlink::accept(advertise_res.value(), 0, false);
+        auto accept_res = core::syscall::interlink::accept(advertise_fd, 0, false);
         if (accept_res.has_error() && accept_res.error() != EAGAIN) {
             dbgln("accept() failed: "_sv, accept_res.error());
-            return -accept_res.error();
+            return accept_res.error();
         } else if (accept_res.has_value()) {
             dbgln("accept() succeeded."_sv);
             connections.push_back(bek::make_own<WindowServerConnection>(accept_res.value()));
         }
 
         // Next, we handle any messages
-        for (auto& connection: connections) {
+        for (auto& connection : connections) {
             auto res = connection->poll();
             if (res != ESUCCESS) {
                 dbgln("Poll connection failed: {}"_sv, res);
@@ -298,12 +309,35 @@ int main(int argc, char** argv) {
             }
         }
 
+        mouse->update();
         // Next, we blit!
-        if (current_time - last_blit > 500'000'000) {
-            for (auto& connection: connections) {
+        if (current_time - last_blit > NS_PER_FRAME) {
+            window::Renderer renderer{ctx, ctx.render_rect()};
+            auto old_mouse_rect = window::Rect{last_mouse_position, {50, 50}}.intersection(ctx.render_rect());
+            renderer.paint_rect(0, old_mouse_rect);
+
+            for (auto& connection : connections) {
                 connection->blit(ctx);
+            }
+            last_mouse_position = mouse->position();
+            auto new_mouse_rect = window::Rect{last_mouse_position, {50, 50}}.intersection(ctx.render_rect());
+            renderer.paint_rect(mouse->is_clicked(0) ? window::BLUE : window::RED, new_mouse_rect);
+            fb->flush();
+            current_time = core::syscall::get_ticks();
+            if (current_time - last_blit > BAD_FRAME_LENGTH) {
+                dbgln("Bad frame length: {}"_sv, current_time - last_blit);
             }
             last_blit = current_time;
         }
+    }
+    return 0;
+}
+
+int main(int argc, char** argv) {
+    auto run_result = run();
+    if (run_result.has_error()) {
+        return -run_result.error();
+    } else {
+        return 0;
     }
 }

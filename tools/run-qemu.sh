@@ -1,7 +1,7 @@
-#!/bin/sh
+#!/bin/bash
 #
 # bekOS is a basic OS for the Raspberry Pi
-# Copyright (C) 2024 Bekos Contributors
+# Copyright (C) 2024-2025 Bekos Contributors
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ QEMU_ARGS=()
 
 case "$1" in
   virt)
-    QEMU_ARGS+=(-machine virt -cpu cortex-a57 -usb -device qemu-xhci -device usb-kbd -device virtio-gpu-device -device "virtio-blk-device,drive=main_drive" -drive "format=raw,id=main_drive,file=fat:system,readonly=on,if=none" -serial mon:stdio -global virtio-mmio.force-legacy=false)
+    QEMU_ARGS+=(-machine virt -cpu cortex-a57 -usb -device qemu-xhci -device usb-kbd -device usb-mouse -device virtio-gpu-device -device "virtio-blk-device,drive=main_drive" -drive "format=raw,id=main_drive,file=fat:system,readonly=on,if=none" -serial mon:stdio -global virtio-mmio.force-legacy=false)
     ;;
   rpi3)
     QEMU_ARGS+=(-M raspi3b -serial null -serial mon:stdio -d "guest_errors,unimp" -usb -device usb-kbd -device usb-mouse)

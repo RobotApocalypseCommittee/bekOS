@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024 Bekos Contributors
+ * Copyright (C) 2024-2025 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -103,7 +103,7 @@ struct FramebufferDevice {
 
         dbgln("Got display info"_sv);
 
-        auto fb_info = protocol::fb::MapMessage{protocol::fb::MapFramebuffer};
+        auto fb_info = protocol::fb::MapMessage{protocol::fb::MapFramebuffer, 0, 0, 0, 0, 0};
 
         if (EXPECTED_TRY(core::syscall::message(ed, 0, &fb_info, sizeof(fb_info))) != sizeof(fb_info)) {
         }
@@ -379,10 +379,11 @@ int main(int argc, char** argv) {
             core::syscall::read(stdout_handles.read_handle, sc::INVALID_OFFSET_VAL, &temp_buffer, sizeof(temp_buffer));
         if (read_pipe_res.has_error() && read_pipe_res.error() != EAGAIN) {
             dbgln("Failed to read from pipe: {}"_sv, read_pipe_res.error());
-        } else if (read_pipe_res.has_value() && read_pipe_res.value() != 0) {
-            dbgln("Read {} chars from pipe: {}"_sv, read_pipe_res.value(),
-                  bek::str_view{temp_buffer, static_cast<uSize>(read_pipe_res.value())});
-            for (uSize i = 0; i < read_pipe_res.value(); i++) {
+        } else if (read_pipe_res.has_value() && read_pipe_res.value() > 0) {
+            uSize chars_read = read_pipe_res.value();
+            dbgln("Read {} chars from pipe: {}"_sv, chars_read,
+                  bek::str_view{temp_buffer, chars_read});
+            for (uSize i = 0; i < chars_read; i++) {
                 char ch = temp_buffer[i];
                 if (ch == '\n' || c >= end_column) {
                     c = 0;

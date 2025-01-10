@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024 Bekos Contributors
+ * Copyright (C) 2024-2025 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@
 
 class Device : public bek::RefCounted<Device> {
 public:
-    enum class Kind { Clock, UART, PCIeHost, InterruptController, Framebuffer, Timer, Keyboard };
+    enum class Kind { Clock, UART, PCIeHost, InterruptController, Framebuffer, Timer, Keyboard, Mouse };
 
     [[nodiscard]] virtual Kind kind() const = 0;
     [[nodiscard]] virtual bek::optional<DeviceProtocol> userspace_protocol() const { return {}; };

@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024 Bekos Contributors
+ * Copyright (C) 2024-2025 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ core::expected<bek::string> prompt_for_command() {
     bek::StringStream ss;
     char c;
 
-    while (auto n = EXPECTED_TRY(core::stdin.read(&c, 1))) {
+    while (EXPECTED_TRY(core::stdin.read(&c, 1))) {
         if (!LOCAL_ECHO) {
             core::fprint(core::stdout, "{}"_sv, c);
         }

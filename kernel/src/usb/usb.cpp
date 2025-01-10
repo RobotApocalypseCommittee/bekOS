@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024 Bekos Contributors
+ * Copyright (C) 2024-2025 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ void probe_device(usb::Device& device, const Interface& interface) {
     auto ptr = HidKeyboard::probe(interface, device);
     if (ptr) {
         DBG::dbgln("Probe keyboard success."_sv);
-        DeviceRegistry::the().register_device("generic.usb.keyboard"_sv, ptr);
+        DeviceRegistry::the().register_device(ptr->preferred_name_prefix(), ptr);
     }
 }
 

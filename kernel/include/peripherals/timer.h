@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024 Bekos Contributors
+ * Copyright (C) 2024-2025 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,6 +49,10 @@ ErrorCode initialise();
 ErrorCode schedule_callback(bek::function<TimerDevice::CallbackAction(u64)> action, long nanoseconds);
 
 uSize nanoseconds_since_start();
+
+constexpr u64 nanoseconds_from_frequency(u64 hertz) {
+    return 1'000'000'000 / hertz;
+}
 
 void spindelay_us(uSize microseconds);
 
