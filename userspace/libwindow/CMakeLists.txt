@@ -6,7 +6,8 @@ add_library(bekos_libwindow src/core.cpp
         src/widget.cpp
         include/window/Window.gen.cpp
         src/application.cpp
-        src/window.cpp)
+        src/window.cpp
+        src/stack.cpp)
 
 target_include_directories(bekos_libwindow PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 

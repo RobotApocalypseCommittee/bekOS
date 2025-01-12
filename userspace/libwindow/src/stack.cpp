@@ -16,6 +16,4 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "window/widgets/widget.h"
-
-bek::span<bek::shared_ptr<window::Widget>> window::Widget::children() { return {}; }
+#include "window/widgets/stack.h"

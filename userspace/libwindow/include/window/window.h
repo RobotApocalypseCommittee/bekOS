@@ -16,20 +16,36 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_LIBWINDOW_BUTTON_H
-#define BEKOS_LIBWINDOW_BUTTON_H
-#include "widget.h"
+#ifndef BEKOS_LIBWINDOW_WINDOW_H
+#define BEKOS_LIBWINDOW_WINDOW_H
+#include <bek/intrusive_shared_ptr.h>
+#include <bek/optional.h>
+
+#include "gfx.h"
 
 namespace window {
 
-class Button : public Widget {
+class Application;
+
+class Window final : public bek::RefCounted<Window> {
 public:
-    virtual void on_click();
+    static core::expected<bek::shared_ptr<Window>> create(Vec size);
+    Window(Vec size, OwningBitmap front, OwningBitmap back);
+    void show(Application& app);
+    void unshow();
+    Rect paint();
+    ~Window();
 
 private:
-    bek::string m_label;
+    bek::shared_ptr<Application> m_application;
+    bek::optional<u32> m_id;
+    Vec m_size;
+    OwningBitmap m_front;
+    OwningBitmap m_back;
+    bek::pair<u32, u32> m_surface_ids{};
+    friend class Application;
 };
 
-}
+}  // namespace window
 
-#endif //BEKOS_LIBWINDOW_BUTTON_H
+#endif  // BEKOS_LIBWINDOW_WINDOW_H

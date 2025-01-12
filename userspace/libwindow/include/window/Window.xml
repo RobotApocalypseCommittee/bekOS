@@ -25,9 +25,20 @@
         <arg name="id" type="u32"/>
         <arg name="region" type="OwningBitmap"/>
     </request>
+    <request name="reconfigure_surface">
+        <arg name="id" type="u32"/>
+        <arg name="size" type="Vec"/>
+        <arg name="stride" type="u32"/>
+    </request>
+    <request name="destroy_surface">
+        <arg name="id" type="u32"/>
+    </request>
     <request name="create_window">
         <arg name="id" type="u32"/>
-        <arg name="requested_size" type="Rect"/>
+        <arg name="requested_size" type="Vec"/>
+    </request>
+    <request name="destroy_window">
+        <arg name="id" type="u32"/>
     </request>
     <event name="window_state_change">
         <arg name="id" type="u32"/>

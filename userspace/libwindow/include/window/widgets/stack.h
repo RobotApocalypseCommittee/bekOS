@@ -16,20 +16,30 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_LIBWINDOW_BUTTON_H
-#define BEKOS_LIBWINDOW_BUTTON_H
+#ifndef BEKOS_LIBWINDOW_WIDGETS_STACK_H
+#define BEKOS_LIBWINDOW_WIDGETS_STACK_H
+#include <bek/intrusive_shared_ptr.h>
+
 #include "widget.h"
 
 namespace window {
 
-class Button : public Widget {
+class Stack : public Widget {
 public:
-    virtual void on_click();
+    enum class Direction { Left, Down, Right, Up };
+    enum class Alignment { Start, Centre, End };
+    Stack(Direction direction, Alignment main_alignment, Alignment cross_alignment)
+        : Widget(), m_direction(direction), m_main_alignment(main_alignment), m_cross_alignment(cross_alignment) {}
+
+    void add_child(bek::shared_ptr<Widget> child);
+    void remove_child(Widget& child);
 
 private:
-    bek::string m_label;
+    bek::vector<bek::shared_ptr<Widget>> m_children;
+    Direction m_direction;
+    Alignment m_main_alignment;
+    Alignment m_cross_alignment;
 };
+}  // namespace window
 
-}
-
-#endif //BEKOS_LIBWINDOW_BUTTON_H
+#endif  // BEKOS_LIBWINDOW_WIDGETS_STACK_H
