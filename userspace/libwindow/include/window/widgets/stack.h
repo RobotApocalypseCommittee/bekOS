@@ -24,18 +24,17 @@
 
 namespace window {
 
-class Stack : public Widget {
+class Stack : public ContainerWidget {
 public:
     enum class Direction { Left, Down, Right, Up };
     enum class Alignment { Start, Centre, End };
     Stack(Direction direction, Alignment main_alignment, Alignment cross_alignment)
-        : Widget(), m_direction(direction), m_main_alignment(main_alignment), m_cross_alignment(cross_alignment) {}
+        : ContainerWidget(), m_direction(direction), m_main_alignment(main_alignment), m_cross_alignment(cross_alignment) {}
 
-    void add_child(bek::shared_ptr<Widget> child);
-    void remove_child(Widget& child);
+    void paint(RenderContext& ctx, Rect actual_rect) override;
+    Vec do_layout(LayoutConstraints constraints) override;
 
 private:
-    bek::vector<bek::shared_ptr<Widget>> m_children;
     Direction m_direction;
     Alignment m_main_alignment;
     Alignment m_cross_alignment;

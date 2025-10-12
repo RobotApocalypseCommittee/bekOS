@@ -18,6 +18,7 @@
 
 #include <bek/allocations.h>
 #include <bek/own_ptr.h>
+#include <core/file.h>
 #include <core/syscall.h>
 
 #include "ssfn.h"
@@ -36,6 +37,14 @@ window::FontContext& default_context() {
         g_font_context = new window::FontContext();
     }
     return *g_font_context;
+}
+
+ErrorCode load_font(bek::str_view font_path) {
+    auto buf = EXPECTED_TRY(core::read_file(font_path));
+    if (default_context().font.Load(buf.data()) != 0) {
+        return EINVAL;
+    }
+    return ESUCCESS;
 }
 
 core::expected<window::OwningBitmap> window::OwningBitmap::create(u32 width, u32 height) {
@@ -168,6 +177,21 @@ void window::Renderer::paint_bitmap(const OwningBitmap& bitmap, Rect region, Vec
     VERIFY(region.is_within(m_reference_region));
     VERIFY(region.is_positive());
     for (int row = 0; row < region.height(); row++) {
-        bek::memcopy(m_context.pixel_at(region.x(), region.y() + row), bitmap.pixel_at(bitmap_rect.x(), bitmap_rect.y()+row), bitmap_rect.width()*PIXEL_BYTES);
+        bek::memcopy(m_context.pixel_at(region.x(), region.y() + row),
+                     bitmap.pixel_at(bitmap_rect.x(), bitmap_rect.y() + row), bitmap_rect.width() * PIXEL_BYTES);
+    }
+}
+void window::Renderer::paint_bitmap_with_transparency(const OwningBitmap& bitmap, Rect region, Vec bitmap_offset) {
+    Rect bitmap_rect{bitmap_offset, region.size};
+    VERIFY(bitmap_rect.is_within(Rect{{0, 0}, {static_cast<int>(bitmap.width()), static_cast<int>(bitmap.height())}}));
+    region.origin += m_reference_region.origin;
+    VERIFY(region.is_within(m_reference_region));
+    VERIFY(region.is_positive());
+    for (int row = 0; row < region.height(); row++) {
+        for (int col = 0; col < region.width(); col++) {
+
+        }
+        bek::memcopy(m_context.pixel_at(region.x(), region.y() + row),
+                     bitmap.pixel_at(bitmap_rect.x(), bitmap_rect.y() + row), bitmap_rect.width() * PIXEL_BYTES);
     }
 }

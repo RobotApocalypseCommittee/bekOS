@@ -113,6 +113,19 @@ core::expected<uSize> core::BufferedFile::flush_writes(bool preparing_for_read) 
     }
     return 0ull;
 }
+core::expected<bek::vector<u8>> core::read_file(bek::str_view path) {
+    auto fd = EXPECTED_TRY(core::syscall::open(path, sc::OpenFlags::Read, sc::INVALID_ENTITY_ID, nullptr));
+    auto res = [fd]() -> expected<bek::vector<u8>> {
+        auto length = EXPECTED_TRY(core::syscall::seek(fd, sc::SeekLocation::End, 0));
+        EXPECTED_TRY(core::syscall::seek(fd, sc::SeekLocation::Start, 0));
+        bek::vector<u8> buf(length);
+        EXPECTED_TRY(core::syscall::read(fd, 0, buf.data(), length));
+        return buf;
+    }();
+    EXPECTED_TRY(core::syscall::close(fd));
+    return res;
+}
+
 core::expected<uSize> core::BufferedFile::write(const void* buf, uSize len) {
     if (!(open_flags & sc::OpenFlags::Write)) return EBADF;
 

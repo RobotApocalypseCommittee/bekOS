@@ -170,13 +170,20 @@ private:
     long m_ed;
 };
 
-class WindowServerConnection : public window::WindowServerRaw {
+class WindowServerConnection final : public window::WindowServerRaw {
 public:
     struct Window {
         u32 id;
         bek::optional<u32> current_surface_id;
         window::Rect placement;
     };
+
+    struct Surface {
+        window::OwningBitmap bitmap;
+        u32 id;
+        u32 in_use = 0;
+    };
+
     explicit WindowServerConnection(int fd) : WindowServerRaw(fd) {}
     ~WindowServerConnection() override = default;
 
@@ -185,16 +192,16 @@ public:
 
     void on_create_surface(u32 id, window::OwningBitmap region) override {
         // TODO: Replacing surfaces.
-        for (auto& surf : m_surfaces) {
-            if (surf.first == id) return;
-        }
-        m_surfaces.push_back(bek::pair{id, bek::move(region)});
+        if (get_surface(id)) return;
+        m_surfaces.push_back(Surface{
+            .bitmap = bek::move(region),
+            .id = id,
+            .in_use = 0
+        });
         dbgln("Created surface {} ({}x{})"_sv, id, m_surfaces.back().second.width(), m_surfaces.back().second.height());
     }
     void on_create_window(u32 id, window::Vec requested_size) override {
-        for (auto& win : m_windows) {
-            if (win.id == id) return;
-        }
+        if (get_window(id)) return;
         dbgln("Created window {}"_sv, id);
         m_windows.push_back(Window{
             .id = id,
@@ -204,15 +211,20 @@ public:
         starting_coords += 50;
     }
     void on_flip_window(u32 window_id, u32 surface_id) override {
-        for (auto& win : m_windows) {
-            if (win.id != window_id) continue;
-            for (auto& surf : m_surfaces) {
-                if (surf.first != surface_id) continue;
-                win.current_surface_id = surface_id;
-                win.placement.size = window::Vec(surf.second.width(), surf.second.height());
-            }
+        auto* win = get_window(window_id);
+        auto* surf = get_surface(surface_id);
+        if (!win || !surf) {
+            dbgln("Cannot flip (invalid ids): window {}, surface {}"_sv, window_id, surface_id);
+            error(EINVAL);
+            return;
         }
-        dbgln("Cannot flip (invalid ids): window {}, surface {}"_sv, window_id, surface_id);
+        if (win->current_surface_id) {
+            auto old_surf = get_surface(*win->current_surface_id);
+            old_surf->in_use--;
+        }
+        win->current_surface_id = surface_id;
+        surf->in_use++;
+        win->placement.size = window::Vec(surf->bitmap.width(), surf->bitmap.height());
     }
     void on_begin_window_operation(u32 operation) override {};
     void on_ping_response() override { last_pong_time = current_time; }
@@ -230,9 +242,39 @@ public:
             }
         }
     }
+    void on_reconfigure_surface(u32 id, window::Vec size, u32 stride) override;
+    void on_destroy_surface(u32 id) override {
+        auto* surf = get_surface(id);
+        if (surf) {
+            m_surfaces.extract(*surf);
+        }
+    }
+    void on_destroy_window(u32 id) override {
+        auto* win = get_window(id);
+        if (win) {
+            m_windows.extract(*win);
+        }
+    }
 
 private:
-    bek::vector<bek::pair<u32, window::OwningBitmap>> m_surfaces;
+    Window* get_window(u32 id) {
+        for (auto& win: m_windows) {
+            if (win.id == id) {
+                return &win;
+            }
+        }
+        return nullptr;
+    }
+    Surface* get_surface(u32 id) {
+        for (auto& surf: m_surfaces) {
+            if (surf.id == id) {
+                return &surf;
+            }
+        }
+        return nullptr;
+    }
+
+    bek::vector<Surface> m_surfaces;
     bek::vector<Window> m_windows;
     u64 last_ping_time{0};
     u64 last_pong_time{1};

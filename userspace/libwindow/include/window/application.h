@@ -36,25 +36,35 @@ public:
     core::expected<int> main_loop();
     ~Application();
 
+    void quit() { should_quit = true; }
+
 private:
     struct WindowData {
         bek::shared_ptr<Window> window;
         u32 window_id;
+        bool repaint_scheduled;
+        bool relayout_scheduled;
     };
 
     void register_window(bek::shared_ptr<Window> window);
     void remove_window(Window& window);
+
+    void schedule_repaint(Window& window);
+    void schedule_relayout(Window& window);
 
     u32 register_surface(Window& window, const OwningBitmap& bitmap);
     void reregister_surface(Window& window, u32 id, OwningBitmap& bitmap);
 
     void blit_surface(Window& window, u32 id);
 
+    WindowData& window_data(const Window& win);
+
     explicit Application(bek::string name);
     bek::string m_name;
     bek::vector<WindowData> m_windows;
     bek::own_ptr<internal::WindowServerConnection> m_connection;
     bek::vector<bool> m_surfaces_allocated;
+    bool should_quit{};
     friend class Window;
 };
 

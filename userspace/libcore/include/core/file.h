@@ -67,6 +67,9 @@ public:
 private:
     core::BufferedFile& m_f;
 };
+
+core::expected<bek::vector<u8>> read_file(bek::str_view path);
+
 }  // namespace core
 
 #endif  // BEKOS_CORE_FILE_H

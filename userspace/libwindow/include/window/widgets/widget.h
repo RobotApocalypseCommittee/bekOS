@@ -27,25 +27,43 @@
 #include <window/gfx.h>
 
 namespace window {
+class RootWidget;
 
 struct LayoutConstraints {
     Vec max_size;
     Vec min_size;
 };
 
+
 class Widget: public bek::RefCounted<Widget> {
 public:
     virtual ~Widget() = default;
 
+    // Hierarchy
+    Widget* parent() const {
+        VERIFY(m_parent);
+        return m_parent;
+    }
+
+    virtual bool is_root() const { return false; }
+
+    void set_parent(Widget& parent) {
+        VERIFY(!m_parent);
+        m_parent = &parent;
+    }
+
     // Children
-    virtual bek::span<bek::shared_ptr<Widget>> children();
+    virtual bek::span<bek::shared_ptr<Widget>> children() { return {}; }
 
     Widget& hit_test(Vec position, Vec* position_in_widget = nullptr);
 
     // Layout
     Rect relative_rect() const { return m_relative_rect; }
-    virtual Vec layout_size(LayoutConstraints constraints) const;
-    void set_layout(Rect relative_rect) { m_relative_rect = relative_rect; };
+    virtual Vec do_layout(LayoutConstraints constraints) = 0;
+    void set_layout(Rect relative_rect) { m_relative_rect = relative_rect; }
+
+    void invalidate_layout();
+
 
     // Events
     virtual bool on_mouse_up(const MouseEvent& event);
@@ -57,9 +75,49 @@ public:
     // Painting
     virtual void paint(RenderContext& ctx, Rect actual_rect);
 
+    void update();
+
+protected:
+    void unset_parent() { m_parent = nullptr; }
+    RootWidget* get_root();
+
 private:
     Rect m_relative_rect{};
     Widget* m_parent{};
+
+    friend class ContainerWidget;
+};
+
+
+
+class ContainerWidget: public Widget {
+public:
+    bek::span<bek::shared_ptr<Widget>> children() override { return bek::span{m_children.begin(), m_children.end()}; }
+
+    void add_widget(Widget& widget) {
+        m_children.push_back({&widget});
+        widget.set_parent(*this);
+        on_add_widget(widget);
+    }
+
+    ~ContainerWidget() override {
+        for (auto& w: m_children) {
+            w->unset_parent();
+        }
+    }
+    void remove_child(Widget& widget) {
+        for (const auto& w: m_children) {
+            if (w == &widget) {
+                auto widget_ref = m_children.extract(w);
+                widget_ref->unset_parent();
+                return;
+            }
+        }
+    }
+protected:
+    virtual void on_add_widget(Widget&) {}
+private:
+    bek::vector<bek::shared_ptr<Widget>> m_children;
 };
 
 }  // namespace window

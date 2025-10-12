@@ -50,26 +50,34 @@
     </request>
 
     <request name="begin_window_operation">
+        <arg name="window_id" type="u32"/>
         <arg name="operation" type="u32"/>
     </request>
 
-
     <event name="mouse_move">
+        <arg name="window_id" type="u32"/>
         <arg name="position" type="Vec"/>
         <arg name="buttons" type="u32"/>
     </event>
     <event name="mouse_click">
+        <arg name="window_id" type="u32"/>
         <arg name="position" type="Vec"/>
         <arg name="buttons" type="u32"/>
     </event>
     <event name="keydown">
+        <arg name="window_id" type="u32"/>
         <arg name="codepoint" type="u32"/>
     </event>
     <event name="keyup">
+        <arg name="window_id" type="u32"/>
         <arg name="codepoint" type="u32"/>
     </event>
 
     <event name="ping" type="sync">
         <response name="pong"/>
+    </event>
+
+    <event name="error">
+        <arg name="code" type="ErrorCode"/>
     </event>
 </data>

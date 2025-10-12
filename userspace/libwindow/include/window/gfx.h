@@ -103,6 +103,7 @@ public:
     void paint_border(Colour c, Rect location, u32 thickness);
     Rect paint_text(Colour c, bek::str_view text, Rect region, TextAlignment alignment);
     void paint_bitmap(const OwningBitmap& bitmap, Rect region, Vec bitmap_offset);
+    void paint_bitmap_with_transparency(const OwningBitmap& bitmap, Rect region, Vec bitmap_offset);
 
 private:
     const RenderContext& m_context;

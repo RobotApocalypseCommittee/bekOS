@@ -22,6 +22,7 @@
 #include <bek/optional.h>
 
 #include "gfx.h"
+#include "widgets/root.h"
 
 namespace window {
 
@@ -31,18 +32,31 @@ class Window final : public bek::RefCounted<Window> {
 public:
     static core::expected<bek::shared_ptr<Window>> create(Vec size);
     Window(Vec size, OwningBitmap front, OwningBitmap back);
+
+    Vec size() const { return m_size; }
     void show(Application& app);
     void unshow();
-    Rect paint();
     ~Window();
+
+    void relayout();
+    Rect paint_and_flip();
+
+    void queue_relayout();
+    void queue_repaint(Rect rect);
+
+    void on_mouse_move(MouseEvent evt);
 
 private:
     bek::shared_ptr<Application> m_application;
+    bek::shared_ptr<Widget> m_hovered_widget;
     bek::optional<u32> m_id;
     Vec m_size;
     OwningBitmap m_front;
     OwningBitmap m_back;
     bek::pair<u32, u32> m_surface_ids{};
+    RootWidget m_root_widget;
+    Rect m_dirty_rect;
+    Rect m_previous_dirty_rect;
     friend class Application;
 };
 

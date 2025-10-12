@@ -24,6 +24,8 @@ namespace window {
 
 class Button : public Widget {
 public:
+    Vec do_layout(LayoutConstraints constraints) override;
+    void paint(RenderContext& ctx, Rect actual_rect) override;
     virtual void on_click();
 
 private:

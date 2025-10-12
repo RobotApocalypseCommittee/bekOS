@@ -19,7 +19,13 @@
 #include <window/application.h>
 
 window::Window::Window(Vec size, OwningBitmap front, OwningBitmap back)
-    : m_application{nullptr}, m_id{}, m_size{size}, m_front(bek::move(front)), m_back(bek::move(back)) {}
+    : m_application{nullptr},
+      m_id{},
+      m_size{size},
+      m_front(bek::move(front)),
+      m_back(bek::move(back)),
+      m_root_widget(*this) {}
+
 void window::Window::show(Application& app) {
     if (m_application == &app) return;
     if (m_application) {
@@ -38,6 +44,73 @@ void window::Window::unshow() {
 
 window::Window::~Window() = default;
 
-core::expected<bek::shared_ptr<window::Window>> window::Window::create(Vec size) {
-    return bek::adopt_shared(new Window(size, EXPECTED_TRY(OwningBitmap::create(size.x, size.y)), EXPECTED_TRY(OwningBitmap::create(size.x, size.y))));
+void window::Window::relayout() {
+    auto sz = m_root_widget.do_layout({m_size, m_size});
+    m_root_widget.set_layout({{0, 0}, sz});
+    m_dirty_rect = {{0, 0}, m_size};
 }
+
+window::Rect window::Window::paint_and_flip() {
+    auto render_ctx = RenderContext::create(m_back.buffer(), m_back.stride(), m_back.width(), m_back.height());
+    {
+        auto confinement = bek::exchange(m_previous_dirty_rect, m_dirty_rect);
+        auto painter = Renderer{render_ctx, confinement};
+        painter.paint_bitmap(m_front, {{}, confinement.size}, confinement.origin);
+    }
+
+    render_ctx.confinement = bek::exchange(m_dirty_rect, {{0, 0}, {0, 0}});
+    m_root_widget.paint(render_ctx, {{}, m_size});
+    m_application->blit_surface(*this, m_surface_ids.second);
+    bek::swap(m_front, m_back);
+    bek::swap(m_surface_ids.first, m_surface_ids.second);
+}
+void window::Window::queue_relayout() { m_application->schedule_relayout(*this); }
+void window::Window::queue_repaint(Rect rect) {
+    m_dirty_rect = m_dirty_rect.union_with(rect);
+    m_application->schedule_repaint(*this);
+}
+void window::Window::on_mouse_move(MouseEvent mouse_event) {
+    auto& widget = m_root_widget.hit_test(mouse_event.location);
+    if (m_hovered_widget != &widget) {
+        {
+            bek::shared_ptr<Widget> new_hovered{&widget};
+            m_hovered_widget->on_mouse_leave(mouse_event);
+            m_hovered_widget = bek::move(new_hovered);
+        }
+        m_hovered_widget->on_mouse_enter(mouse_event);
+    } else {
+        m_hovered_widget->on_mouse_move(mouse_event);
+    }
+}
+
+core::expected<bek::shared_ptr<window::Window>> window::Window::create(Vec size) {
+    return bek::adopt_shared(new Window(size, EXPECTED_TRY(OwningBitmap::create(size.x, size.y)),
+                                        EXPECTED_TRY(OwningBitmap::create(size.x, size.y))));
+}
+
+#pragma region RootWidget
+
+void window::RootWidget::notify_relayout_needed() { m_window.queue_relayout(); }
+void window::RootWidget::notify_repaint_needed(Rect invalid_rect) { m_window.queue_repaint(invalid_rect); }
+
+window::Vec window::RootWidget::do_layout(LayoutConstraints constraints) {
+    // We centre our only widget
+    if (m_widget) {
+        auto sz = m_widget->do_layout({constraints.max_size, {0, 0}});
+        auto pos = (constraints.max_size - sz) / 2;
+        m_widget->set_layout({pos, sz});
+    }
+    return constraints.max_size;
+}
+
+void window::RootWidget::paint(RenderContext& ctx, Rect actual_rect) {
+    if (!ctx.confinement.is_within(m_widget->relative_rect())) {
+        Renderer renderer{ctx, actual_rect};
+        renderer.paint_rect(0xAAAAAAAA, actual_rect);
+    }
+    m_widget->paint(ctx, m_widget->relative_rect());
+}
+
+window::RootWidget::RootWidget(Window& window) : m_window(window) {}
+
+#pragma endregion

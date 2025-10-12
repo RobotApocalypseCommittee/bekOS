@@ -44,6 +44,10 @@ struct Vec {
   friend Vec operator*(const Vec& v, int a) {
     return {v.x * a, v.y * a};
   }
+
+  friend Vec operator/(const Vec& v, int a) {
+    return {v.x / a, v.y / a};
+  }
   bool positive() const {
     return (x >= 0) && (y >= 0);
   }
@@ -67,6 +71,7 @@ struct Rect {
   ALWAYS_INLINE int bottom() const { return (origin + size).y; }
 
   bool is_positive() const { return origin.x >= 0 && origin.y >= 0 && size.x >= 0 && size.y >= 0; }
+  bool is_null() const { return size.x == 0 && size.y == 0; }
 
   bool is_within(const Rect& r) const {
     return intersection(r) == *this;
@@ -77,6 +82,11 @@ struct Rect {
     return i.width() || i.height();
   }
 
+  bool contains(Vec v) const {
+    auto rel = v - origin;
+    return rel.positive() && rel.x < width() && rel.y < height();
+  }
+
   Rect intersection(const Rect& r) const {
     Vec new_pos = {static_cast<int>(bek::max(x(), r.x())), static_cast<int>(bek::max(y(), r.y()))};
     Vec new_extent = {
@@ -84,6 +94,14 @@ struct Rect {
       bek::max(bek::min(bottom(), r.bottom()), new_pos.y)
     };
     return {new_pos, new_extent - new_pos};
+  }
+
+  Rect union_with(const Rect& r) const {
+    if (r.is_null()) return *this;
+    if (is_null()) return r;
+    Vec new_origin = {bek::min(x(), r.x()), bek::min(y(), r.y())};
+    Vec new_extent = {bek::max(right(), r.right()), bek::max(bottom(), r.bottom())};
+    return {new_origin, new_extent - new_origin};
   }
 
   friend bool operator==(const Rect &, const Rect &) = default;

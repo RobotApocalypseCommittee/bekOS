@@ -34,6 +34,24 @@ public:
 bek::shared_ptr<window::Application> window::Application::create(bek::string name) {
     return new Application(bek::move(name));
 }
+core::expected<int> window::Application::main_loop() {
+    should_quit = false;
+    while (!should_quit) {
+        EXPECT_SUCCESS(m_connection->poll());
+        for (auto& win: m_windows) {
+            if (win.relayout_scheduled) {
+                win.window->relayout();
+                win.relayout_scheduled = false;
+            }
+            if (win.repaint_scheduled) {
+                win.window->paint_and_flip();
+                win.repaint_scheduled = false;
+            }
+        }
+    }
+    return 0;
+
+}
 window::Application::~Application() = default;
 
 void window::Application::blit_surface(Window& window, u32 id) {
@@ -43,6 +61,14 @@ void window::Application::blit_surface(Window& window, u32 id) {
             return;
         }
     }
+}
+window::Application::WindowData& window::Application::window_data(const Window& win) {
+    for (auto& held_win : m_windows) {
+        if (held_win.window == &win) {
+            return held_win;
+        }
+    }
+    ASSERT_UNREACHABLE();
 }
 window::Application::Application(bek::string name) : m_name(bek::move(name)) {}
 
@@ -54,7 +80,7 @@ void window::Application::register_window(bek::shared_ptr<Window> window) {
             next_id = held_window.window_id + 1;
         }
     }
-    m_windows.push_back({bek::move(window), next_id});
+    m_windows.push_back({bek::move(window), next_id, true, true});
     m_connection->create_window(next_id, m_windows.back().window->m_size);
 }
 
@@ -65,6 +91,14 @@ void window::Application::remove_window(Window& window) {
         }
     }
     // TODO: Remove from windowserver!
+}
+void window::Application::schedule_repaint(Window& window) {
+    auto& data = window_data(window);
+    data.repaint_scheduled = true;
+}
+void window::Application::schedule_relayout(Window& window) {
+    auto& data = window_data(window);
+    data.relayout_scheduled = true;
 }
 u32 window::Application::register_surface(Window& window, const OwningBitmap& bitmap) {
     u32 id = 0;
