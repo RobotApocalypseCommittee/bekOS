@@ -1,5 +1,5 @@
 // bekOS is a basic OS for the Raspberry Pi
-// Copyright (C) 2025 Bekos Contributors
+// Copyright (C) 2025-2026 Bekos Contributors
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -13,12 +13,46 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+// ---
+//
+// Adapted from ssfn.h
+// https://gitlab.com/bztsrc/scalable-font2
+//
+// Copyright (C) 2020 - 2024 bzt
+//
+// Permission is hereby granted, free of charge, to any person
+// obtaining a copy of this software and associated documentation
+// files (the "Software"), to deal in the Software without
+// restriction, including without limitation the rights to use, copy,
+// modify, merge, publish, distribute, sublicense, and/or sell copies
+// of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
 
-//
-// Created by Joe Bell on 14/12/2024.
-//
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+// HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+// WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+// DEALINGS IN THE SOFTWARE.
 
 #include "ssfn.h"
+
+// Declared in libcore/allocation.cpp (C++ linkage, no header).
+void* realloc(void* ptr, uSize size);
+void free(void* ptr);
+
+static void* ssfn_realloc(void* ptr, uSize size) { return realloc(ptr, size); }
+
+static void ssfn_free(void* ptr) { free(ptr); }
+
+#define SSFN_realloc ssfn_realloc
+#define SSFN_free ssfn_free
 
 extern "C" {
 
@@ -99,7 +133,8 @@ static u8* _ssfn_c(const ssfn_font_t* font, const char* str, int* len, u32* unic
 
     if (font->ligature_offs) {
         for (l = (u16*)((u8*)font + font->ligature_offs), i = 0; l[i] && u == -1U; i++) {
-            for (ptr = (u8*)font + l[i], s = (u8*)str; *ptr && *ptr == *s; ptr++, s++) {}
+            for (ptr = (u8*)font + l[i], s = (u8*)str; *ptr && *ptr == *s; ptr++, s++) {
+            }
             if (!*ptr) {
                 u = SSFN_LIG_FIRST + i;
                 break;

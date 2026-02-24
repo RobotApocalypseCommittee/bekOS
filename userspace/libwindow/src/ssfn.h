@@ -1,5 +1,5 @@
 // bekOS is a basic OS for the Raspberry Pi
-// Copyright (C) 2025 Bekos Contributors
+// Copyright (C) 2025-2026 Bekos Contributors
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -13,6 +13,33 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+// ---
+//
+// Adapted from ssfn.h
+// https://gitlab.com/bztsrc/scalable-font2
+//
+// Copyright (C) 2020 - 2024 bzt
+//
+// Permission is hereby granted, free of charge, to any person
+// obtaining a copy of this software and associated documentation
+// files (the "Software"), to deal in the Software without
+// restriction, including without limitation the rights to use, copy,
+// modify, merge, publish, distribute, sublicense, and/or sell copies
+// of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+// HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+// WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+// DEALINGS IN THE SOFTWARE.
 
 #ifndef BEKOS_LIBWINDOW_SSFN_H
 #define BEKOS_LIBWINDOW_SSFN_H
@@ -102,7 +129,7 @@ typedef struct {
 #define SSFN_STYLE_NOSMOOTH 8192  /* no edge-smoothing for bitmaps */
 
 /* error codes */
-#define SSFN_OK 0            /* success */
+#define SSFN_OK 0              /* success */
 #define SSFN_ERR_ALLOC (-1)    /* allocation error */
 #define SSFN_ERR_BADFILE (-2)  /* bad SSFN file format */
 #define SSFN_ERR_NOFACE (-3)   /* no font face selected */
@@ -221,8 +248,20 @@ public:
     }
     int Render(ssfn_buf_t* dst, bek::str_view str) { return ssfn_render(&this->ctx, dst, (const char*)str.data()); }
     int Render(ssfn_buf_t* dst, const char* str) { return ssfn_render(&this->ctx, dst, str); }
+    int RenderString(ssfn_buf_t* dst, bek::str_view str) {
+        const char* s = str.data();
+        const char* end = s + str.size();
+        int ret = 0;
+        while (s < end) {
+            ret = ssfn_render(&this->ctx, dst, s);
+            if (ret <= 0) break;
+            s += ret;
+        }
+        return ret;
+    }
     int BBox(bek::str_view str, int* w, int* h, int* left, int* top) {
-        return ssfn_bbox(&this->ctx, (const char*)str.data(), w, h, left, top);
+        bek::string s{str};
+        return ssfn_bbox(&this->ctx, s.data(), w, h, left, top);
     }
     int BBox(const char* str, int* w, int* h, int* left, int* top) {
         return ssfn_bbox(&this->ctx, str, w, h, left, top);

@@ -1,5 +1,5 @@
 // bekOS is a basic OS for the Raspberry Pi
-// Copyright (C) 2025 Bekos Contributors
+// Copyright (C) 2025-2026 Bekos Contributors
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,26 +25,28 @@
 
 inline constexpr uSize PIXEL_BYTES = 4;
 
-
 struct window::FontContext {
     SSFN::Font font;
 };
 
 window::FontContext* g_font_context = nullptr;
 
-window::FontContext& default_context() {
-    if (!g_font_context) {
-        g_font_context = new window::FontContext();
-    }
-    return *g_font_context;
-}
-
 ErrorCode load_font(bek::str_view font_path) {
     auto buf = EXPECTED_TRY(core::read_file(font_path));
-    if (default_context().font.Load(buf.data()) != 0) {
+    if (g_font_context->font.Load(buf.data()) != 0) {
         return EINVAL;
     }
     return ESUCCESS;
+}
+
+window::FontContext& default_context() {
+    if (!g_font_context) {
+        g_font_context = new window::FontContext();
+        auto err = load_font("/res/FreeSans.sfn"_sv);
+        VERIFY(err == ESUCCESS);
+        g_font_context->font.Select(SSFN_FAMILY_SANS, "", SSFN_STYLE_REGULAR, 20);
+    }
+    return *g_font_context;
 }
 
 core::expected<window::OwningBitmap> window::OwningBitmap::create(u32 width, u32 height) {
@@ -64,6 +66,20 @@ core::expected<window::OwningBitmap> window::OwningBitmap::create_from_ipc(void*
                                                                            u32 height, u32 stride) {
     return OwningBitmap{static_cast<u8*>(buffer), buffer_size, stride, width, height};
 }
+bool window::OwningBitmap::try_resize(u32 width, u32 height) {
+    u32 stride = bek::align_up(width * 4u, 64u);
+    return try_resize(width, height, stride);
+}
+bool window::OwningBitmap::try_resize(u32 width, u32 height, u32 stride) {
+    uSize buf_size = stride * static_cast<uSize>(height);
+    if (buf_size > m_buffer_size) {
+        return false;
+    }
+    m_stride = stride;
+    m_width = width;
+    m_height = height;
+    return true;
+}
 window::OwningBitmap::OwningBitmap(OwningBitmap&& other) noexcept
     : m_buffer(bek::exchange(other.m_buffer, nullptr)),
       m_buffer_size(bek::exchange(other.m_buffer_size, 0)),
@@ -80,7 +96,9 @@ window::OwningBitmap& window::OwningBitmap::operator=(OwningBitmap&& other) noex
     return *this;
 }
 window::OwningBitmap::~OwningBitmap() {
-    core::syscall::deallocate(reinterpret_cast<uPtr>(m_buffer), m_buffer_size);
+    if (m_buffer || m_buffer_size) {
+        core::syscall::deallocate(reinterpret_cast<uPtr>(m_buffer), m_buffer_size);
+    }
 }
 window::OwningBitmap window::OwningBitmap::create_null() { return {nullptr, 0, 0, 0, 0}; }
 
@@ -94,7 +112,8 @@ window::RenderContext window::RenderContext::create(void* buffer, u32 stride, u3
         .font_context = default_context(),
     };
 }
-window::Renderer::Renderer(const RenderContext& context, Rect reference_region): m_context(context), m_reference_region(reference_region) {}
+window::Renderer::Renderer(const RenderContext& context, Rect reference_region)
+    : m_context(context), m_reference_region(reference_region) {}
 void window::Renderer::paint_rect(Colour c, Rect location) {
     location.origin += m_reference_region.origin;
     VERIFY(location.is_within(m_reference_region));
@@ -167,7 +186,7 @@ window::Rect window::Renderer::paint_text(Colour c, bek::str_view text, Rect reg
         .fg = c,
         .bg = 0,
     };
-    m_context.font_context.font.Render(&buf, text);
+    m_context.font_context.font.RenderString(&buf, text);
     return {region.origin - m_reference_region.origin, region.size};
 }
 void window::Renderer::paint_bitmap(const OwningBitmap& bitmap, Rect region, Vec bitmap_offset) {
@@ -189,9 +208,13 @@ void window::Renderer::paint_bitmap_with_transparency(const OwningBitmap& bitmap
     VERIFY(region.is_positive());
     for (int row = 0; row < region.height(); row++) {
         for (int col = 0; col < region.width(); col++) {
-
         }
         bek::memcopy(m_context.pixel_at(region.x(), region.y() + row),
                      bitmap.pixel_at(bitmap_rect.x(), bitmap_rect.y() + row), bitmap_rect.width() * PIXEL_BYTES);
     }
+}
+window::Vec window::measure_text(bek::str_view text) {
+    int w, h, l, t;
+    default_context().font.BBox(text, &w, &h, &l, &t);
+    return {w, h};
 }

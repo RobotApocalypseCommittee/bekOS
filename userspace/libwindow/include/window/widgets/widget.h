@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2025 Bekos Contributors
+ * Copyright (C) 2025-2026 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include <bek/intrusive_shared_ptr.h>
 #include <bek/span.h>
 #include <bek/vector.h>
+
 #include <window/core.h>
 #include <window/events.h>
 #include <window/gfx.h>
@@ -33,7 +34,6 @@ struct LayoutConstraints {
     Vec max_size;
     Vec min_size;
 };
-
 
 class Widget: public bek::RefCounted<Widget> {
 public:
@@ -64,7 +64,6 @@ public:
 
     void invalidate_layout();
 
-
     // Events
     virtual bool on_mouse_up(const MouseEvent& event);
     virtual bool on_mouse_down(const MouseEvent& event);
@@ -86,9 +85,8 @@ private:
     Widget* m_parent{};
 
     friend class ContainerWidget;
+    friend class RootWidget;
 };
-
-
 
 class ContainerWidget: public Widget {
 public:
@@ -101,12 +99,12 @@ public:
     }
 
     ~ContainerWidget() override {
-        for (auto& w: m_children) {
+        for (auto& w : m_children) {
             w->unset_parent();
         }
     }
     void remove_child(Widget& widget) {
-        for (const auto& w: m_children) {
+        for (const auto& w : m_children) {
             if (w == &widget) {
                 auto widget_ref = m_children.extract(w);
                 widget_ref->unset_parent();
@@ -114,8 +112,10 @@ public:
             }
         }
     }
+
 protected:
     virtual void on_add_widget(Widget&) {}
+
 private:
     bek::vector<bek::shared_ptr<Widget>> m_children;
 };

@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2025 Bekos Contributors
+ * Copyright (C) 2025-2026 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
  */
 
 #include "window/widgets/widget.h"
+
+#include <window/widgets/root.h>
 
 window::Widget& window::Widget::hit_test(Vec position, Vec* position_in_widget) {
     auto* current_widget = this;
@@ -38,7 +40,7 @@ window::Widget& window::Widget::hit_test(Vec position, Vec* position_in_widget) 
 }
 void window::Widget::invalidate_layout() {
     if (auto* root = get_root()) {
-        //root->notify_relayout_needed();
+        root->notify_relayout_needed();
     }
 }
 void window::Widget::update() {
@@ -64,3 +66,11 @@ window::RootWidget* window::Widget::get_root() {
         return nullptr;
     }
 }
+
+bool window::Widget::on_mouse_up(const MouseEvent&) { return false; }
+bool window::Widget::on_mouse_down(const MouseEvent&) { return false; }
+bool window::Widget::on_mouse_move(const MouseEvent&) { return false; }
+bool window::Widget::on_mouse_enter(const MouseEvent&) { return false; }
+bool window::Widget::on_mouse_leave(const MouseEvent&) { return false; }
+
+void window::Widget::paint(RenderContext&, Rect) {}

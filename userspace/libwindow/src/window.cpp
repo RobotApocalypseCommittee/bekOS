@@ -1,5 +1,5 @@
 // bekOS is a basic OS for the Raspberry Pi
-// Copyright (C) 2025 Bekos Contributors
+// Copyright (C) 2025-2026 Bekos Contributors
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,6 +25,13 @@ window::Window::Window(Vec size, OwningBitmap front, OwningBitmap back)
       m_front(bek::move(front)),
       m_back(bek::move(back)),
       m_root_widget(*this) {}
+
+void window::Window::set_content(bek::shared_ptr<Widget> widget) {
+    m_root_widget.set_widget(bek::move(widget));
+    if (m_application) {
+        queue_relayout();
+    }
+}
 
 void window::Window::show(Application& app) {
     if (m_application == &app) return;
@@ -63,6 +70,7 @@ window::Rect window::Window::paint_and_flip() {
     m_application->blit_surface(*this, m_surface_ids.second);
     bek::swap(m_front, m_back);
     bek::swap(m_surface_ids.first, m_surface_ids.second);
+    return render_ctx.confinement;
 }
 void window::Window::queue_relayout() { m_application->schedule_relayout(*this); }
 void window::Window::queue_repaint(Rect rect) {
@@ -90,6 +98,16 @@ core::expected<bek::shared_ptr<window::Window>> window::Window::create(Vec size)
 
 #pragma region RootWidget
 
+void window::RootWidget::set_widget(bek::shared_ptr<Widget> widget) {
+    if (m_widget) {
+        m_widget->unset_parent();
+    }
+    m_widget = bek::move(widget);
+    if (m_widget) {
+        m_widget->set_parent(*this);
+    }
+}
+
 void window::RootWidget::notify_relayout_needed() { m_window.queue_relayout(); }
 void window::RootWidget::notify_repaint_needed(Rect invalid_rect) { m_window.queue_repaint(invalid_rect); }
 
@@ -104,13 +122,15 @@ window::Vec window::RootWidget::do_layout(LayoutConstraints constraints) {
 }
 
 void window::RootWidget::paint(RenderContext& ctx, Rect actual_rect) {
-    if (!ctx.confinement.is_within(m_widget->relative_rect())) {
-        Renderer renderer{ctx, actual_rect};
+    Renderer renderer{ctx, actual_rect};
+    if (!m_widget || !ctx.confinement.is_within(m_widget->relative_rect())) {
         renderer.paint_rect(0xAAAAAAAA, actual_rect);
     }
-    m_widget->paint(ctx, m_widget->relative_rect());
+    if (m_widget) {
+        m_widget->paint(ctx, m_widget->relative_rect());
+    }
 }
 
-window::RootWidget::RootWidget(Window& window) : m_window(window) {}
+window::RootWidget::RootWidget(Window& window): m_window(window) {}
 
 #pragma endregion

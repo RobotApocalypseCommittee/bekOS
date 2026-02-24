@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2025 Bekos Contributors
+ * Copyright (C) 2025-2026 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,9 +29,9 @@ namespace internal {
 class WindowServerConnection;
 }
 
-class Application final : public bek::RefCounted<Application> {
+class Application final: public bek::RefCounted<Application> {
 public:
-    static bek::shared_ptr<Application> create(bek::string name);
+    static core::expected<bek::shared_ptr<Application>> create(bek::string name);
 
     core::expected<int> main_loop();
     ~Application();

@@ -1,0 +1,2 @@
+bekos_program(about SOURCES about.cpp)
+target_link_libraries(program_about PUBLIC bekos_libcore bekos_libwindow)

@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2025 Bekos Contributors
+ * Copyright (C) 2025-2026 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,27 +18,52 @@
 
 #include "window/application.h"
 
+#include <core/syscall.h>
+
 #include <window/Window.gen.h>
 
-class window::internal::WindowServerConnection : public WindowClientRaw {
+class window::internal::WindowServerConnection: public WindowClientRaw {
 public:
     using WindowClientRaw::WindowClientRaw;
     void on_window_state_change(u32 id, window::Rect size) override;
-    void on_mouse_move(window::Vec position, u32 buttons) override;
-    void on_mouse_click(window::Vec position, u32 buttons) override;
-    void on_keydown(u32 codepoint) override;
-    void on_keyup(u32 codepoint) override;
+    void on_mouse_move(u32 window_id, Vec position, u32 buttons) override;
+    void on_mouse_click(u32 window_id, Vec position, u32 buttons) override;
+    void on_keydown(u32 window_id, u32 codepoint) override;
+    void on_keyup(u32 window_id, u32 codepoint) override;
     void on_ping() override { ping_response(); }
+    void on_error(ErrorCode code) override;
 };
 
-bek::shared_ptr<window::Application> window::Application::create(bek::string name) {
-    return new Application(bek::move(name));
+void window::internal::WindowServerConnection::on_window_state_change(u32 id, window::Rect size) {
+    // TODO: Handle window resize from server
+}
+void window::internal::WindowServerConnection::on_mouse_move(u32 window_id, Vec position, u32 buttons) {
+    // TODO: Dispatch to window
+}
+void window::internal::WindowServerConnection::on_mouse_click(u32 window_id, Vec position, u32 buttons) {
+    // TODO: Dispatch to window
+}
+void window::internal::WindowServerConnection::on_keydown(u32 window_id, u32 codepoint) {
+    // TODO: Dispatch to window
+}
+void window::internal::WindowServerConnection::on_keyup(u32 window_id, u32 codepoint) {
+    // TODO: Dispatch to window
+}
+void window::internal::WindowServerConnection::on_error(ErrorCode code) {
+    // TODO: Handle error from server
+}
+
+core::expected<bek::shared_ptr<window::Application>> window::Application::create(bek::string name) {
+    auto fd = EXPECTED_TRY(core::syscall::interlink::connect("windowserver"_sv, 0));
+    auto app = bek::adopt_shared(new Application(bek::move(name)));
+    app->m_connection = bek::make_own<internal::WindowServerConnection>(fd);
+    return app;
 }
 core::expected<int> window::Application::main_loop() {
     should_quit = false;
     while (!should_quit) {
         EXPECT_SUCCESS(m_connection->poll());
-        for (auto& win: m_windows) {
+        for (auto& win : m_windows) {
             if (win.relayout_scheduled) {
                 win.window->relayout();
                 win.relayout_scheduled = false;
@@ -50,7 +75,6 @@ core::expected<int> window::Application::main_loop() {
         }
     }
     return 0;
-
 }
 window::Application::~Application() = default;
 
@@ -70,7 +94,7 @@ window::Application::WindowData& window::Application::window_data(const Window& 
     }
     ASSERT_UNREACHABLE();
 }
-window::Application::Application(bek::string name) : m_name(bek::move(name)) {}
+window::Application::Application(bek::string name): m_name(bek::move(name)) {}
 
 void window::Application::register_window(bek::shared_ptr<Window> window) {
     u32 next_id = 0;
@@ -114,4 +138,8 @@ u32 window::Application::register_surface(Window& window, const OwningBitmap& bi
     }
     m_connection->create_surface(id, bitmap);
     return id;
+}
+void window::Application::reregister_surface(Window& window, u32 id, OwningBitmap& bitmap) {
+    m_connection->reconfigure_surface(id, {static_cast<int>(bitmap.width()), static_cast<int>(bitmap.height())},
+                                      bitmap.stride());
 }

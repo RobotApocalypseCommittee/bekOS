@@ -1,5 +1,5 @@
 // bekOS is a basic OS for the Raspberry Pi
-// Copyright (C) 2025 Bekos Contributors
+// Copyright (C) 2025-2026 Bekos Contributors
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 #include <bek/str.h>
 #include <core/error.h>
 
-#include "core.h"
+#include "window/core.h"
 
 namespace window {
 
@@ -47,9 +47,10 @@ public:
 
     /**
      * resizes the buffer.
-     * @return True indicates the buffer had to be reallocated, false otherwise.
+     * @return True indicates the bitmap was successfully resized.
      */
-    [[nodiscard]] bool resize(u32 width, u32 height);
+    [[nodiscard]] bool try_resize(u32 width, u32 height);
+    [[nodiscard]] bool try_resize(u32 width, u32 height, u32 stride);
 
     OwningBitmap(const OwningBitmap& other) = delete;
     OwningBitmap& operator=(const OwningBitmap& other) = delete;
@@ -109,6 +110,8 @@ private:
     const RenderContext& m_context;
     Rect m_reference_region;
 };
+Vec measure_text(bek::str_view text);
+
 }  // namespace window
 
 #endif  // BEKOS_WINDOW_GFX_H

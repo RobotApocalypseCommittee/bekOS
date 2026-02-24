@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2025 Bekos Contributors
+ * Copyright (C) 2025-2026 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,16 +16,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <api/protocols/fb.h>
-#include <api/protocols/kb.h>
-#include <api/protocols/mouse.h>
 #include <bek/optional.h>
 #include <bek/own_ptr.h>
 #include <core/device.h>
 #include <core/io.h>
 #include <core/syscall.h>
-#include <window/Window.gen.h>
 
+#include <api/protocols/fb.h>
+#include <api/protocols/kb.h>
+#include <api/protocols/mouse.h>
+#include <window/Window.gen.h>
 
 u64 current_time;
 i32 starting_coords;
@@ -128,7 +128,7 @@ struct KbdDevice {
     }
 
 private:
-    KbdDevice(const protocols::kb::Report& last_report, long ed) : m_last_report(last_report), m_ed(ed) {}
+    KbdDevice(const protocols::kb::Report& last_report, long ed): m_last_report(last_report), m_ed(ed) {}
 
     protocols::kb::Report m_last_report;
     long m_ed;
@@ -163,14 +163,14 @@ struct MouseDevice {
     bool is_clicked(u8 button) const { return m_last_report.buttons & (1 << button); }
 
 private:
-    MouseDevice(window::Rect bounds, long ed) : m_bounds(bounds), m_ed(ed) {}
+    MouseDevice(window::Rect bounds, long ed): m_bounds(bounds), m_ed(ed) {}
     protocols::mouse::Report m_last_report{};
     window::Vec m_location{};
     window::Rect m_bounds;
     long m_ed;
 };
 
-class WindowServerConnection final : public window::WindowServerRaw {
+class WindowServerConnection final: public window::WindowServerRaw {
 public:
     struct Window {
         u32 id;
@@ -184,21 +184,14 @@ public:
         u32 in_use = 0;
     };
 
-    explicit WindowServerConnection(int fd) : WindowServerRaw(fd) {}
+    explicit WindowServerConnection(int fd): WindowServerRaw(fd) {}
     ~WindowServerConnection() override = default;
-
-
-
 
     void on_create_surface(u32 id, window::OwningBitmap region) override {
         // TODO: Replacing surfaces.
         if (get_surface(id)) return;
-        m_surfaces.push_back(Surface{
-            .bitmap = bek::move(region),
-            .id = id,
-            .in_use = 0
-        });
-        dbgln("Created surface {} ({}x{})"_sv, id, m_surfaces.back().second.width(), m_surfaces.back().second.height());
+        m_surfaces.push_back(Surface{.bitmap = bek::move(region), .id = id, .in_use = 0});
+        dbgln("Created surface {} ({}x{})"_sv, id, m_surfaces.back().bitmap.width(), m_surfaces.back().bitmap.height());
     }
     void on_create_window(u32 id, window::Vec requested_size) override {
         if (get_window(id)) return;
@@ -206,7 +199,7 @@ public:
         m_windows.push_back(Window{
             .id = id,
             .current_surface_id = bek::nullopt,
-            .placement = {starting_coords, starting_coords, requested_size.x, requested_size.y},
+            .placement = {{starting_coords, starting_coords}, {requested_size.x, requested_size.y}},
         });
         starting_coords += 50;
     }
@@ -226,7 +219,7 @@ public:
         surf->in_use++;
         win->placement.size = window::Vec(surf->bitmap.width(), surf->bitmap.height());
     }
-    void on_begin_window_operation(u32 operation) override {};
+    void on_begin_window_operation(u32 window_id, u32 operation) override {}
     void on_ping_response() override { last_pong_time = current_time; }
 
     void blit(window::RenderContext& ctx) {
@@ -234,15 +227,29 @@ public:
         for (auto& win : m_windows) {
             if (win.current_surface_id) {
                 for (auto& surf : m_surfaces) {
-                    if (surf.first == *win.current_surface_id) {
+                    if (surf.id == *win.current_surface_id) {
                         // Let's gooo
-                        renderer.paint_bitmap(surf.second, win.placement, {0, 0});
+                        renderer.paint_bitmap(surf.bitmap, win.placement, {0, 0});
                     }
                 }
             }
         }
     }
-    void on_reconfigure_surface(u32 id, window::Vec size, u32 stride) override;
+    void on_reconfigure_surface(u32 id, window::Vec size, u32 stride) override {
+        auto* surf = get_surface(id);
+        if (!surf) {
+            dbgln("Cannot reconfigure surface (invalid id): {}"_sv, id);
+            error(EINVAL);
+            return;
+        }
+
+        auto success = surf->bitmap.try_resize(size.x, size.y, stride);
+        if (!success) {
+            dbgln("Cannot reconfigure surface (buffer size insufficient): {}"_sv, id);
+            error(EINVAL);
+            return;
+        }
+    }
     void on_destroy_surface(u32 id) override {
         auto* surf = get_surface(id);
         if (surf) {
@@ -258,7 +265,7 @@ public:
 
 private:
     Window* get_window(u32 id) {
-        for (auto& win: m_windows) {
+        for (auto& win : m_windows) {
             if (win.id == id) {
                 return &win;
             }
@@ -266,7 +273,7 @@ private:
         return nullptr;
     }
     Surface* get_surface(u32 id) {
-        for (auto& surf: m_surfaces) {
+        for (auto& surf : m_surfaces) {
             if (surf.id == id) {
                 return &surf;
             }
@@ -299,7 +306,7 @@ core::expected<bek::string> get_device_address(DeviceProtocol protocol) {
     return devices[0].name;
 }
 
-inline constexpr uSize FREQUENCY = 60;
+inline constexpr uSize FREQUENCY = 10;
 inline constexpr uSize NS_PER_FRAME = 1'000'000'000 / FREQUENCY;
 inline constexpr uSize BAD_FRAME_LENGTH = NS_PER_FRAME / 2 * 3;
 
@@ -345,7 +352,7 @@ core::expected<int> run() {
         // Next, we handle any messages
         for (auto& connection : connections) {
             auto res = connection->poll();
-            if (res != ESUCCESS) {
+            if (res != ESUCCESS && res != EAGAIN) {
                 dbgln("Poll connection failed: {}"_sv, res);
                 return res;
             }

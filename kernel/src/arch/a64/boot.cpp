@@ -1,5 +1,5 @@
 // bekOS is a basic OS for the Raspberry Pi
-// Copyright (C) 2024-2025 Bekos Contributors
+// Copyright (C) 2024-2026 Bekos Contributors
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -14,10 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#include "bek/array.h"
+
 #include <process/interlink.h>
 
 #include "arch/a64/memory_constants.h"
-#include "bek/array.h"
 #include "filesystem/block_device.h"
 #include "filesystem/fatfs.h"
 #include "interrupts/deferred_calls.h"
@@ -37,8 +38,7 @@
 #include "process/tty.h"
 
 static constexpr uPtr qemu_pl011_address = VA_START + 0x900'0000;
-static constexpr uPtr qemu_clock_freq    = 0x16e3600;
-
+static constexpr uPtr qemu_clock_freq = 0x16e3600;
 
 dev_tree::DevStatus probe_simple_bus(dev_tree::Node& node, dev_tree::device_tree& tree, dev_tree::probe_ctx& ctx) {
     if (node.compatible.size() == 0) return dev_tree::DevStatus::Unrecognised;
@@ -81,12 +81,12 @@ dev_tree::DevStatus probe_arm_system(dev_tree::Node& node, dev_tree::device_tree
 }
 
 constexpr inline bek::array standard_probes{probe_arm_system,
-                                                  probe_simple_bus,
-                                                  FixedClock::probe_devtree,
-                                                  PL011::probe_devtree,
-                                                  pcie::Controller::probe_pcie_host,
-                                                  ArmGIC::probe_devtree,
-                                                  virtio::MMIOTransport::probe_devtree};
+                                            probe_simple_bus,
+                                            FixedClock::probe_devtree,
+                                            PL011::probe_devtree,
+                                            pcie::Controller::probe_pcie_host,
+                                            ArmGIC::probe_devtree,
+                                            virtio::MMIOTransport::probe_devtree};
 
 bek::pair<mem::PhysicalRegion, bek::buffer> get_devicetree_regions(uPtr device_tree_address) {
     bek::buffer temp{reinterpret_cast<const char*>(device_tree_address), 8};
@@ -95,7 +95,7 @@ bek::pair<mem::PhysicalRegion, bek::buffer> get_devicetree_regions(uPtr device_t
     // Absolute disaster if not mapped to physical.
     auto phys_ptr = mem::kernel_virt_to_phys(reinterpret_cast<void*>(device_tree_address))->get();
     auto bottom_phys_ptr = bek::align_down(phys_ptr, SIZE_2M);
-    auto top_phys_ptr    = bek::align_up(phys_ptr + size, SIZE_2M);
+    auto top_phys_ptr = bek::align_up(phys_ptr + size, SIZE_2M);
     mem::PhysicalRegion region{{bottom_phys_ptr}, top_phys_ptr - bottom_phys_ptr};
     return {region, buf};
 }
@@ -107,7 +107,7 @@ extern u8 __stack_top;
 
 mem::PhysicalRegion get_kernel_region() {
     auto phys_ptr = *mem::kernel_virt_to_phys(&__kernel_start);
-    auto size     = &__kernel_end - &__kernel_start;
+    auto size = &__kernel_end - &__kernel_start;
     return {phys_ptr, static_cast<uSize>(size)};
 }
 
@@ -117,7 +117,7 @@ extern "C" {
 uPtr g_current_embedded_table_phys;
 }
 
-bek::OutputStream* debug_stream  = nullptr;
+bek::OutputStream* debug_stream = nullptr;
 
 using DBG = DebugScope<"Kern", DebugLevel::INFO>;
 
@@ -135,14 +135,13 @@ extern "C" [[noreturn]] void kernel_boot(u64 dev_tree_address) {
 
     // 4. Parse DeviceTree, and get a map of Physical RAM
     auto [dtb_phys_region, dtb_buffer] = get_devicetree_regions(dev_tree_address);
-    auto dtb                           = dev_tree::read_dtb(dtb_buffer);
+    auto dtb = dev_tree::read_dtb(dtb_buffer);
 
     auto reserved_regions = dev_tree::get_reserved_regions(dtb);
     reserved_regions.push_back(dtb_phys_region);
     reserved_regions.push_back(get_kernel_region());
 
-    auto memory_space =
-        mem::process_memory_regions(dev_tree::get_memory_regions(dtb), reserved_regions);
+    auto memory_space = mem::process_memory_regions(dev_tree::get_memory_regions(dtb), reserved_regions);
     DBG::infoln("Memory Space:"_sv);
     for (auto& region : memory_space) {
         DBG::infoln("    {}"_sv, region);
@@ -193,7 +192,7 @@ extern "C" [[noreturn]] void kernel_boot(u64 dev_tree_address) {
     VERIFY(root_r.has_value());
     auto& root = root_r.value();
 
-    auto init_exec_r = fs::fullPathLookup({}, "/bin/windowserver"_sv, nullptr);
+    auto init_exec_r = fs::fullPathLookup({}, "/wininit"_sv, nullptr);
 
     if (init_exec_r.has_error()) {
         DBG::errln("Could not find init executable: {}."_sv, init_exec_r.error());
@@ -207,7 +206,7 @@ extern "C" [[noreturn]] void kernel_boot(u64 dev_tree_address) {
         {bek::adopt_shared(new ProcessDebugSerial()), 0},
     };
 
-    auto proc_r = Process::spawn_user_process(bek::string{"init"}, init_exec, root, bek::move(init_handles));
+    auto proc_r = Process::spawn_user_process(bek::string{"wininit"}, init_exec, root, bek::move(init_handles));
 
     if (proc_r.has_error()) {
         DBG::errln("Could not spawn init process: {}"_sv, proc_r.error());

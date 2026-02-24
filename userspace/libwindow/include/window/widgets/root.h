@@ -1,5 +1,5 @@
 // bekOS is a basic OS for the Raspberry Pi
-// Copyright (C) 2025 Bekos Contributors
+// Copyright (C) 2025-2026 Bekos Contributors
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -14,14 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
 #ifndef BEKOS_LIBWINDOW_ROOT_H
 #define BEKOS_LIBWINDOW_ROOT_H
 #include "widget.h"
 
 namespace window {
 
-class RootWidget : public Widget {
+class Window;
+
+class RootWidget: public Widget {
 public:
     bool is_root() const final { return true; }
     void notify_relayout_needed();
@@ -31,10 +32,11 @@ public:
 
 private:
     friend class Window;
+    void set_widget(bek::shared_ptr<Widget> widget);
     RootWidget(Window& window);
     Window& m_window;
     bek::shared_ptr<Widget> m_widget;
 };
 }  // namespace window
 
-#endif //BEKOS_LIBWINDOW_ROOT_H
+#endif  // BEKOS_LIBWINDOW_ROOT_H
