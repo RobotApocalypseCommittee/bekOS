@@ -1,5 +1,5 @@
 // bekOS is a basic OS for the Raspberry Pi
-// Copyright (C) 2024-2025 Bekos Contributors
+// Copyright (C) 2024-2026 Bekos Contributors
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -163,6 +163,8 @@ expected<SpaceManager> SpaceManager::clone_for_fork() {
                 (new_region.permissions & MemoryOperation::Write) != MemoryOperation::None,
                 (new_region.permissions & MemoryOperation::Execute) != MemoryOperation::None);
             res != ESUCCESS) {
+            DBG::errln("Failed to clone_for_fork: could not map new region {}, got {}."_sv, new_region.name.view(),
+                       res);
             return res;
         }
     }

@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # bekOS is a basic OS for the Raspberry Pi
-# Copyright (C) 2024-2025 Bekos Contributors
+# Copyright (C) 2024-2026 Bekos Contributors
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@ print_help()
   echo "  Supported MACHINEs: virt, rpi3."
   echo "  EXECUTABLE: The kernel image."
   echo "  QEMU_CMD: qemu command to run; if not set defaults to qemu-system-aarch64"
-  each "  -d: Debug enabled. If set, GDB debug server will be enabled at port 1234 and machine paused."
+  echo "  -d: Debug enabled. If set, GDB debug server will be enabled at port 1234 and machine paused."
 }
 
 usage ()
@@ -37,11 +37,14 @@ usage ()
 
 [ -n "$1" ] || usage
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$SCRIPT_DIR/.."
+
 QEMU_ARGS=()
 
 case "$1" in
   virt)
-    QEMU_ARGS+=(-machine virt -cpu cortex-a57 -usb -device qemu-xhci -device usb-kbd -device usb-mouse -device virtio-gpu-device -device "virtio-blk-device,drive=main_drive" -drive "format=raw,id=main_drive,file=fat:system,readonly=on,if=none" -serial mon:stdio -global virtio-mmio.force-legacy=false)
+    QEMU_ARGS+=(-machine virt -cpu cortex-a57 -usb -device qemu-xhci -device usb-kbd -device usb-mouse -device virtio-gpu-device -device "virtio-blk-device,drive=main_drive" -drive "format=raw,id=main_drive,file=fat:${PROJECT_ROOT}/system,readonly=on,if=none" -serial mon:stdio -global virtio-mmio.force-legacy=false)
     ;;
   rpi3)
     QEMU_ARGS+=(-M raspi3b -serial null -serial mon:stdio -d "guest_errors,unimp" -usb -device usb-kbd -device usb-mouse)

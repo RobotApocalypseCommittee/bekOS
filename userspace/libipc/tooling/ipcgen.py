@@ -1,5 +1,5 @@
 #  bekOS is a basic OS for the Raspberry Pi
-#  Copyright (C) 2025 Bekos Contributors
+#  Copyright (C) 2025-2026 Bekos Contributors
 #
 #  This program is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -14,31 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-#  This program is free software: you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation, either version 3 of the License, or
-#  (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program.  If not, see <https://www.gnu.org/licenses/>.
-#
-#  This program is free software: you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation, either version 3 of the License, or
-#  (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 import argparse
 import dataclasses
 from pathlib import Path
@@ -138,10 +114,8 @@ def cho(o: bool, y, n):
 
 
 def class_name(interface: Interface, is_server: bool, is_raw: bool, include_namespace: bool = True):
-    return ch(interface.namespace and include_namespace, f"{interface.namespace}::") + interface.name + ch(is_server,
-                                                                                                           "Server",
-                                                                                                           "Client") + ch(
-        is_raw, "Raw")
+    return (ch(interface.namespace and include_namespace, f"{interface.namespace}::")
+            + interface.name + ch(is_server, "Server", "Client") + ch(is_raw, "Raw"))
 
 
 def generate_messages_enum(interface: Interface, is_server: bool):
@@ -213,12 +187,17 @@ def render_header(interface: Interface):
 #endif
 """
 
+def encode_value_expr(var_name, var_type):
+    if var_type == "ErrorCode":
+        # Need special case because expected<ErrorCode> is not a valid type
+        return f"static_cast<bek::underlying_type<{var_type}>>({var_name})"
+    return var_name
 
 def generate_send_implementation(interface: Interface, is_server: bool, is_raw: bool):
     cls_name = class_name(interface, is_server, is_raw)
 
     def generate_imp(msg: Message):
-        arguments = '\n    '.join(f"message.encode({n});" for n, _ in msg.arguments)
+        arguments = '\n    '.join(f"message.encode({encode_value_expr(*a)});" for a in msg.arguments)
         return f"""
 void {cls_name}::{msg.name}({argument_list(interface, msg, True)}) {{
     ipc::Message message{{{generate_enum_traits(interface, is_server)}::from_enum({generate_message_enum_value(interface, msg, is_server)})}};
@@ -228,6 +207,11 @@ void {cls_name}::{msg.name}({argument_list(interface, msg, True)}) {{
 
     return '\n'.join(generate_imp(m) for m in cho(is_server, interface.events, interface.requests))
 
+
+def decode_expression(arg_type):
+    if arg_type == "ErrorCode":
+        return "static_cast<ErrorCode>(EXPECTED_TRY(buffer.decode<bek::underlying_type<ErrorCode>>()))"
+    return f"EXPECTED_TRY(buffer.decode<{arg_type}>())"
 
 def generate_dispatch_implementation(interface: Interface, is_server: bool, is_raw: bool):
     fn_name = class_name(interface, is_server, is_raw) + "::dispatch_message"
@@ -240,8 +224,7 @@ def generate_dispatch_implementation(interface: Interface, is_server: bool, is_r
                 return f"bek::move(arg_{arg[0]})"
 
     def generate_case(msg: Message):
-
-        args = '\n'.join(f"auto arg_{n} = EXPECTED_TRY(buffer.decode<{t}>());" for n, t in msg.arguments)
+        args = '\n'.join(f"auto arg_{n} = {decode_expression(t)};" for n, t in msg.arguments)
         arg_list = ', '.join(pass_argument(a) for a in msg.arguments)
         return f"""case {generate_message_enum_value(interface, msg, not is_server)}: {{
         {args}

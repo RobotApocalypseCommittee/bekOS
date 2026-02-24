@@ -7,3 +7,13 @@ FixNamespaceComments: true
 PointerAlignment: Left
 ReferenceAlignment: Left
 DerivePointerAlignment: false
+SpaceBeforeCtorInitializerColon: false
+SpaceBeforeInheritanceColon: false
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex:           '^(<|")(bek|core)'
+    Priority:        1 
+  - Regex:           '^<.*>'
+    Priority:        2
+  - Regex:           '.*'
+    Priority:        3

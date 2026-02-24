@@ -1,5 +1,5 @@
 // bekOS is a basic OS for the Raspberry Pi
-// Copyright (C) 2025 Bekos Contributors
+// Copyright (C) 2025-2026 Bekos Contributors
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -17,10 +17,11 @@
 #ifndef BEKOS_HASHTABLE_H
 #define BEKOS_HASHTABLE_H
 
-#include "bek/types.h"
-#include "bek/optional.h"
-#include "bek/utility.h"
 #include "bek/memory.h"
+#include "bek/optional.h"
+#include "bek/types.h"
+#include "bek/utility.h"
+
 #include "mm/kmalloc.h"
 
 namespace bek {
@@ -30,7 +31,7 @@ template <typename T>
 concept has_bek_hash_overload = requires(const T& t) {
     { hash(t) } -> same_as<u64>;
 };
-}
+}  // namespace detail
 
 template <typename T>
 struct hasher;
@@ -49,7 +50,7 @@ private:
     enum class Fill : u8 { Empty, Deleted, Filled };
 
 public:
-    using Pair     = pair<Key, Val>;
+    using Pair = pair<Key, Val>;
     using Iterator = Pair*;
 
     class SequenceIterator {
@@ -76,10 +77,9 @@ public:
         Pair* m_end_pair;
     };
 
-    explicit hashtable(uSize capacity = 4)
-        : buckets{nullptr}, filled{nullptr}, capacity{capacity}, load{0} {
+    explicit hashtable(uSize capacity = 4): buckets{nullptr}, filled{nullptr}, capacity{capacity}, load{0}, deleted{0} {
         buckets = reinterpret_cast<Pair*>(kmalloc(capacity * sizeof(Pair)));
-        filled  = reinterpret_cast<Fill*>(kmalloc(capacity * sizeof(Fill)));
+        filled = reinterpret_cast<Fill*>(kmalloc(capacity * sizeof(Fill)));
         for (uSize i = 0; i < capacity; i++) {
             filled[i] = Fill::Empty;
         }
@@ -135,6 +135,7 @@ public:
         buckets[index].~Pair();
         filled[index] = Fill::Deleted;
         load--;
+        deleted++;
         return ret;
     }
 
@@ -157,21 +158,26 @@ public:
 
 private:
     void check_size() {
-        if (load * expandThreshold > capacity) {
-            auto new_size = capacity * expandFactor;
+        // Rehash when either load or total occupied slots is too high.
+        // The tombstone check prevents the table from filling entirely with Deleted entries,
+        // which would cause find() to scan every slot and hit ASSERT_UNREACHABLE.
+        if ((load + deleted) * expandThreshold > capacity) {
+            // Only actually grow if the live load requires it; otherwise just rehash in-place
+            auto new_size = (load * expandThreshold > capacity) ? capacity * expandFactor : capacity;
             // Need to expand + rehash
             auto new_buckets = reinterpret_cast<Pair*>(kmalloc(new_size * sizeof(Pair)));
-            auto new_filled  = reinterpret_cast<Fill*>(kmalloc(new_size * sizeof(Fill)));
-            bek::memset(new_filled, 0, new_size * sizeof(bool));
+            auto new_filled = reinterpret_cast<Fill*>(kmalloc(new_size * sizeof(Fill)));
+            bek::memset(new_filled, 0, new_size * sizeof(Fill));
 
             // Swap
-            auto old_buckets  = buckets;
-            buckets           = new_buckets;
-            auto old_filled   = filled;
-            filled            = new_filled;
+            auto old_buckets = buckets;
+            buckets = new_buckets;
+            auto old_filled = filled;
+            filled = new_filled;
             auto old_capacity = capacity;
-            capacity          = new_size;
-            load              = 0;
+            capacity = new_size;
+            load = 0;
+            deleted = 0;
 
             // Transfer
             for (uSize i = 0; i < old_capacity; i++) {
@@ -183,12 +189,12 @@ private:
 
             // Delete
             kfree(old_buckets, old_capacity * sizeof(Pair));
-            kfree(old_filled, old_capacity * sizeof(bool));
+            kfree(old_filled, old_capacity * sizeof(Fill));
         }
     }
 
     pair<Iterator, bool> unchecked_set(Pair&& pair, bool overwrite) {
-        auto index  = unchecked_lookup(pair.first, true);
+        auto index = unchecked_lookup(pair.first, true);
         Iterator it = &buckets[index];
         if (filled[index] == Fill::Filled) {
             if (overwrite) {
@@ -207,7 +213,7 @@ private:
 
     /// Looks for Key. If found, returns index. If not, returns appropriate insertion point.
     uSize unchecked_lookup(const Key& key, bool inserting) const {
-        auto hash   = Hasher{}(key);
+        auto hash = Hasher{}(key);
         uSize index = hash % capacity;
         for (uSize i = index; i < capacity; i++) {
             if (filled[i] == Fill::Empty || (filled[i] == Fill::Deleted && inserting) ||
@@ -225,7 +231,7 @@ private:
     }
 
     static constexpr int expandThreshold = 2;
-    static constexpr int expandFactor    = 2;
+    static constexpr int expandFactor = 2;
 
     /// Dynamically Allocated array of buckets.
     Pair* buckets;
@@ -236,6 +242,8 @@ private:
     uSize capacity;
     /// How many items?
     uSize load;
+    /// How many tombstones?
+    uSize deleted;
 };
 
 };  // namespace bek

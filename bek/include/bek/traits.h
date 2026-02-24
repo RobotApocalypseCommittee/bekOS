@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024 Bekos Contributors
+ * Copyright (C) 2024-2026 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@ inline constexpr bool is_function<Out(In...) volatile> = true;
 template <typename Out, typename... In>
 inline constexpr bool is_function<Out(In...) const volatile> = true;
 template <typename Out, typename... In>
-inline constexpr bool is_function<Out(In...)&> = true;
+inline constexpr bool is_function<Out(In...) &> = true;
 template <typename Out, typename... In>
 inline constexpr bool is_function<Out(In...) const&> = true;
 template <typename Out, typename... In>
@@ -229,9 +229,9 @@ BEK_EXPRESSION_TRAIT(trivially_destructible, __has_trivial_destructor(T));
 #endif
 
 BEK_REQUIRES_TRAIT(copy_constructible, requires(const T& t) { ::new T(t); });
-BEK_REQUIRES_TRAIT(move_constructible, requires { ::new T(declval<T&&>()); });
+BEK_REQUIRES_TRAIT(move_constructible, requires { ::new T(declval<T &&>()); });
 BEK_REQUIRES_TRAIT(copy_assignable, requires(const T& t) { declval<T>() = t; });
-BEK_REQUIRES_TRAIT(move_assignable, requires { declval<T>() = declval<T&&>(); });
+BEK_REQUIRES_TRAIT(move_assignable, requires { declval<T>() = declval<T &&>(); });
 BEK_REQUIRES_TRAIT(destructible, requires { declval<T>().~T(); });
 
 // TODO: Actually?
@@ -263,6 +263,8 @@ concept integral = requires(T t, T* p_t, void (*fn_t)(T)) {
     fn_t(0);
     p_t + t;
 };
+
+BEK_EXPRESSION_TRAIT(enumerator, __is_enum(T));
 
 template <typename T>
 using underlying_type = __underlying_type(T);

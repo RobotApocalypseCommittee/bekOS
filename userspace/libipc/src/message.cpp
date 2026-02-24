@@ -1,5 +1,5 @@
 // bekOS is a basic OS for the Raspberry Pi
-// Copyright (C) 2025 Bekos Contributors
+// Copyright (C) 2025-2026 Bekos Contributors
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -15,7 +15,10 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "ipc/message.h"
+
 #include <bek/optional.h>
+
+#include "api/error_codes.h"
 
 using namespace sc::interlink;
 
@@ -111,8 +114,9 @@ ipc::MessageBuffer ipc::Message::to_buffer() const {
     return MessageBuffer{m_message_id, bek::span{m_buffer}, bek::span{m_fds}, bek::span{m_memory_regions}};
 }
 void ipc::Message::encode_bytes(bek::span<u8> bytes) {
+    auto offset = m_buffer.size();
     m_buffer.expand(bytes.size());
-    bek::memcopy(m_buffer.end(), bytes.begin(), bytes.size());
+    bek::memcopy(m_buffer.data() + offset, bytes.begin(), bytes.size());
 }
 void ipc::Message::encode_fd(long fd) { m_fds.push_back(fd); }
 void ipc::Message::encode_memory_region(void* ptr, uSize size) { m_memory_regions.push_back(bek::pair{ptr, size}); }
@@ -122,7 +126,7 @@ void ipc::Message::start_decoding() {
     m_cur_region_i = 0;
 }
 core::expected<bek::span<u8>> ipc::Message::decode_bytes(uSize length) {
-    if (length + m_cur_buffer_position < m_buffer.size()) {
+    if (length + m_cur_buffer_position <= m_buffer.size()) {
         u8* ptr = m_buffer.data() + m_cur_buffer_position;
         m_cur_buffer_position += length;
         return bek::span{ptr, length};

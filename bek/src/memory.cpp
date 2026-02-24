@@ -1,5 +1,5 @@
 // bekOS is a basic OS for the Raspberry Pi
-// Copyright (C) 2024-2025 Bekos Contributors
+// Copyright (C) 2024-2026 Bekos Contributors
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -57,6 +57,8 @@ int memcmp(const void* s1, const void* s2, size_t n) {
     }
     return d;
 }
+
+size_t strlen(const char* str) { return bek::strlen(str); }
 }  // extern "C"
 
 void bek::memcopy(void* to, const void* from, uSize n) {

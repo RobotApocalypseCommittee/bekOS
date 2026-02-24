@@ -1,5 +1,5 @@
 // bekOS is a basic OS for the Raspberry Pi
-// Copyright (C) 2024-2025 Bekos Contributors
+// Copyright (C) 2024-2026 Bekos Contributors
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
 
 #include "process/process.h"
 
-#include "arch/process_entry.h"
 #include "bek/assertions.h"
+
+#include "arch/process_entry.h"
 #include "filesystem/path.h"
 #include "interrupts/deferred_calls.h"
 #include "interrupts/int_ctrl.h"
@@ -30,7 +31,7 @@
 using DBG = DebugScope<"Process", DebugLevel::WARN>;
 
 constexpr inline uSize KERNEL_STACK_PAGES = 3;
-constexpr inline uSize DEFAULT_USER_STACK = 4 * PAGE_SIZE;
+constexpr inline uSize DEFAULT_USER_STACK = 32 * PAGE_SIZE;
 constexpr inline uSize MAX_USER_STACK = 1024 * PAGE_SIZE;
 
 constexpr inline uSize CONTEXT_SWITCH_NS = 100'000'00;  // 100ms
@@ -264,8 +265,7 @@ ErrorCode ProcessManager::register_process(bek::shared_ptr<Process> proc) {
     if (proc_ref.pid() >= 0) {
         uSize pid = proc_ref.pid();
         // Merely check the PID.
-        if ((pid < m_processes.size() && m_processes[pid]) ||
-            pid > m_processes.size()) {
+        if ((pid < m_processes.size() && m_processes[pid]) || pid > m_processes.size()) {
             return EINVAL;
         }
     } else {

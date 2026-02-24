@@ -1,5 +1,5 @@
 // bekOS is a basic OS for the Raspberry Pi
-// Copyright (C) 2024 Bekos Contributors
+// Copyright (C) 2024-2026 Bekos Contributors
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -15,6 +15,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "process/interlink.h"
+
+#include <bek/intrusive_shared_ptr.h>
 
 #include <api/interlink.h>
 #include <library/debug.h>
@@ -62,7 +64,18 @@ void Server::detach_handle(ServerHandle& handle) {
     g_interlink_data->servers.extract(m_address);
 }
 
-Connection::QueuedMessage::~QueuedMessage() { VERIFY(kind == DATA); }
+Connection::QueuedMessage::~QueuedMessage() {
+    switch (kind) {
+        case DATA:
+            break;
+        case ENTITY:
+            this->entity_handle.~shared_ptr();
+            break;
+        case MEMORY:
+            this->memory_slice.region.~shared_ptr();
+            break;
+    }
+}
 expected<uSize> Connection::client_receive(TransactionalBuffer& buffer, bool blocking) {
     return read_from_queue(buffer, m_client_ringbuffer, m_client_queue, blocking);
 }
@@ -147,7 +160,7 @@ expected<uSize> Connection::read_from_queue(TransactionalBuffer& buffer, ring_bu
         return EAGAIN;
     }
     while (message_queue.size() == 0) {
-        asm volatile ("nop");
+        asm volatile("nop");
     }
     for (auto& payload_item : message_queue) {
         payload_items++;
@@ -159,7 +172,8 @@ expected<uSize> Connection::read_from_queue(TransactionalBuffer& buffer, ring_bu
     }
     uSize estimated_required_size = sizeof(sc::interlink::MessageHeader) +
                                     payload_items * sizeof(sc::interlink::MessageHeader::PayloadItem) + total_data_size;
-    DBG::infoln("Receiving message of size {} ({} payload items)"_sv, estimated_required_size, payload_items);
+    DBG::infoln("Receiving message of size {} ({} payload items) into {} byte buffer"_sv, estimated_required_size,
+                payload_items, buffer.size());
     if (buffer.size() < estimated_required_size) {
         // FIXME: Correct error code.
         return EOVERFLOW;
@@ -223,7 +237,7 @@ void Server::detach_connection(Connection& connection) {
         }
     }
 }
-Server::Server(bek::string address) : m_address(bek::move(address)) {}
+Server::Server(bek::string address): m_address(bek::move(address)) {}
 EntityHandle::Kind ServerHandle::kind() const { return Kind::InterlinkServer; }
 EntityHandle::SupportedOperations ServerHandle::get_supported_operations() const { return None; }
 expected<bek::shared_ptr<Connection>> Server::connect() {

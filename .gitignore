@@ -54,6 +54,7 @@ dkms.conf
 # IDEs, tools, filesystem
 .idea/
 .clangd/
+.cache/
 .vscode
 .DS_Store
 
@@ -62,3 +63,7 @@ cmake-build*/
 
 # User-specific config
 /toolchain-arm.cmake
+CMakeUserPresets.json
+
+/out/
+/build/
