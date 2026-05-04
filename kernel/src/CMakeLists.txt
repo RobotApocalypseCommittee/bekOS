@@ -51,6 +51,9 @@ add_executable(kernel
         process/pipe.cpp
         process/interlink.cpp
         library/ringbuffer.cpp
+        library/locking.cpp
+        library/sleeplock.cpp
+        library/completion.cpp
 )
 
 if (BEKOS_ARCHITECTURE STREQUAL "a64")

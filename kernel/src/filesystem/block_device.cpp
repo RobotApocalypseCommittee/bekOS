@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024 Bekos Contributors
+ * Copyright (C) 2024-2026 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,9 +19,11 @@
 #include "filesystem/block_device.h"
 
 #include "bek/format.h"
+
 #include "filesystem/partition.h"
+#include "library/completion.h"
 #include "library/debug.h"
-#include "mm/barriers.h"
+#include "process/process.h"
 
 using DBG = DebugScope<"BlkDev", DebugLevel::WARN>;
 
@@ -39,7 +41,7 @@ bek::pair<bek::string, u32> BlockDeviceRegistry::allocate_identifiers(bek::str_v
     auto id = global_next_id++;
 
     u32 name_suffix = 0;
-    auto x          = m_next_ids.find(prefix_str);
+    auto x = m_next_ids.find(prefix_str);
     if (x) {
         name_suffix = (*x)++;
     } else {
@@ -50,19 +52,17 @@ bek::pair<bek::string, u32> BlockDeviceRegistry::allocate_identifiers(bek::str_v
 }
 void BlockDeviceRegistry::register_raw_device(bek::own_ptr<BlockDevice> device) {
     m_raw_devices.push_back(bek::move(device));
-    probe_block_device(*m_raw_devices.back(), bek::function<void(bek::vector<PartitionInfo>)>(
-                                                  [dev = m_raw_devices.back().get(),
-                                                   this](bek::vector<PartitionInfo> x) {
-                                                      DBG::dbgln("{} partitions:"_sv, x.size());
-                                                      for (u32 i = 0; i < x.size(); i++) {
-                                                          auto info = x[i];
-                                                          DBG::dbgln("    Partition: {}"_sv, info);
-                                                          m_partitions.push_back(
-                                                              bek::own_ptr{new blk::PartitionProxyDevice{
-                                                                  *dev, i, global_next_id++, info.sector_index,
-                                                                  info.size_sectors}});
-                                                      }
-                                                  }));
+    probe_block_device(*m_raw_devices.back(),
+                       bek::function<void(bek::vector<PartitionInfo>)>(
+                           [dev = m_raw_devices.back().get(), this](bek::vector<PartitionInfo> x) {
+                               DBG::dbgln("{} partitions:"_sv, x.size());
+                               for (u32 i = 0; i < x.size(); i++) {
+                                   auto info = x[i];
+                                   DBG::dbgln("    Partition: {}"_sv, info);
+                                   m_partitions.push_back(bek::own_ptr{new blk::PartitionProxyDevice{
+                                       *dev, i, global_next_id++, info.sector_index, info.size_sectors}});
+                               }
+                           }));
 }
 bek::vector<BlockDevice*> BlockDeviceRegistry::get_accessible_devices() const {
     bek::vector<BlockDevice*> devices{};
@@ -73,28 +73,26 @@ bek::vector<BlockDevice*> BlockDeviceRegistry::get_accessible_devices() const {
 }
 
 TransferResult blocking_read(BlockDevice& dev, uSize byte_offset, bek::mut_buffer buffer) {
-    volatile bool complete = false;
+    SingleProcessCompletion completion{ProcessManager::the().current_process()};
     TransferResult result;
     auto res = dev.schedule_read(byte_offset, buffer, [&](TransferResult res) {
         result = res;
-        complete = true;
+        completion.mark_complete();
     });
     if (res != TransferResult::Success) return res;
-    while (!complete) {
-    }
+    completion.wait_on();
     return result;
 }
 
 TransferResult blocking_write(BlockDevice& dev, uSize byte_offset, bek::buffer buffer) {
-    mem::CompletionFlag complete;
+    SingleProcessCompletion completion{ProcessManager::the().current_process()};
     TransferResult result;
     auto res = dev.schedule_write(byte_offset, buffer, [&](TransferResult res) {
         result = res;
-        complete.set();
+        completion.mark_complete();
     });
     if (res != TransferResult::Success) return res;
-    while (!complete.test()) {
-    }
+    completion.wait_on();
     return result;
 }
 

@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024-2026 Bekos Contributors
+ * Copyright (C) 2026 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,24 +16,32 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_INT_CTRL_H
-#define BEKOS_INT_CTRL_H
+#ifndef BEKOS_SLEEPLOCK_H
+#define BEKOS_SLEEPLOCK_H
 
-extern "C" void do_set_vector_table(void);
+#include "intrusive_list.h"
+#include "locking.h"
 
-extern "C"
-void enable_interrupts(void);
+class Process;
 
-extern "C"
-void disable_interrupts(void);
+class SleepLock {
+public:
+    struct QueuedProcess {
+        explicit QueuedProcess(Process* process): process(process) {}
+        Process* process;
+        bek::IntrusiveListNode<QueuedProcess> list_node;
+    };
 
-extern "C" u8 save_and_disable_interrupts(void);
+    void acquire();
+    void release();
 
-extern "C" void restore_interrupts(u8 flags);
+private:
+    bool try_acquire_quick();
 
-struct InterruptDisabler {
-    InterruptDisabler() { disable_interrupts(); }
-    ~InterruptDisabler() { enable_interrupts(); }
+    Process* m_owner{nullptr};
+    // SleepLock *never* used in IRQ context; revisit if high-latency becomes issue.
+    SpinLock m_queue_lock;
+    bek::IntrusiveList<QueuedProcess, &QueuedProcess::list_node> m_queue;
 };
 
-#endif //BEKOS_INT_CTRL_H
+#endif  // BEKOS_SLEEPLOCK_H

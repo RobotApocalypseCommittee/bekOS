@@ -1,29 +1,33 @@
-// bekOS is a basic OS for the Raspberry Pi
-// Copyright (C) 2024 Bekos Contributors
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+/*
+ * bekOS is a basic OS for the Raspberry Pi
+ * Copyright (C) 2024-2026 Bekos Contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 
 #ifndef BEKOS_PROCESS_H
 #define BEKOS_PROCESS_H
 
 #include <bek/vector.h>
+
 #include <filesystem/filesystem.h>
 
 #include "api/syscalls.h"
 #include "arch/saved_registers.h"
 #include "entity.h"
 #include "library/function.h"
+#include "library/sleeplock.h"
 #include "library/user_buffer.h"
 #include "mm/space_manager.h"
 #include "peripherals/device.h"
@@ -107,6 +111,8 @@ public:
 
     long allocate_entity_handle_slot(bek::shared_ptr<EntityHandle> handle, u8 group);
 
+    SleepLock::QueuedProcess& sleeplock_wq_item() { return m_sleeplock_wq_item; }
+
 private:
     Process(bek::string name, Process* parent, mem::VirtualRegion kernel_stack);
 
@@ -140,6 +146,9 @@ private:
     int m_preempt_counter{0};
     ProcessState m_running_state;
 
+    // SleepLock
+    SleepLock::QueuedProcess m_sleeplock_wq_item;
+
     // Other Information
     bek::optional<int> m_exit_code;
 
@@ -155,6 +164,34 @@ public:
     ErrorCode register_process(bek::shared_ptr<Process> proc);
 
     ErrorCode reap_process(Process& proc);
+
+    /**
+     * Suspends the current process and marks it as WAITING.
+     * The Process will not be rescheduled until it is woken.
+     *
+     * *Important*: to avoid situations where the process is woken before it sleeps (and thus never wakes),
+     * this function is a no-op if there is a pending wake. There is therefore the possibility of a spurious
+     * wakeup which you should manage.
+     */
+    void suspend_process();
+
+    template <typename F>
+    void suspend_process_and(F&& action) {
+        enter_critical();
+        m_current->set_state(ProcessState::Waiting);
+        action();
+        exit_critical();
+        schedule();
+    }
+
+    /**
+     * Requests to wake the provided process, which is assumed to be in a WAITING state (and sleeping).
+     *
+     * If the Process is not (yet) WAITING, this will create a pending wake event, which will take effect
+     * if and when the specified Process sleeps.
+     * @param proc The Process to wake.
+     */
+    void wake_process(Process& proc);
 
     void enter_critical();
     void exit_critical();
