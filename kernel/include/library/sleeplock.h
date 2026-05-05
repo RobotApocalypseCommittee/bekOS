@@ -39,8 +39,8 @@ private:
     bool try_acquire_quick();
 
     Process* m_owner{nullptr};
-    // SleepLock *never* used in IRQ context; revisit if high-latency becomes issue.
-    SpinLock m_queue_lock;
+    // Use IRQ lock just in case (not technically needed as mutex cannot be used from IRQ)
+    IrqSpinLock m_queue_lock;
     bek::IntrusiveList<QueuedProcess, &QueuedProcess::list_node> m_queue;
 };
 

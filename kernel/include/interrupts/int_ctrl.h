@@ -27,13 +27,14 @@ void enable_interrupts(void);
 extern "C"
 void disable_interrupts(void);
 
-extern "C" u8 save_and_disable_interrupts(void);
+extern "C" unsigned char save_and_disable_interrupts(void);
 
-extern "C" void restore_interrupts(u8 flags);
+extern "C" void restore_interrupts(unsigned char flags);
 
 struct InterruptDisabler {
-    InterruptDisabler() { disable_interrupts(); }
-    ~InterruptDisabler() { enable_interrupts(); }
+    InterruptDisabler(): m_state{save_and_disable_interrupts()} { }
+    ~InterruptDisabler() { restore_interrupts(m_state); }
+    unsigned char m_state;
 };
 
 #endif //BEKOS_INT_CTRL_H
