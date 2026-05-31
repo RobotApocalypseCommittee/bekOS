@@ -51,6 +51,10 @@ add_executable(kernel
         process/pipe.cpp
         process/interlink.cpp
         library/ringbuffer.cpp
+        library/locking.cpp
+        library/waitqueue.cpp
+        library/sleeplock.cpp
+        library/completion.cpp
 )
 
 if (BEKOS_ARCHITECTURE STREQUAL "a64")
@@ -75,7 +79,7 @@ endif ()
 
 target_include_directories(kernel PRIVATE ../include)
 
-target_compile_options(kernel PRIVATE -ffreestanding -fbuiltin
+target_compile_options(kernel PRIVATE -ffreestanding -fbuiltin -mno-outline-atomics
         -fno-asynchronous-unwind-tables -fno-exceptions -fno-rtti
         -nostdlib -nostartfiles -march=armv8-a+nofp -fmacro-prefix-map=${PROJECT_SOURCE_DIR}=.)
 target_link_options(kernel PRIVATE -nodefaultlibs -nostdlib -nostartfiles -T${CMAKE_CURRENT_SOURCE_DIR}/arch/a64/kernel-link.ld)

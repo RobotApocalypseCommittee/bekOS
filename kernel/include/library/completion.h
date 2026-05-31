@@ -1,6 +1,6 @@
 /*
  * bekOS is a basic OS for the Raspberry Pi
- * Copyright (C) 2024-2026 Bekos Contributors
+ * Copyright (C) 2026 Bekos Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,25 +16,23 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BEKOS_INT_CTRL_H
-#define BEKOS_INT_CTRL_H
+#ifndef BEKOS_COMPLETION_H
+#define BEKOS_COMPLETION_H
+#include "locking.h"
 
-extern "C" void do_set_vector_table(void);
+class Process;
 
-extern "C"
-void enable_interrupts(void);
+class SingleProcessCompletion {
+public:
+    explicit SingleProcessCompletion(Process& proc);
+    void mark_complete();
+    void wait_on();
 
-extern "C"
-void disable_interrupts(void);
-
-extern "C" unsigned char save_and_disable_interrupts(void);
-
-extern "C" void restore_interrupts(unsigned char flags);
-
-struct InterruptDisabler {
-    InterruptDisabler(): m_state{save_and_disable_interrupts()} { }
-    ~InterruptDisabler() { restore_interrupts(m_state); }
-    unsigned char m_state;
+private:
+    Process* m_process;
+    // Need Irq because mark_complete may be called in interrupt context.
+    IrqSpinLock m_lock;
+    bool m_flag{false};
 };
 
-#endif //BEKOS_INT_CTRL_H
+#endif  // BEKOS_COMPLETION_H

@@ -34,3 +34,16 @@ ASM_FUNCTION_BEGIN(disable_interrupts)
     msr    daifset, #2
     ret
 ASM_FUNCTION_END(disable_interrupts)
+
+ASM_FUNCTION_BEGIN(save_and_disable_interrupts)
+    mrs    x0, daif
+    lsr    x0, x0, #6
+    msr    daifset, #2
+    ret
+ASM_FUNCTION_END(save_and_disable_interrupts)
+
+ASM_FUNCTION_BEGIN(restore_interrupts)
+    lsl    x0, x0, #6
+    msr    daif, x0
+    ret
+ASM_FUNCTION_END(restore_interrupts)

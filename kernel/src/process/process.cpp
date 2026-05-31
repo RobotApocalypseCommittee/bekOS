@@ -1,18 +1,20 @@
-// bekOS is a basic OS for the Raspberry Pi
-// Copyright (C) 2024-2026 Bekos Contributors
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+/*
+ * bekOS is a basic OS for the Raspberry Pi
+ * Copyright (C) 2024-2026 Bekos Contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 
 #include "process/process.h"
 
@@ -41,7 +43,8 @@ Process::Process(bek::string name, Process* parent, mem::VirtualRegion kernel_st
       m_pid{-1},
       m_parent{parent},
       m_kernel_stack(kernel_stack),
-      m_running_state{ProcessState::Unready} {}
+      m_running_state{ProcessState::Unready},
+      m_sleeplock_wq_item{this} {}
 
 void Process::quit_process(int exit_code) {
     DBG::warnln("Process {} ({}) quit with code {}."_sv, name(), pid(), exit_code);
@@ -355,7 +358,8 @@ void ProcessManager::switch_context(Process& process) {
     m_current = &process;
 
     if (m_current->has_userspace()) {
-        do_switch_user_address_space(m_current->m_userspace_state->address_space_manager.raw_root_ptr());
+        auto requested_root = m_current->m_userspace_state->address_space_manager.raw_root_ptr();
+        do_switch_user_address_space(requested_root);
     }
     // Perform the switch - who knows when this function will return?
     do_context_switch(previous_registers, m_current->m_saved_registers);
@@ -366,6 +370,17 @@ ErrorCode ProcessManager::reap_process(Process& proc) {
     VERIFY(proc.ref_count() == 1);
     m_processes[proc.pid()] = nullptr;
     return ESUCCESS;
+}
+void ProcessManager::suspend_process() {
+    enter_critical();
+    m_current->set_state(ProcessState::Waiting);
+    exit_critical();
+    schedule();
+}
+void ProcessManager::wake_process(Process& proc) {
+    enter_critical();
+    proc.set_state(ProcessState::Running);
+    exit_critical();
 }
 
 // endregion
