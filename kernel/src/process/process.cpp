@@ -358,7 +358,8 @@ void ProcessManager::switch_context(Process& process) {
     m_current = &process;
 
     if (m_current->has_userspace()) {
-        do_switch_user_address_space(m_current->m_userspace_state->address_space_manager.raw_root_ptr());
+        auto requested_root = m_current->m_userspace_state->address_space_manager.raw_root_ptr();
+        do_switch_user_address_space(requested_root);
     }
     // Perform the switch - who knows when this function will return?
     do_context_switch(previous_registers, m_current->m_saved_registers);

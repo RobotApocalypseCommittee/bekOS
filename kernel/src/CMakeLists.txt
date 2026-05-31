@@ -52,6 +52,7 @@ add_executable(kernel
         process/interlink.cpp
         library/ringbuffer.cpp
         library/locking.cpp
+        library/waitqueue.cpp
         library/sleeplock.cpp
         library/completion.cpp
 )

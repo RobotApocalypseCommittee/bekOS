@@ -20,12 +20,16 @@
 
 #include "bek/assertions.h"
 
+#include "library/debug.h"
 #include "process/process.h"
+
+using DBG = DebugScope<"Completion", DebugLevel::INFO>;
 
 SingleProcessCompletion::SingleProcessCompletion(Process& proc): m_process(&proc) {}
 
 void SingleProcessCompletion::mark_complete() {
     m_flag = true;
+    DBG::infoln("Marking complete for process {}"_sv, m_process->pid());
     // We take lock to (a) order m_flag write/read with other lock acquires (b) prevent lost wake
     ScopeLocker locker{m_lock};
     if (m_process) {
@@ -34,6 +38,7 @@ void SingleProcessCompletion::mark_complete() {
 }
 void SingleProcessCompletion::wait_on() {
     VERIFY(m_process == &ProcessManager::the().current_process());
+    DBG::infoln("Waiting for completion for process {}"_sv, m_process->pid());
     // We obtain the lock whilst we suspend (if necessary) so that we can't miss the wake.
     auto irq_state = m_lock.acquire();
     // We use an atomic load to force a read (don't care about memory ordering)
@@ -48,4 +53,5 @@ void SingleProcessCompletion::wait_on() {
 
     // We have lock, and flag is set
     m_lock.release(irq_state);
+    DBG::infoln("Finished waiting for completion for process {}"_sv, m_process->pid());
 }

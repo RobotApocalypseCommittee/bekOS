@@ -19,7 +19,10 @@
 #include "library/locking.h"
 
 #include "interrupts/int_ctrl.h"
+#include "library/debug.h"
 #include "process/process.h"
+
+using DBG = DebugScope<"SpinLock", DebugLevel::INFO>;
 
 void SpinLock::acquire() {
     ProcessManager::the().enter_critical();
@@ -35,9 +38,11 @@ IrqSpinLock::irq_state_t IrqSpinLock::acquire() {
     // NB: don't need to enter critical because interrupts are off.
     while (__atomic_test_and_set(&locked, __ATOMIC_ACQUIRE)) {
     }
+    DBG::infoln("SpinLock held"_sv);
     return state;
 }
 void IrqSpinLock::release(irq_state_t irq_state) {
     __atomic_clear(&locked, __ATOMIC_RELEASE);
+    DBG::infoln("SpinLock released"_sv);
     restore_interrupts(irq_state);
 }
