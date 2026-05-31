@@ -44,6 +44,10 @@
         <arg name="id" type="u32"/>
         <arg name="size" type="Rect"/>
     </event>
+    <event name="focus_change">
+        <arg name="window_id" type="u32"/>
+        <arg name="focused" type="u32"/>
+    </event>
     <request name="flip_window">
         <arg name="window_id" type="u32"/>
         <arg name="surface_id" type="u32"/>

@@ -1,9 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
-
 project(Bekos ASM C CXX)
 set(CMAKE_CXX_STANDARD 20)
-
 add_compile_options(-Wall -Wextra -Waddress-of-packed-member -Wno-sized-deallocation -Wno-unused-parameter -Werror=return-type)
+add_compile_options(-O2 -g)
 
 option(FORCE_COLORED_OUTPUT "Always produce ANSI-colored output (GNU/Clang only)." FALSE)
 if (${FORCE_COLORED_OUTPUT})

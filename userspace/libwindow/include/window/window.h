@@ -21,8 +21,10 @@
 #include <bek/intrusive_shared_ptr.h>
 #include <bek/optional.h>
 
+#include "events.h"
 #include "gfx.h"
 #include "widgets/root.h"
+#include "widgets/window_frame.h"
 
 namespace window {
 
@@ -35,6 +37,7 @@ public:
 
     Vec size() const { return m_size; }
     void set_content(bek::shared_ptr<Widget> widget);
+    void set_decorated_content(bek::string title, bek::shared_ptr<Widget> content);
     void show(Application& app);
     void unshow();
     ~Window();
@@ -46,10 +49,21 @@ public:
     void queue_repaint(Rect rect);
 
     void on_mouse_move(MouseEvent evt);
+    void on_mouse_click(MouseEvent evt);
+    void on_key_down(KeyboardEvent evt);
+    void on_key_up(KeyboardEvent evt);
+    void on_focus_change(bool focused);
+    void on_configure(Rect new_rect);
+
+    void begin_move();
+    void request_close();
+
+    bool is_focused() const { return m_focused; }
 
 private:
     bek::shared_ptr<Application> m_application;
     bek::shared_ptr<Widget> m_hovered_widget;
+    bool m_focused{false};
     bek::optional<u32> m_id;
     Vec m_size;
     OwningBitmap m_front;

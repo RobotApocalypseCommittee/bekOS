@@ -8,7 +8,9 @@ add_library(bekos_libwindow src/core.cpp
         src/application.cpp
         src/window.cpp
         src/stack.cpp
-        src/label.cpp)
+        src/label.cpp
+        src/window_frame.cpp
+        src/tga.cpp)
 
 target_include_directories(bekos_libwindow PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 

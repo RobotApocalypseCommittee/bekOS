@@ -46,8 +46,8 @@ void window::Widget::invalidate_layout() {
 void window::Widget::update() {
     auto* current_widget = this;
     auto current_rect = m_relative_rect;
-    while (current_widget->parent()) {
-        current_widget = current_widget->parent();
+    while (current_widget->m_parent) {
+        current_widget = current_widget->m_parent;
         current_rect.origin += current_widget->m_relative_rect.origin;
     }
     if (current_widget->is_root()) {
@@ -57,8 +57,8 @@ void window::Widget::update() {
 
 window::RootWidget* window::Widget::get_root() {
     auto* current_widget = this;
-    while (current_widget->parent()) {
-        current_widget = current_widget->parent();
+    while (current_widget->m_parent) {
+        current_widget = current_widget->m_parent;
     }
     if (current_widget->is_root()) {
         return static_cast<RootWidget*>(current_widget);

@@ -62,6 +62,13 @@ void window::WindowServerRaw::window_state_change(u32 id, Rect size) {
     send_message(message);
 }
 
+void window::WindowServerRaw::focus_change(u32 window_id, u32 focused) {
+    ipc::Message message{ipc::enum_traits<window::WindowServerRaw::Messages, window::WindowServerRaw::Messages::END_OF_MESSAGES>::from_enum(window::WindowServerRaw::Messages::FOCUS_CHANGE)};
+    message.encode(window_id);
+    message.encode(focused);
+    send_message(message);
+}
+
 void window::WindowServerRaw::mouse_move(u32 window_id, Vec position, u32 buttons) {
     ipc::Message message{ipc::enum_traits<window::WindowServerRaw::Messages, window::WindowServerRaw::Messages::END_OF_MESSAGES>::from_enum(window::WindowServerRaw::Messages::MOUSE_MOVE)};
     message.encode(window_id);
@@ -112,6 +119,12 @@ ErrorCode window::WindowClientRaw::dispatch_message(u32 id, ipc::Message& buffer
         auto arg_id = EXPECTED_TRY(buffer.decode<u32>());
 auto arg_size = EXPECTED_TRY(buffer.decode<Rect>());
         on_window_state_change(arg_id, arg_size);
+        return ESUCCESS;
+        }
+case window::WindowServerRaw::Messages::FOCUS_CHANGE: {
+        auto arg_window_id = EXPECTED_TRY(buffer.decode<u32>());
+auto arg_focused = EXPECTED_TRY(buffer.decode<u32>());
+        on_focus_change(arg_window_id, arg_focused);
         return ESUCCESS;
         }
 case window::WindowServerRaw::Messages::MOUSE_MOVE: {

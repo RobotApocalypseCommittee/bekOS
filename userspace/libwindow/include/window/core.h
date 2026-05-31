@@ -127,6 +127,9 @@ inline constexpr Colour RED = from_rgb(0xff, 0, 0);
 inline constexpr Colour GREEN = from_rgb(0x00, 0xff, 0x00);
 inline constexpr Colour BLUE = from_rgb(0, 0, 0xff);
 
+inline constexpr u32 WINDOW_OP_MOVE = 1;
+inline constexpr u32 WINDOW_OP_RESIZE = 2;
+
 }
 
 #endif //BEKOS_WINDOW_CORE_H

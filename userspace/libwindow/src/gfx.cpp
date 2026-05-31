@@ -120,28 +120,28 @@ void window::Renderer::paint_rect(Colour c, Rect location) {
     location = location.intersection(m_context.confinement);
     VERIFY(location.is_positive());
     for (int y = location.y(); y < location.y() + location.height(); y++) {
-        auto* row_start = m_context.pixel_at(0, y);
-        for (int x = location.x(); x < location.x() + location.width(); x++) {
-            row_start[x] = c;
+        auto* row = m_context.pixel_at(location.x(), y);
+        for (int i = 0; i < location.width(); i++) {
+            row[i] = c;
         }
     }
 }
 void window::Renderer::paint_border(Colour c, Rect location, u32 thickness_u) {
     int thickness = static_cast<int>(thickness_u);
-    VERIFY(thickness >= location.height() && thickness >= location.width());
+    VERIFY(thickness <= location.height() && thickness <= location.width());
     location.origin += m_reference_region.origin;
     VERIFY(location.is_within(m_reference_region));
     location = location.intersection(m_context.confinement);
     VERIFY(location.is_positive());
     int y = location.y();
     for (; y < location.y() + thickness; y++) {
-        auto* row_start = m_context.pixel_at(y, 0);
+        auto* row_start = m_context.pixel_at(0, y);
         for (int x = location.x(); x < location.x() + location.width(); x++) {
             row_start[x] = c;
         }
     }
     for (; y < location.y() + location.height() - thickness; y++) {
-        auto* row_start = m_context.pixel_at(y, 0);
+        auto* row_start = m_context.pixel_at(0, y);
         for (int x = location.x(); x < location.x() + thickness; x++) {
             row_start[x] = c;
         }
@@ -150,7 +150,7 @@ void window::Renderer::paint_border(Colour c, Rect location, u32 thickness_u) {
         }
     }
     for (; y < location.y() + location.height(); y++) {
-        auto* row_start = m_context.pixel_at(y, 0);
+        auto* row_start = m_context.pixel_at(0, y);
         for (int x = location.x(); x < location.x() + location.width(); x++) {
             row_start[x] = c;
         }
@@ -207,10 +207,31 @@ void window::Renderer::paint_bitmap_with_transparency(const OwningBitmap& bitmap
     VERIFY(region.is_within(m_reference_region));
     VERIFY(region.is_positive());
     for (int row = 0; row < region.height(); row++) {
+        u32* dst_row = m_context.pixel_at(region.x(), region.y() + row);
+        const u32* src_row = bitmap.pixel_at(bitmap_rect.x(), bitmap_rect.y() + row);
         for (int col = 0; col < region.width(); col++) {
+            u32 src = src_row[col];
+            u8 a = (src >> 24) & 0xFFu;
+            if (a == 0) {
+                continue;
+            }
+            if (a == 0xFF) {
+                dst_row[col] = src;
+                continue;
+            }
+            u32 dst = dst_row[col];
+            u8 inv_a = 0xFFu - a;
+            u32 sr = (src >> 16) & 0xFFu;
+            u32 sg = (src >> 8) & 0xFFu;
+            u32 sb = src & 0xFFu;
+            u32 dr = (dst >> 16) & 0xFFu;
+            u32 dg = (dst >> 8) & 0xFFu;
+            u32 db = dst & 0xFFu;
+            u32 r = (sr * a + dr * inv_a) / 0xFFu;
+            u32 g = (sg * a + dg * inv_a) / 0xFFu;
+            u32 b = (sb * a + db * inv_a) / 0xFFu;
+            dst_row[col] = (0xFFu << 24) | (r << 16) | (g << 8) | b;
         }
-        bek::memcopy(m_context.pixel_at(region.x(), region.y() + row),
-                     bitmap.pixel_at(bitmap_rect.x(), bitmap_rect.y() + row), bitmap_rect.width() * PIXEL_BYTES);
     }
 }
 window::Vec window::measure_text(bek::str_view text) {

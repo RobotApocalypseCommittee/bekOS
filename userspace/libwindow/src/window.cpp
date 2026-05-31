@@ -26,6 +26,12 @@ window::Window::Window(Vec size, OwningBitmap front, OwningBitmap back)
       m_back(bek::move(back)),
       m_root_widget(*this) {}
 
+void window::Window::set_decorated_content(bek::string title, bek::shared_ptr<Widget> content) {
+    auto frame = bek::adopt_shared(new WindowFrame(bek::move(title)));
+    frame->set_content(bek::move(content));
+    set_content(frame);
+}
+
 void window::Window::set_content(bek::shared_ptr<Widget> widget) {
     m_root_widget.set_widget(bek::move(widget));
     if (m_application) {
@@ -79,15 +85,56 @@ void window::Window::queue_repaint(Rect rect) {
 }
 void window::Window::on_mouse_move(MouseEvent mouse_event) {
     auto& widget = m_root_widget.hit_test(mouse_event.location);
-    if (m_hovered_widget != &widget) {
+    if (m_hovered_widget && m_hovered_widget != &widget) {
         {
             bek::shared_ptr<Widget> new_hovered{&widget};
             m_hovered_widget->on_mouse_leave(mouse_event);
             m_hovered_widget = bek::move(new_hovered);
         }
         m_hovered_widget->on_mouse_enter(mouse_event);
-    } else {
+    } else if (m_hovered_widget) {
         m_hovered_widget->on_mouse_move(mouse_event);
+    } else {
+        m_hovered_widget = {&widget};
+        m_hovered_widget->on_mouse_enter(mouse_event);
+    }
+}
+
+void window::Window::on_mouse_click(MouseEvent mouse_event) {
+    auto& widget = m_root_widget.hit_test(mouse_event.location);
+    if (mouse_event.buttons) {
+        widget.on_mouse_down(mouse_event);
+    } else {
+        widget.on_mouse_up(mouse_event);
+    }
+}
+
+void window::Window::on_key_down(KeyboardEvent) {
+    // Future: forward to focused widget
+}
+
+void window::Window::on_key_up(KeyboardEvent) {
+    // Future: forward to focused widget
+}
+
+void window::Window::on_focus_change(bool focused) {
+    m_focused = focused;
+    queue_repaint({{0, 0}, m_size});
+}
+
+void window::Window::on_configure(Rect) {
+    // Future: resize buffers and relayout
+}
+
+void window::Window::begin_move() {
+    if (m_application) {
+        m_application->begin_window_operation(*this, window::WINDOW_OP_MOVE);
+    }
+}
+
+void window::Window::request_close() {
+    if (m_application) {
+        m_application->schedule_close(*this);
     }
 }
 

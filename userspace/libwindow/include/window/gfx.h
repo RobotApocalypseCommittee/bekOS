@@ -112,6 +112,8 @@ private:
 };
 Vec measure_text(bek::str_view text);
 
+core::expected<OwningBitmap> load_tga(bek::str_view path);
+
 }  // namespace window
 
 #endif  // BEKOS_WINDOW_GFX_H

@@ -34,7 +34,7 @@ int main() {
     core::fprintln(core::stderr, "about: app created"_sv);
 
     core::fprintln(core::stderr, "about: creating window"_sv);
-    auto win_result = window::Window::create({300, 200});
+    auto win_result = window::Window::create({300, 230});
     if (win_result.has_error()) {
         core::fprintln(core::stderr, "Failed to create window: {}"_sv, win_result.error());
         return -1;
@@ -57,7 +57,7 @@ int main() {
     stack->add_widget(*version_label);
     core::fprintln(core::stderr, "about: widgets added to stack"_sv);
 
-    win->set_content(stack);
+    win->set_decorated_content(bek::string("About bekOS"_sv), stack);
     core::fprintln(core::stderr, "about: content set"_sv);
     win->show(*app);
     core::fprintln(core::stderr, "about: window shown"_sv);

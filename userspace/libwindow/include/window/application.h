@@ -44,6 +44,7 @@ private:
         u32 window_id;
         bool repaint_scheduled;
         bool relayout_scheduled;
+        bool close_scheduled{false};
     };
 
     void register_window(bek::shared_ptr<Window> window);
@@ -56,6 +57,9 @@ private:
     void reregister_surface(Window& window, u32 id, OwningBitmap& bitmap);
 
     void blit_surface(Window& window, u32 id);
+    void begin_window_operation(Window& window, u32 operation);
+    void schedule_close(Window& window);
+    void close_window(WindowData& data);
 
     WindowData& window_data(const Window& win);
 
@@ -66,6 +70,7 @@ private:
     bek::vector<bool> m_surfaces_allocated;
     bool should_quit{};
     friend class Window;
+    friend class internal::WindowServerConnection;
 };
 
 }  // namespace window

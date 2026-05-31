@@ -29,6 +29,11 @@
 
 u64 current_time;
 i32 starting_coords;
+window::Rect g_damage;
+
+void damage(window::Rect region) {
+    g_damage = g_damage.union_with(region);
+}
 
 template <typename... Args>
 void dbgln(bek::str_view view, Args&&... args) {
@@ -74,8 +79,11 @@ public:
     u64 stride() const { return m_framebuffer.row_stride; }
     u8* framebuffer() const { return reinterpret_cast<u8*>(m_framebuffer.buffer); }
 
-    void flush() {
-        auto flush_msg = protocol::fb::FlushRectMessage{protocol::fb::FlushRect, {0, 0, height(), width()}};
+    void flush(window::Rect region) {
+        auto flush_msg = protocol::fb::FlushRectMessage{
+            protocol::fb::FlushRect,
+            {static_cast<u16>(region.x()), static_cast<u16>(region.y()), static_cast<u16>(region.height()),
+             static_cast<u16>(region.width())}};
         auto res = core::syscall::message(m_ed, 0, &flush_msg, sizeof(flush_msg));
         if (res.has_error()) {
             core::fprintln(core::stdout, "Failed to flush!"_sv);
@@ -145,30 +153,51 @@ struct MouseDevice {
         protocols::mouse::GetReportMessage message{protocols::mouse::GetReport, {}};
         EXPECTED_TRY(core::syscall::message(m_ed, 0, &message, sizeof(message)));
 
+        m_prev_buttons = m_last_report.buttons;
         if (message.report.sequence_number != m_last_report.sequence_number) {
-            // dbgln("New Mouse Message: ({}, {})"_sv, message.report.delta_x, message.report.delta_y);
             if (message.report.sequence_number - m_last_report.sequence_number > 1) {
                 dbgln("Caution: missed sequence number: {} -> {}"_sv, m_last_report.sequence_number,
                       message.report.sequence_number);
             }
             m_last_report = message.report;
+            auto old_location = m_location;
             m_location.x = bek::max(m_bounds.x(), bek::min(m_bounds.right(), m_location.x + message.report.delta_x));
             m_location.y = bek::max(m_bounds.y(), bek::min(m_bounds.bottom(), m_location.y + message.report.delta_y));
+            m_delta = m_location - old_location;
+        } else {
+            m_delta = {0, 0};
         }
         return ESUCCESS;
     }
 
     window::Vec position() const { return m_location; }
-
+    window::Vec delta() const { return m_delta; }
+    u8 buttons() const { return m_last_report.buttons; }
     bool is_clicked(u8 button) const { return m_last_report.buttons & (1 << button); }
+    bool just_pressed(u8 button) const { return (m_last_report.buttons & (1 << button)) && !(m_prev_buttons & (1 << button)); }
+    bool just_released(u8 button) const { return !(m_last_report.buttons & (1 << button)) && (m_prev_buttons & (1 << button)); }
 
 private:
     MouseDevice(window::Rect bounds, long ed): m_bounds(bounds), m_ed(ed) {}
     protocols::mouse::Report m_last_report{};
     window::Vec m_location{};
+    window::Vec m_delta{};
+    u8 m_prev_buttons{0};
     window::Rect m_bounds;
     long m_ed;
 };
+
+class WindowServerConnection;
+
+struct WindowGrab {
+    WindowServerConnection* connection = nullptr;
+    u32 window_id = 0;
+    u32 operation = 0;
+};
+
+WindowServerConnection* g_focused_connection = nullptr;
+u32 g_focused_window_id = 0;
+WindowGrab g_grab;
 
 class WindowServerConnection final: public window::WindowServerRaw {
 public:
@@ -187,6 +216,29 @@ public:
     explicit WindowServerConnection(int fd): WindowServerRaw(fd) {}
     ~WindowServerConnection() override = default;
 
+
+    Window* get_window(u32 id) {
+        for (auto& win : m_windows) {
+            if (win.id == id) {
+                return &win;
+            }
+        }
+        return nullptr;
+    }
+
+    bek::vector<Window>& windows() { return m_windows; }
+
+    void raise_window(u32 window_id) {
+        for (uSize i = 0; i < m_windows.size(); i++) {
+            if (m_windows[i].id == window_id && i + 1 < m_windows.size()) {
+                auto win = bek::move(m_windows[i]);
+                m_windows.extract(m_windows[i]);
+                m_windows.push_back(bek::move(win));
+                break;
+            }
+        }
+    }
+
     void on_create_surface(u32 id, window::OwningBitmap region) override {
         // TODO: Replacing surfaces.
         if (get_surface(id)) return;
@@ -202,6 +254,7 @@ public:
             .placement = {{starting_coords, starting_coords}, {requested_size.x, requested_size.y}},
         });
         starting_coords += 50;
+        damage(m_windows.back().placement);
     }
     void on_flip_window(u32 window_id, u32 surface_id) override {
         auto* win = get_window(window_id);
@@ -218,23 +271,19 @@ public:
         win->current_surface_id = surface_id;
         surf->in_use++;
         win->placement.size = window::Vec(surf->bitmap.width(), surf->bitmap.height());
+        damage(win->placement);
     }
-    void on_begin_window_operation(u32 window_id, u32 operation) override {}
-    void on_ping_response() override { last_pong_time = current_time; }
-
-    void blit(window::RenderContext& ctx) {
-        window::Renderer renderer{ctx, ctx.render_rect()};
-        for (auto& win : m_windows) {
-            if (win.current_surface_id) {
-                for (auto& surf : m_surfaces) {
-                    if (surf.id == *win.current_surface_id) {
-                        // Let's gooo
-                        renderer.paint_bitmap(surf.bitmap, win.placement, {0, 0});
-                    }
-                }
-            }
+    void on_begin_window_operation(u32 window_id, u32 operation) override {
+        if (operation == window::WINDOW_OP_MOVE) {
+            auto* win = get_window(window_id);
+            if (!win) return;
+            g_grab.connection = this;
+            g_grab.window_id = window_id;
+            g_grab.operation = operation;
         }
     }
+    void on_ping_response() override { last_pong_time = current_time; }
+
     void on_reconfigure_surface(u32 id, window::Vec size, u32 stride) override {
         auto* surf = get_surface(id);
         if (!surf) {
@@ -259,19 +308,11 @@ public:
     void on_destroy_window(u32 id) override {
         auto* win = get_window(id);
         if (win) {
+            damage(win->placement);
             m_windows.extract(*win);
         }
     }
 
-private:
-    Window* get_window(u32 id) {
-        for (auto& win : m_windows) {
-            if (win.id == id) {
-                return &win;
-            }
-        }
-        return nullptr;
-    }
     Surface* get_surface(u32 id) {
         for (auto& surf : m_surfaces) {
             if (surf.id == id) {
@@ -281,6 +322,7 @@ private:
         return nullptr;
     }
 
+private:
     bek::vector<Surface> m_surfaces;
     bek::vector<Window> m_windows;
     u64 last_ping_time{0};
@@ -304,6 +346,20 @@ core::expected<bek::string> get_device_address(DeviceProtocol protocol) {
         return EFAIL;
     }
     return devices[0].name;
+}
+
+bek::pair<WindowServerConnection*, WindowServerConnection::Window*> hit_test_global(
+    bek::vector<bek::own_ptr<WindowServerConnection>>& connections, window::Vec pos) {
+    for (uSize ci = connections.size(); ci > 0; ci--) {
+        auto& conn = connections[ci - 1];
+        auto& wins = conn->windows();
+        for (uSize wi = wins.size(); wi > 0; wi--) {
+            if (wins[wi - 1].placement.contains(pos)) {
+                return {conn.get(), &wins[wi - 1]};
+            }
+        }
+    }
+    return {nullptr, nullptr};
 }
 
 inline constexpr uSize FREQUENCY = 10;
@@ -333,6 +389,7 @@ core::expected<int> run() {
         EXPECTED_TRY_MESSAGE(core::syscall::interlink::advertise("windowserver"_sv, 0), "advertise() failed");
 
     starting_coords = 50;
+    g_damage = ctx.render_rect();
     u64 last_blit = core::syscall::get_ticks();
     window::Vec last_mouse_position{};
 
@@ -359,24 +416,116 @@ core::expected<int> run() {
         }
 
         mouse->update();
-        // Next, we blit!
-        if (current_time - last_blit > NS_PER_FRAME) {
-            window::Renderer renderer{ctx, ctx.render_rect()};
-            auto old_mouse_rect = window::Rect{last_mouse_position, {50, 50}}.intersection(ctx.render_rect());
-            renderer.paint_rect(0, old_mouse_rect);
 
-            for (auto& connection : connections) {
-                connection->blit(ctx);
+        // Keyboard forwarding
+        char key_char = kb->get_update();
+        if (key_char && g_focused_connection) {
+            g_focused_connection->keydown(g_focused_window_id, static_cast<u32>(key_char));
+        }
+
+        // Window grab (move) handling
+        if (g_grab.operation == window::WINDOW_OP_MOVE && g_grab.connection) {
+            auto* win = g_grab.connection->get_window(g_grab.window_id);
+            if (win) {
+                damage(win->placement);
+                win->placement.origin += mouse->delta();
+                damage(win->placement);
             }
+            if (mouse->just_released(0)) {
+                if (win) {
+                    g_grab.connection->window_state_change(g_grab.window_id, win->placement);
+                }
+                g_grab = {};
+            }
+        } else {
+            // Mouse click handling (focus + forwarding)
+            if (mouse->just_pressed(0)) {
+                auto [conn, win] = hit_test_global(connections, mouse->position());
+                if (conn && win) {
+                    // Focus change
+                    if (g_focused_connection != conn || g_focused_window_id != win->id) {
+                        if (g_focused_connection) {
+                            g_focused_connection->focus_change(g_focused_window_id, 0);
+                        }
+                        g_focused_connection = conn;
+                        g_focused_window_id = win->id;
+                        g_focused_connection->focus_change(g_focused_window_id, 1);
+                        damage(win->placement);
+                        conn->raise_window(win->id);
+                        // Raise connection to top of z-order
+                        for (uSize i = 0; i + 1 < connections.size(); i++) {
+                            if (connections[i].get() == conn) {
+                                auto c = bek::move(connections[i]);
+                                connections.extract(connections[i]);
+                                connections.push_back(bek::move(c));
+                                break;
+                            }
+                        }
+                    }
+                    // Forward click
+                    window::Vec local_pos = mouse->position() - win->placement.origin;
+                    conn->mouse_click(win->id, local_pos, mouse->buttons());
+                }
+            }
+
+            if (mouse->just_released(0)) {
+                auto [conn, win] = hit_test_global(connections, mouse->position());
+                if (conn && win) {
+                    window::Vec local_pos = mouse->position() - win->placement.origin;
+                    conn->mouse_click(win->id, local_pos, mouse->buttons());
+                }
+            }
+
+            // Mouse move forwarding
+            if (mouse->delta().x != 0 || mouse->delta().y != 0) {
+                auto [conn, win] = hit_test_global(connections, mouse->position());
+                if (conn && win) {
+                    window::Vec local_pos = mouse->position() - win->placement.origin;
+                    conn->mouse_move(win->id, local_pos, mouse->buttons());
+                }
+            }
+        }
+
+        // Mouse cursor damage
+        if (mouse->position().x != last_mouse_position.x || mouse->position().y != last_mouse_position.y) {
+            damage(window::Rect{last_mouse_position, {12, 12}});
+            damage(window::Rect{mouse->position(), {12, 12}});
             last_mouse_position = mouse->position();
-            auto new_mouse_rect = window::Rect{last_mouse_position, {50, 50}}.intersection(ctx.render_rect());
-            renderer.paint_rect(mouse->is_clicked(0) ? window::BLUE : window::RED, new_mouse_rect);
-            fb->flush();
+        }
+
+        // Compositing
+        if (current_time - last_blit > NS_PER_FRAME && !g_damage.is_null()) {
+            auto damage_region = g_damage.intersection(ctx.render_rect());
+            g_damage = {{0, 0}, {0, 0}};
+
+            // Clear damaged area
+            window::Renderer renderer{ctx, ctx.render_rect()};
+            renderer.paint_rect(0, damage_region);
+
+            // Reblit all windows overlapping damage, back-to-front
+            for (auto& connection : connections) {
+                for (auto& win : connection->windows()) {
+                    if (win.current_surface_id && win.placement.overlaps(damage_region)) {
+                        auto* surf = connection->get_surface(*win.current_surface_id);
+                        if (surf) {
+                            renderer.paint_bitmap(surf->bitmap, win.placement, {0, 0});
+                        }
+                    }
+                }
+            }
+
+            // Draw cursor
+            auto cursor_rect = window::Rect{last_mouse_position, {12, 12}}.intersection(ctx.render_rect());
+            renderer.paint_rect(mouse->is_clicked(0) ? window::BLUE : window::RED, cursor_rect);
+
+            fb->flush(damage_region);
             current_time = core::syscall::get_ticks();
             if (current_time - last_blit > BAD_FRAME_LENGTH) {
                 dbgln("Bad frame length: {}"_sv, current_time - last_blit);
             }
             last_blit = current_time;
+        } else if (g_damage.is_null()) {
+            core::syscall::sleep(1000);
         }
     }
     return 0;

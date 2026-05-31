@@ -67,3 +67,5 @@ CMakeUserPresets.json
 
 /out/
 /build/
+
+/.claude/

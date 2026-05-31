@@ -25,6 +25,11 @@ class Window;
 class RootWidget: public Widget {
 public:
     bool is_root() const final { return true; }
+    Window& window() { return m_window; }
+    bek::span<bek::shared_ptr<Widget>> children() override {
+        if (m_widget) return {&m_widget, 1};
+        return {};
+    }
     void notify_relayout_needed();
     void notify_repaint_needed(Rect invalid_rect);
     Vec do_layout(LayoutConstraints constraints) override;

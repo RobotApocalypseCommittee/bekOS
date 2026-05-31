@@ -25,29 +25,69 @@
 class window::internal::WindowServerConnection: public WindowClientRaw {
 public:
     using WindowClientRaw::WindowClientRaw;
+    void set_app(Application* app) { m_app = app; }
     void on_window_state_change(u32 id, window::Rect size) override;
+    void on_focus_change(u32 window_id, u32 focused) override;
     void on_mouse_move(u32 window_id, Vec position, u32 buttons) override;
     void on_mouse_click(u32 window_id, Vec position, u32 buttons) override;
     void on_keydown(u32 window_id, u32 codepoint) override;
     void on_keyup(u32 window_id, u32 codepoint) override;
     void on_ping() override { ping_response(); }
     void on_error(ErrorCode code) override;
+
+private:
+    Window* find_window(u32 id) {
+        for (auto& data : m_app->m_windows) {
+            if (data.window_id == id) return data.window.get();
+        }
+        return nullptr;
+    }
+    Application* m_app{nullptr};
 };
 
 void window::internal::WindowServerConnection::on_window_state_change(u32 id, window::Rect size) {
-    // TODO: Handle window resize from server
+    if (auto* win = find_window(id)) {
+        win->on_configure(size);
+    }
+}
+void window::internal::WindowServerConnection::on_focus_change(u32 window_id, u32 focused) {
+    if (auto* win = find_window(window_id)) {
+        win->on_focus_change(focused != 0);
+    }
 }
 void window::internal::WindowServerConnection::on_mouse_move(u32 window_id, Vec position, u32 buttons) {
-    // TODO: Dispatch to window
+    if (auto* win = find_window(window_id)) {
+        MouseEvent evt{};
+        evt.location = position;
+        evt.button = static_cast<MouseEvent::Button>(0);
+        evt.buttons = static_cast<MouseEvent::Button>(buttons);
+        win->on_mouse_move(evt);
+    }
 }
 void window::internal::WindowServerConnection::on_mouse_click(u32 window_id, Vec position, u32 buttons) {
-    // TODO: Dispatch to window
+    if (auto* win = find_window(window_id)) {
+        MouseEvent evt{};
+        evt.location = position;
+        evt.button = MouseEvent::Left;
+        evt.buttons = static_cast<MouseEvent::Button>(buttons);
+        win->on_mouse_click(evt);
+    }
 }
 void window::internal::WindowServerConnection::on_keydown(u32 window_id, u32 codepoint) {
-    // TODO: Dispatch to window
+    if (auto* win = find_window(window_id)) {
+        KeyboardEvent evt{};
+        evt.key_code = codepoint;
+        evt.character = static_cast<char>(codepoint);
+        win->on_key_down(evt);
+    }
 }
 void window::internal::WindowServerConnection::on_keyup(u32 window_id, u32 codepoint) {
-    // TODO: Dispatch to window
+    if (auto* win = find_window(window_id)) {
+        KeyboardEvent evt{};
+        evt.key_code = codepoint;
+        evt.character = static_cast<char>(codepoint);
+        win->on_key_up(evt);
+    }
 }
 void window::internal::WindowServerConnection::on_error(ErrorCode code) {
     // TODO: Handle error from server
@@ -57,6 +97,7 @@ core::expected<bek::shared_ptr<window::Application>> window::Application::create
     auto fd = EXPECTED_TRY(core::syscall::interlink::connect("windowserver"_sv, 0));
     auto app = bek::adopt_shared(new Application(bek::move(name)));
     app->m_connection = bek::make_own<internal::WindowServerConnection>(fd);
+    app->m_connection->set_app(app.get());
     return app;
 }
 core::expected<int> window::Application::main_loop() {
@@ -73,10 +114,23 @@ core::expected<int> window::Application::main_loop() {
                 win.repaint_scheduled = false;
             }
         }
+        // Process deferred closes after event dispatch is complete
+        for (uSize i = 0; i < m_windows.size();) {
+            if (m_windows[i].close_scheduled) {
+                close_window(m_windows[i]);
+            } else {
+                i++;
+            }
+        }
+        if (m_windows.size() == 0) should_quit = true;
     }
     return 0;
 }
-window::Application::~Application() = default;
+window::Application::~Application() {
+    while (m_windows.size() > 0) {
+        close_window(m_windows[0]);
+    }
+}
 
 void window::Application::blit_surface(Window& window, u32 id) {
     for (auto& held_win : m_windows) {
@@ -109,12 +163,25 @@ void window::Application::register_window(bek::shared_ptr<Window> window) {
 }
 
 void window::Application::remove_window(Window& window) {
-    for (const auto& held_window : m_windows) {
-        if (held_window.window == &window) {
-            m_windows.extract(held_window);
-        }
-    }
-    // TODO: Remove from windowserver!
+    schedule_close(window);
+}
+
+void window::Application::schedule_close(Window& window) {
+    auto& data = window_data(window);
+    data.close_scheduled = true;
+}
+
+void window::Application::close_window(WindowData& data) {
+    m_connection->destroy_window(data.window_id);
+    m_connection->destroy_surface(data.window->m_surface_ids.first);
+    m_connection->destroy_surface(data.window->m_surface_ids.second);
+    if (data.window->m_surface_ids.first < m_surfaces_allocated.size())
+        m_surfaces_allocated[data.window->m_surface_ids.first] = false;
+    if (data.window->m_surface_ids.second < m_surfaces_allocated.size())
+        m_surfaces_allocated[data.window->m_surface_ids.second] = false;
+    data.window->m_application = nullptr;
+    data.window->m_surface_ids = {};
+    m_windows.extract(data);
 }
 void window::Application::schedule_repaint(Window& window) {
     auto& data = window_data(window);
@@ -138,6 +205,10 @@ u32 window::Application::register_surface(Window& window, const OwningBitmap& bi
     }
     m_connection->create_surface(id, bitmap);
     return id;
+}
+void window::Application::begin_window_operation(Window& window, u32 operation) {
+    auto& data = window_data(window);
+    m_connection->begin_window_operation(data.window_id, operation);
 }
 void window::Application::reregister_surface(Window& window, u32 id, OwningBitmap& bitmap) {
     m_connection->reconfigure_surface(id, {static_cast<int>(bitmap.width()), static_cast<int>(bitmap.height())},

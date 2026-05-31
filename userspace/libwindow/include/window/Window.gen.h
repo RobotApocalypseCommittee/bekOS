@@ -11,6 +11,7 @@ public:
     using Connection::Connection;
     enum class Messages: u32 {
     WINDOW_STATE_CHANGE,
+    FOCUS_CHANGE,
     MOUSE_MOVE,
     MOUSE_CLICK,
     KEYDOWN,
@@ -20,6 +21,7 @@ public:
     END_OF_MESSAGES
     };
     void window_state_change(u32 id, Rect size);
+    void focus_change(u32 window_id, u32 focused);
     void mouse_move(u32 window_id, Vec position, u32 buttons);
     void mouse_click(u32 window_id, Vec position, u32 buttons);
     void keydown(u32 window_id, u32 codepoint);
@@ -61,6 +63,7 @@ public:
     void begin_window_operation(u32 window_id, u32 operation);
     void ping_response();
     virtual void on_window_state_change(u32 id, Rect size) = 0;
+    virtual void on_focus_change(u32 window_id, u32 focused) = 0;
     virtual void on_mouse_move(u32 window_id, Vec position, u32 buttons) = 0;
     virtual void on_mouse_click(u32 window_id, Vec position, u32 buttons) = 0;
     virtual void on_keydown(u32 window_id, u32 codepoint) = 0;
